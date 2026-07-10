@@ -1,0 +1,20 @@
+name: Guard main source branch
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify PR head is develop or hotfix/*
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [[ "$HEAD_REF" == "develop" || "$HEAD_REF" == hotfix/* ]]; then
+            echo "OK: PR from '$HEAD_REF' is allowed into main."
+            exit 0
+          fi
+          echo "::error::PRs into main must come from 'develop' or 'hotfix/*'. Got '$HEAD_REF'."
+          exit 1

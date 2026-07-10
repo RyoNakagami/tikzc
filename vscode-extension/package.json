@@ -1,0 +1,158 @@
+{
+  "name": "tikzc-preview",
+  "displayName": "TikZc Editor",
+  "description": "WYSIWYG TikZ editor (vendored tikz-editor) with SVG/PNG export via lualatex + dvisvgm",
+  "version": "0.1.0",
+  "publisher": "RyoNak",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RyoNakagami/tikzc.git",
+    "directory": "vscode-extension"
+  },
+  "bugs": {
+    "url": "https://github.com/RyoNakagami/tikzc/issues"
+  },
+  "homepage": "https://github.com/RyoNakagami/tikzc#readme",
+  "icon": "images/icon.png",
+  "private": true,
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Visualization", "SVG", "PNG", "TikZ", "LaTeX"],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:tikz"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "tikz",
+        "aliases": ["TikZ"],
+        "extensions": [".tikz"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "tikzc.showPreview",
+        "title": "TikZ: Open Editor to the Side",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "tikzc.exportSvg",
+        "title": "TikZ: Export as SVG"
+      },
+      {
+        "command": "tikzc.exportPng",
+        "title": "TikZ: Export as PNG"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "tikzc.showPreview",
+          "when": "editorLangId == tikz",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        { "command": "tikzc.showPreview", "when": "editorLangId == tikz" },
+        { "command": "tikzc.exportSvg", "when": "editorLangId == tikz" },
+        { "command": "tikzc.exportPng", "when": "editorLangId == tikz" }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "tikzc.showPreview",
+        "key": "ctrl+k v",
+        "mac": "cmd+k v",
+        "when": "editorLangId == tikz"
+      }
+    ],
+    "configuration": {
+      "title": "TikZ Preview (tikzc)",
+      "properties": {
+        "tikzc.mainfont": {
+          "type": "string",
+          "default": "",
+          "description": "fontspec main font for CJK labels (empty = IPAexMincho)"
+        },
+        "tikzc.extraPackages": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Extra \\usepackage applied to every diagram"
+        },
+        "tikzc.extraLibraries": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Extra \\usetikzlibrary applied to every diagram"
+        },
+        "tikzc.pngDpi": {
+          "type": "number",
+          "default": 300,
+          "description": "Resolution for PNG export"
+        },
+        "tikzc.debounceMs": {
+          "type": "number",
+          "default": 400,
+          "description": "Delay after the last keystroke before recompiling the preview"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "npm run build:ext && npm run build:webview",
+    "build:ext": "esbuild src/extension.ts --bundle --platform=node --target=node18 --format=cjs --external:vscode --outfile=dist/extension.js",
+    "build:webview": "vite build",
+    "check": "tsc --noEmit && tsc -p webview/tsconfig.json && tsc -p tests/tsconfig.json",
+    "test": "tsx --test tests/*.test.ts",
+    "package": "npm run build && vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/commands": "^6.10.2",
+    "@codemirror/lang-xml": "^6.1.0",
+    "@codemirror/language": "^6.12.1",
+    "@codemirror/lint": "^6.9.7",
+    "@codemirror/search": "^6.7.1",
+    "@codemirror/state": "^6.5.4",
+    "@codemirror/view": "^6.39.14",
+    "@lezer/common": "^1.5.1",
+    "@lezer/highlight": "^1.2.3",
+    "@lezer/lr": "^1.4.8",
+    "@mathjax/mathjax-newcm-font": "^4.1.1",
+    "@mathjax/src": "^4.1.1",
+    "@remixicon/react": "^4.9.0",
+    "flexlayout-react": "^0.8.19",
+    "ipe2tikz": "^1.0.0",
+    "jspdf": "^4.2.0",
+    "keynote-clipboard": "^1.2.0",
+    "mathlive": "^0.107.1",
+    "pptx2tikz": "^1.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "svg2pdf.js": "^2.7.0",
+    "svg2tikz": "^0.1.1",
+    "svgo": "^4.0.1",
+    "xcolor-rgb-convert": "^1.0.0",
+    "xml-formatter": "^3.6.7",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.23.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  }
+}

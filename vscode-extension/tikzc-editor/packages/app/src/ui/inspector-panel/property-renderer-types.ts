@@ -1,0 +1,66 @@
+import type { JSX } from "react";
+import type { InspectorProperty } from "tikz-editor/edit/inspector";
+import type { NamedColorSwatch } from "../../colors/project-named-colors";
+import type { InspectorPropertyProvenance, MultiInspectorProperty } from "./panel-helpers";
+
+export type RenderPropertyApi = {
+  renderedSinglePropertyProvenance: Record<string, InspectorPropertyProvenance | null | undefined>;
+  renderedMultiPropertyProvenance: Record<string, InspectorPropertyProvenance | null | undefined>;
+  projectNamedColorSwatches: readonly NamedColorSwatch[];
+  manualLineWidthCustomKeys: ReadonlySet<string>;
+
+  implicitDefaultProvenance(this: void, property: InspectorProperty | MultiInspectorProperty): InspectorPropertyProvenance | null;
+  withValueProvenanceClass(this: void, className: string | undefined, provenance: InspectorPropertyProvenance | null): string | undefined;
+  maybeWrapWithProvenanceTooltip(this: void, provenance: InspectorPropertyProvenance | null, child: JSX.Element, block?: boolean): JSX.Element;
+  renderReadOnlyReasonNote(this: void, reason: string | null | undefined): JSX.Element | null;
+
+  renderSingleTextField(this: void, property: Extract<InspectorProperty, { kind: "text" }>, provenance: InspectorPropertyProvenance | null): JSX.Element;
+  renderSingleNumberField(this: void, property: Extract<InspectorProperty, { kind: "number" }>, compact: boolean, provenance: InspectorPropertyProvenance | null): JSX.Element;
+  renderSingleLengthField(this: void, property: Extract<InspectorProperty, { kind: "length" }>, compact: boolean, provenance: InspectorPropertyProvenance | null): JSX.Element;
+  renderSingleOptionalLengthField(this: void, property: Extract<InspectorProperty, { kind: "optionalLength" }>, showLabel: boolean, provenance: InspectorPropertyProvenance | null): JSX.Element;
+  renderMultiNumberField(this: void, property: Extract<MultiInspectorProperty, { kind: "number" }>, compact: boolean, provenance: InspectorPropertyProvenance | null): JSX.Element;
+  renderMultiLengthField(this: void, property: Extract<MultiInspectorProperty, { kind: "length" }>, compact: boolean, provenance: InspectorPropertyProvenance | null): JSX.Element;
+  renderMultiOptionalLengthField(this: void, property: Extract<MultiInspectorProperty, { kind: "optionalLength" }>, showLabel: boolean, provenance: InspectorPropertyProvenance | null): JSX.Element;
+  renderNodeTextAlignToolbar(this: void, ...args: unknown[]): JSX.Element;
+  renderScrubbableNumberLabel(this: void, ...args: unknown[]): JSX.Element;
+  renderNodeFontToolbar(this: void, ...args: unknown[]): JSX.Element;
+
+  applySingleLengthValue(this: void, ...args: unknown[]): void;
+  applyMultiLengthValue(this: void, ...args: unknown[]): void;
+  commitAfterHoverPreview(this: void, ...args: unknown[]): void;
+  applyNodeShapeValue(this: void, ...args: unknown[]): void;
+  applyNodeShapeValueMany(this: void, ...args: unknown[]): void;
+  applyHoverPreview(this: void, ...args: unknown[]): void;
+  clearHoverPreviewSession(this: void, ...args: unknown[]): void;
+  restoreHoverPreviewBase(this: void, ...args: unknown[]): void;
+  applyNodeFontValue(this: void, ...args: unknown[]): void;
+  applyNodeFontValueMany(this: void, ...args: unknown[]): void;
+  normalizeColorSetPropertyChange(this: void, ...args: unknown[]): { value: string | null; clearKeys?: readonly string[] };
+  applySetProperty(this: void, ...args: unknown[]): void;
+  applySetPropertyMany(this: void, ...args: unknown[]): void;
+  applyFillModeValue(this: void, ...args: unknown[]): void;
+  applyFillModeValueMany(this: void, ...args: unknown[]): void;
+  setFillAdvancedOptionsOpen(this: void, value: boolean): void;
+  applyFillShadingValue(this: void, ...args: unknown[]): void;
+  applyFillShadingValueMany(this: void, ...args: unknown[]): void;
+  applyFillPatternValue(this: void, ...args: unknown[]): void;
+  applyFillPatternValueMany(this: void, ...args: unknown[]): void;
+  applySingleFillPatternOptionValue(this: void, ...args: unknown[]): void;
+  applyMultiFillPatternOptionValue(this: void, ...args: unknown[]): void;
+  enableManualCustomLineWidth(this: void, key: string): void;
+  disableManualCustomLineWidth(this: void, key: string): void;
+  applyDashStyleValue(this: void, ...args: unknown[]): void;
+  applyDashStyleValueMany(this: void, ...args: unknown[]): void;
+  applyLineCapValue(this: void, ...args: unknown[]): void;
+  applyLineCapValueMany(this: void, ...args: unknown[]): void;
+  applyLineJoinValue(this: void, ...args: unknown[]): void;
+  applyLineJoinValueMany(this: void, ...args: unknown[]): void;
+  applyPathMorphingDecorationValue(this: void, ...args: unknown[]): void;
+  applyPathMorphingDecorationValueMany(this: void, ...args: unknown[]): void;
+  applyRoundedCornersValue(this: void, ...args: unknown[]): void;
+  applyRoundedCornersValueMany(this: void, ...args: unknown[]): void;
+  applyArrowTipValue(this: void, ...args: unknown[]): void;
+  applyArrowTipValueMany(this: void, ...args: unknown[]): void;
+  applyShadowPropertyValue(this: void, ...args: unknown[]): void;
+  applyShadowPresetValue(this: void, ...args: unknown[]): void;
+};

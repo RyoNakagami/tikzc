@@ -1,0 +1,12 @@
+\begin{tikzpicture}[auto, node distance=1.6cm, >={Latex}]
+  \node (r) {$r(s)$};
+  \node[draw, circle, right=of r, inner sep=1pt] (sum) {$\Sigma$};
+  \node[draw, rectangle, right=of sum, minimum height=0.9cm] (C) {$C(s)$};
+  \node[draw, rectangle, right=of C, minimum height=0.9cm] (G) {$G(s)$};
+  \node[right=of G] (y) {$y(s)$};
+  \draw[->] (r) -- (sum) node[pos=0.9, above left] {$+$};
+  \draw[->] (sum) -- (C);
+  \draw[->] (C) -- (G);
+  \draw[->] (G) -- (y) node[pos=0.5, coordinate] (branch) {};
+  \draw[->] (branch) -- ++(0,-1.4) -| (sum) node[pos=0.97, below right] {$-$};
+\end{tikzpicture}

@@ -1,0 +1,166 @@
+.summary {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 3px;
+  font-size: calc(var(--app-ui-scale, 1) * 12px);
+}
+
+.summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.label {
+  color: var(--text-muted);
+}
+
+.value {
+  color: var(--text);
+  font-weight: 600;
+  text-align: right;
+}
+
+.notes {
+  max-height: 180px;
+  overflow: auto;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-pane);
+  color: var(--text);
+  font-size: calc(var(--app-ui-scale, 1) * 12px);
+  line-height: 1.45;
+}
+
+.notes :global(p:first-child),
+.notes :global(ul:first-child),
+.notes :global(ol:first-child),
+.notes :global(h1:first-child),
+.notes :global(h2:first-child),
+.notes :global(h3:first-child),
+.notes :global(h4:first-child),
+.notes :global(h5:first-child),
+.notes :global(h6:first-child) {
+  margin-top: 0;
+}
+
+.notes :global(p:last-child),
+.notes :global(ul:last-child),
+.notes :global(ol:last-child),
+.notes :global(h1:last-child),
+.notes :global(h2:last-child),
+.notes :global(h3:last-child),
+.notes :global(h4:last-child),
+.notes :global(h5:last-child),
+.notes :global(h6:last-child) {
+  margin-bottom: 0;
+}
+
+.notes :global(p) {
+  margin: 0.35em 0;
+}
+
+.notes :global(h1),
+.notes :global(h2),
+.notes :global(h3),
+.notes :global(h4),
+.notes :global(h5),
+.notes :global(h6) {
+  margin: 0.6em 0 0.3em;
+  color: var(--text);
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: 700;
+}
+
+.notes :global(ol),
+.notes :global(ul) {
+  margin: 0.35em 0;
+  padding-left: 1.35em;
+}
+
+.notes :global(li) {
+  margin: 0.15em 0;
+}
+
+.notes :global(li > p) {
+  display: inline;
+}
+
+.notes :global(a) {
+  color: var(--accent);
+}
+
+.notes :global(code) {
+  font-family: var(--font-mono);
+  font-size: calc(var(--app-ui-scale, 1) * 11px);
+}
+
+.notes :global(pre) {
+  overflow: auto;
+  margin: 0.45em 0;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--bg-diagnostics);
+}
+
+.notes :global(pre code) {
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+}
+
+.notes :global(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.45em 0;
+}
+
+.notes :global(th),
+.notes :global(td) {
+  padding: 3px 5px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.warning,
+.error {
+  margin: 0;
+  font-size: calc(var(--app-ui-scale, 1) * 12px);
+  line-height: 1.45;
+}
+
+.warning {
+  color: var(--color-warning);
+}
+
+.error {
+  color: var(--color-error);
+}
+
+.progressArea {
+  display: grid;
+  gap: 8px;
+}
+
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: calc(var(--app-ui-scale, 1) * 12px);
+}
+
+.progressTrack {
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--border) 70%, var(--bg-app));
+}
+
+.progressFill {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}

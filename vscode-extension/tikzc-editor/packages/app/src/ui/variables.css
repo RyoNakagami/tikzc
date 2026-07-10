@@ -1,0 +1,366 @@
+@font-face {
+  font-family: "MJX-NCM";
+  src: url("@mathjax/mathjax-newcm-font/chtml/woff2/mjx-ncm-n.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MJX-NCM";
+  src: url("@mathjax/mathjax-newcm-font/chtml/woff2/mjx-ncm-b.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MJX-NCM";
+  src: url("@mathjax/mathjax-newcm-font/chtml/woff2/mjx-ncm-i.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MJX-NCM";
+  src: url("@mathjax/mathjax-newcm-font/chtml/woff2/mjx-ncm-bi.woff2") format("woff2");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MJX-NCM-Sans";
+  src: url("@mathjax/mathjax-newcm-font/chtml/woff2/mjx-ncm-ss.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MJX-NCM-Sans";
+  src: url("@mathjax/mathjax-newcm-font/chtml/woff2/mjx-ncm-ssb.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MJX-NCM-Sans";
+  src: url("@mathjax/mathjax-newcm-font/chtml/woff2/mjx-ncm-ssi.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MJX-NCM-Sans";
+  src: url("@mathjax/mathjax-newcm-font/chtml/woff2/mjx-ncm-ssbi.woff2") format("woff2");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MJX-NCM-Monospace";
+  src: url("@mathjax/mathjax-newcm-font/chtml/woff2/mjx-ncm-m.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── Design tokens ──────────────────────────────────────────────────────────── */
+
+:root {
+  /* Fonts */
+  --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", "Fira Code", "Cascadia Code", "Consolas", monospace;
+
+  /* Surface greys (neutral/macOS) — lightest to darkest */
+  --bg-pane:         #ffffff;   /* panel / editor backgrounds */
+  --bg-app:          #ececec;   /* app shell, toolbar */
+  --bg-header:       #f6f6f6;   /* panel headers, status bar */
+  --bg-canvas-panel: #e3e3e3;   /* canvas panel shell */
+  --bg-canvas-area:  #f0f0f0;   /* scrollable canvas background */
+  --bg-diagnostics:  #f9f9f9;   /* diagnostics strip */
+
+  /* Borders */
+  --border:          #d1d1d1;   /* main borders */
+  --border-light:    #e5e5e5;   /* subtle cell borders */
+  --border-lighter:  #f0f0f0;   /* very subtle dividers */
+
+  /* Text */
+  --text:            #1e1e1e;   /* primary */
+  --text-muted:      #565656;   /* panel headers, labels */
+  --text-faint:      #6c6c6c;   /* secondary info */
+  --text-dim:        #969696;   /* hints, disabled, phase notes */
+
+  /* Interactive — neutral buttons */
+  --btn-hover-bg:    #e0e0e0;
+  --btn-active-bg:   #d0d0d0;
+  --btn-disabled-bg: #f5f5f5;
+  --btn-disabled-text: #a0a0a0;
+
+  /* Toggles */
+  --toggle-active-bg: #dcdcdc;
+  --toggle-mixed-bg:  #e6e6e6;
+
+  /* Accent blue */
+  --accent:              #5898d0;
+  --accent-dark:         #1060b0;
+  --accent-btn-bg:       #c4daf4;
+  --accent-btn-border:   #5898d0;
+  --accent-btn-hover-bg: #b4ccec;
+  --accent-btn-hover-border: #4888c0;
+
+  /* Semantic colours — keep saturated for legibility */
+  --color-error:   #bf2c29;
+  --color-warning: #a06010;
+  --color-ok:      #268040;
+  --color-snap:    #ff4d4f; /* pink/red for canvas snap lines */
+
+  /* Tooltips & Overlays */
+  --tooltip-dark-bg: rgba(30, 30, 30, 0.9);
+  --tooltip-dark-text: #f0f0f0;
+  --tooltip-dark-text-muted: #b0b0b0;
+  --tooltip-dark-border: rgba(255, 255, 255, 0.1);
+  
+  --tooltip-warning-bg: #fffbdd;
+  --tooltip-warning-border: #e6d38e;
+  --tooltip-warning-text: #a06010;
+
+  /* Scrollbars */
+  --scrollbar-track: #f0f0f0;
+  --scrollbar-thumb: #c6c6c6;
+  --scrollbar-thumb-hover: #a8a8a8;
+}
+
+/* Windows desktop polish */
+[data-desktop-os="windows"] {
+  --bg-app: rgb(246, 246, 246);
+  --bg-header: rgb(246, 246, 246);
+
+  --accent: #7a7a7a;
+  --accent-dark: #3f3f3f;
+  --accent-btn-bg: #e7e7e7;
+  --accent-btn-border: #b8b8b8;
+  --accent-btn-hover-bg: #dddddd;
+  --accent-btn-hover-border: #a7a7a7;
+}
+
+/* ── Dark mode overrides ────────────────────────────────────────────────────── */
+
+[data-color-scheme="dark"] {
+  /* Surface greys */
+  --bg-pane:         #1e1e1e;
+  --bg-app:          #2a2a2a;
+  --bg-header:       #242424;
+  --bg-canvas-panel: #1a1a1a;
+  --bg-canvas-area:  #202020;
+  --bg-diagnostics:  #1c1c1c;
+
+  /* Borders */
+  --border:          #484848;
+  --border-light:    #383838;
+  --border-lighter:  #2d2d2d;
+
+  /* Text */
+  --text:            #d4d4d4;
+  --text-muted:      #a0a0a0;
+  --text-faint:      #787878;
+  --text-dim:        #565656;
+
+  /* Interactive — neutral buttons */
+  --btn-hover-bg:    #383838;
+  --btn-active-bg:   #454545;
+  --btn-disabled-bg: #252525;
+  --btn-disabled-text: #585858;
+
+  /* Toggles */
+  --toggle-active-bg: #404040;
+  --toggle-mixed-bg:  #363636;
+
+  /* Accent blue (slightly muted for dark) */
+  --accent:              #5898d0;
+  --accent-dark:         #7ab4e0;
+  --accent-btn-bg:       #1e3a5a;
+  --accent-btn-border:   #3a6090;
+  --accent-btn-hover-bg: #25496e;
+  --accent-btn-hover-border: #4878a8;
+
+  /* Semantic colours */
+  --color-error:   #e05555;
+  --color-warning: #c07830;
+  --color-ok:      #40a060;
+  --color-snap:    #ff6b6b;
+
+  /* Tooltips & Overlays */
+  --tooltip-dark-bg: rgba(10, 10, 10, 0.95);
+  --tooltip-dark-text: #e0e0e0;
+  --tooltip-dark-text-muted: #909090;
+  --tooltip-dark-border: rgba(255, 255, 255, 0.12);
+
+  --tooltip-warning-bg: #3a2e10;
+  --tooltip-warning-border: #7a6030;
+  --tooltip-warning-text: #d0a040;
+
+  /* Scrollbars */
+  --scrollbar-track: #1e1e1e;
+  --scrollbar-thumb: #505050;
+  --scrollbar-thumb-hover: #686868;
+}
+
+html {
+  color-scheme: light;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+[data-color-scheme="dark"] {
+  color-scheme: dark;
+}
+
+* {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border: 3px solid var(--scrollbar-track);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--scrollbar-track);
+}
+
+/* ── CodeMirror dark mode chrome ────────────────────────────────────────────── */
+
+[data-color-scheme="dark"] .cm-gutters {
+  background-color: #1e1e1e !important;
+  border-right-color: #383838 !important;
+  color: #565656 !important;
+}
+
+[data-color-scheme="dark"] .cm-activeLineGutter {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-color-scheme="dark"] .cm-activeLine {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+[data-color-scheme="dark"] .cm-selectionBackground {
+  background-color: rgba(88, 152, 208, 0.28) !important;
+}
+
+[data-color-scheme="dark"] .cm-focused .cm-selectionBackground {
+  background-color: rgba(88, 152, 208, 0.38) !important;
+}
+
+[data-color-scheme="dark"] .cm-cursor {
+  border-left-color: #d4d4d4 !important;
+}
+
+[data-color-scheme="dark"] .cm-content {
+  caret-color: #d4d4d4 !important;
+}
+
+[data-color-scheme="dark"] .cm-tooltip {
+  background-color: #252526 !important;
+  border-color: #454545 !important;
+  color: #d4d4d4 !important;
+}
+
+[data-color-scheme="dark"] .cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background-color: #094771 !important;
+  color: #d4d4d4 !important;
+}
+
+[data-color-scheme="dark"] .cm-panels {
+  background-color: #1e1e1e !important;
+  color: #d4d4d4 !important;
+}
+
+[data-color-scheme="dark"] .cm-panel.cm-search {
+  border-color: #383838 !important;
+  color: #d4d4d4 !important;
+}
+
+[data-color-scheme="dark"] .cm-panel.cm-search input:not([type="checkbox"]):not([type="radio"]),
+[data-color-scheme="dark"] .cm-panel.cm-search button {
+  -webkit-appearance: none;
+  appearance: none;
+  color-scheme: dark;
+  background-color: #252525 !important;
+  background-image: none !important;
+  border: 1px solid #565656 !important;
+  color: #d4d4d4 !important;
+}
+
+[data-color-scheme="dark"] .cm-panel.cm-search input:not([type="checkbox"]):not([type="radio"])::placeholder {
+  color: #787878 !important;
+}
+
+[data-color-scheme="dark"] .cm-panel.cm-search button:not(:disabled):hover {
+  background-color: #383838 !important;
+}
+
+[data-color-scheme="dark"] .cm-panel.cm-search button:disabled {
+  background-color: #252525 !important;
+  border-color: #383838 !important;
+  color: #585858 !important;
+}
+
+[data-color-scheme="dark"] .cm-panel.cm-search input[type="checkbox"],
+[data-color-scheme="dark"] .cm-panel.cm-search input[type="radio"] {
+  color-scheme: dark;
+  accent-color: #5898d0;
+}
+
+[data-color-scheme="dark"] .cm-searchMatch {
+  background-color: rgba(255, 200, 0, 0.2) !important;
+}
+
+[data-color-scheme="dark"] .cm-searchMatch-selected {
+  background-color: rgba(255, 200, 0, 0.5) !important;
+}
+
+@page {
+  margin: 12mm;
+}
+
+@media print {
+  html,
+  body,
+  #root {
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body {
+    margin: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+}

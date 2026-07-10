@@ -1,0 +1,73 @@
+name: Tag and Release on Merge
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: >
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'release')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Extract version from VERSION file
+        id: version
+        run: |
+          VERSION=$(cat VERSION)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}"    >> "$GITHUB_OUTPUT"
+
+      - name: Abort if tag already exists
+        run: |
+          if git rev-parse "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "Tag ${{ steps.version.outputs.tag }} already exists. Aborting."
+            exit 1
+          fi
+
+      - name: Verify CHANGELOG entry and extract release notes
+        run: |
+          python3 - <<'EOF'
+          import re, sys
+          version = "${{ steps.version.outputs.version }}"
+          changelog = open("CHANGELOG.md").read()
+          pattern = rf"## \[{re.escape(version)}\].*?(?=\n## |\Z)"
+          match = re.search(pattern, changelog, re.DOTALL)
+          if not match:
+              print(
+                  f"ERROR: No CHANGELOG entry found for version {version}. "
+                  "Add a '## [{version}]' section to CHANGELOG.md before releasing.",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+          notes = match.group(0).strip()
+          open("release_notes.md", "w").write(notes)
+          print(f"Found release notes for v{version}")
+          EOF
+
+      - name: Create and push tag
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.tag }}" \
+            -m "Release ${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name:  ${{ steps.version.outputs.tag }}
+          name:      ${{ steps.version.outputs.tag }}
+          body_path: release_notes.md

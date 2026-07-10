@@ -1,0 +1,121 @@
+.strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  padding: 0 8px;
+  padding-top: 4px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-app);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+:global(html[data-desktop-os="macos"]) .strip {
+  background: transparent;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 0;
+  background: transparent;
+  min-width: 0;
+  position: relative;
+  transition: background 0.05s ease;
+  margin-bottom: -1px;
+}
+
+/* Separator line between inactive tabs */
+.tab::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: var(--border);
+}
+
+/* Hide separators around the active tab and the last tab */
+.tab:last-child::after,
+.tabActive::after,
+.tab:has(+ .tabActive)::after {
+  display: none;
+}
+
+.tabDragging {
+  opacity: 0.5;
+}
+
+.tab:hover:not(.tabActive) {
+  background: color-mix(in srgb, var(--btn-hover-bg) 40%, transparent);
+}
+
+.tabActive {
+  background: var(--bg-pane);
+  border-color: var(--border);
+  border-bottom: 1px solid var(--bg-pane);
+  z-index: 1;
+}
+
+.tabButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  height: 100%;
+  padding: 0;
+  padding-left: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(var(--app-ui-scale, 1) * 11px);
+}
+
+.dirty {
+  fill: var(--accent);
+  flex-shrink: 0;
+  display: block;
+}
+
+.externalChange {
+  fill: var(--color-warning);
+  flex-shrink: 0;
+  display: block;
+}
+
+.close,
+.add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.close {
+  padding-left: 6px;
+}
+
+.add {
+  align-self: center;
+}
+
+.close:hover,
+.add:hover {
+  color: var(--text);
+}

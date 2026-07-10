@@ -1,0 +1,83 @@
+# .editorconfig
+
+# set the root of the project
+root = true
+
+# set default charset, line endings, and whitespace rules
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# csv files
+[*.csv]
+trim_trailing_whitespace = false
+insert_final_newline = true
+end_of_line = lf
+indent_style = none
+
+# json files
+[*.json]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+end_of_line = lf
+trim_trailing_whitespace = false
+
+# yaml files
+[*.yml]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.yaml]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# quarto / markdown files
+# keep trailing whitespace: two trailing spaces = hard line break in markdown
+[*.{qmd,md,markdown}]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = false
+
+# lua files (quarto filters / shortcodes)
+[*.lua]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# latex / tikz source files
+[*.{tex,sty,cls,tikz}]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = false
+
+# shell scripts
+[*.sh]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# makefile requires real tabs
+[Makefile]
+indent_style = tab
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true

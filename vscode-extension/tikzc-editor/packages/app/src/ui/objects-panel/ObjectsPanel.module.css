@@ -1,0 +1,177 @@
+.panel {
+  height: 100%;
+}
+
+.content {
+  padding: 8px 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px 8px;
+}
+
+.multiArrangeGroup {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-light);
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--btn-disabled-bg);
+}
+
+.multiArrangeIconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  border: 0;
+  border-right: 1px solid var(--border-light);
+  background: var(--btn-disabled-bg);
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.multiArrangeGroup .multiArrangeIconButton:last-child {
+  border-right: 0;
+}
+
+.multiArrangeIconButton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bg-header) 64%, var(--btn-disabled-bg));
+  color: var(--text);
+}
+
+.multiArrangeIconButton:disabled {
+  cursor: default;
+  color: color-mix(in srgb, var(--text-faint) 52%, var(--btn-disabled-text));
+  background: var(--btn-disabled-bg);
+}
+
+.multiArrangeIconButton:focus-visible {
+  outline: 1px solid color-mix(in srgb, var(--text) 35%, transparent);
+  outline-offset: -1px;
+}
+
+.empty {
+  padding: 12px 14px;
+  color: var(--text-muted);
+  font-size: calc(var(--app-ui-scale, 1) * 12px);
+}
+
+.tree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(22px, auto) 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 3px;
+  min-height: 30px;
+  padding: 0 10px;
+  color: var(--text);
+  user-select: none;
+  border-radius: 6px;
+}
+
+.rowSelected {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-pane));
+}
+
+.treeCell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-right: -1px;
+}
+
+.rowMain {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 4px;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  border-radius: 4px;
+}
+
+.iconButton:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--btn-hover-bg) 45%, transparent);
+}
+
+.iconButtonDisabled {
+  cursor: default;
+  color: transparent;
+  background: transparent;
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(var(--app-ui-scale, 1) * 12px);
+  line-height: 1.3;
+}
+
+.labelMeta {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border-light) 42%, transparent);
+  background: color-mix(in srgb, var(--bg-pane) 92%, var(--bg-header));
+  color: color-mix(in srgb, var(--text-subtle) 52%, transparent);
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+  line-height: 1.2;
+}
+
+.titleButton {
+  border: none;
+  background: transparent;
+  color: inherit;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.titleInput {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text);
+  padding: 2px 6px;
+  font: inherit;
+}
+
+.dropBefore {
+  box-shadow: inset 0 2px 0 var(--accent), inset 2px 0 0 color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.dropAfter {
+  box-shadow: inset 0 -2px 0 var(--accent), inset 2px 0 0 color-mix(in srgb, var(--accent) 25%, transparent);
+}

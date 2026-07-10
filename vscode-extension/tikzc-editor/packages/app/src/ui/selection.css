@@ -1,0 +1,10 @@
+:where([data-select="chrome"]) {
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+:where([data-select="text"]) {
+  -webkit-user-select: text;
+  user-select: text;
+}

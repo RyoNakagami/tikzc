@@ -1,0 +1,122 @@
+.about {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 22px 30px;
+  text-align: center;
+}
+
+.closeButton {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.closeButton:hover {
+  background: var(--btn-hover-bg);
+  color: var(--text);
+}
+
+.closeButton:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 1px;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 82px;
+  height: 82px;
+  border-radius: 10px;
+  background: #24509a;
+  color: white;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 58px;
+  line-height: 1;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 16%, transparent);
+}
+
+.logoSlash {
+  transform: translateY(-1px);
+}
+
+.title {
+  margin: 2px 0 0;
+  color: var(--text);
+  font-size: calc(var(--app-ui-scale, 1) * 22px);
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.titleStrong {
+  font-weight: 700;
+}
+
+.titleQualifier {
+  font-weight: 400;
+}
+
+.version {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: calc(var(--app-ui-scale, 1) * 14px);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin: 4px 0 0;
+  color: var(--text);
+  font-size: calc(var(--app-ui-scale, 1) * 15px);
+  line-height: 1.22;
+}
+
+.metaRow {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+
+.meta dt {
+  margin: 0;
+  font-weight: 700;
+}
+
+.meta dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.meta a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 420px) {
+  .about {
+    padding-inline: 16px;
+  }
+
+  .metaRow {
+    flex-wrap: wrap;
+  }
+}

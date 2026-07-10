@@ -1,0 +1,176 @@
+/* ── FlexLayout theme overrides ─────────────────────────────────────────────── */
+/* Built on top of flexlayout-react/style/gray.css imported in DockLayout.tsx  */
+
+.flexlayout__layout {
+  /* Map to app design tokens */
+  --color-text: var(--text);
+  --color-background: var(--bg-pane);
+  --color-base: var(--bg-pane);
+  --color-1: var(--bg-header);
+  --color-2: var(--border);
+  --color-3: var(--bg-app);
+  --color-4: var(--border);
+  --color-5: var(--accent);
+  --color-6: var(--border);
+
+  --color-splitter: var(--border);
+  --color-splitter-hover: var(--accent);
+  --color-splitter-drag: var(--accent);
+
+  --color-tabset-background: var(--bg-header);
+  --color-tabset-background-selected: var(--bg-header);
+  --color-tabset-header-background: var(--bg-header);
+  --color-tabset-header: var(--text);
+  --color-tabset-divider-line: var(--border);
+
+  --color-tab-selected: var(--text);
+  --color-tab-selected-background: var(--bg-pane);
+  --color-tab-unselected: var(--text-muted);
+  --color-tab-unselected-background: transparent;
+  --color-tab-content: var(--bg-pane);
+
+  --color-border-background: var(--bg-header);
+  --color-border-divider-line: var(--border);
+
+  --font-size: 11px;
+  --font-family: var(--font-ui);
+}
+
+/* Compact tab strip */
+.flexlayout__tabset_tabbar_outer {
+  height: 24px !important;
+  min-height: 24px !important;
+  background: var(--bg-app) !important;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.flexlayout__tab_button {
+  padding: 2px 6px !important;
+  font-size: 11px !important;
+  border: 1px solid transparent !important;
+  border-bottom: none !important;
+  border-radius: 0 !important;
+  margin-bottom: -1px;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.flexlayout__tab_button_content {
+  gap: 2px !important;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.flexlayout__tab_button:hover {
+  background: color-mix(in srgb, var(--btn-hover-bg) 40%, transparent) !important;
+}
+
+.flexlayout__tab_button--selected {
+  background: var(--bg-pane) !important;
+  border-color: var(--border) !important;
+  border-bottom: 1px solid var(--bg-pane) !important;
+}
+
+.flexlayout__tab_button--selected:hover {
+  background: var(--bg-pane) !important;
+  border-color: var(--border) !important;
+  border-bottom: 1px solid var(--bg-pane) !important;
+}
+
+.flexlayout__tab_button--unselected {
+  background: transparent !important;
+}
+
+.flexlayout__tab_button_top,
+.flexlayout__tab_button_bottom {
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.flexlayout__tabset_tabbar_inner_tab_container_top,
+.flexlayout__tabset_tabbar_inner_tab_container_bottom {
+  border: none !important;
+}
+
+.flexlayout__tabset_tabbar_inner_tab_container {
+  padding-left: 2px !important;
+  padding-right: 2px !important;
+}
+
+.flexlayout__tabset_tabbar_outer_top,
+.flexlayout__tabset_tabbar_outer_bottom {
+  padding: 0 4px !important;
+}
+
+/* Splitter styling */
+.flexlayout__splitter {
+  background-color: var(--border) !important;
+}
+
+.flexlayout__splitter:hover {
+  background-color: var(--accent) !important;
+}
+
+/* Tab content fills its container */
+.flexlayout__tab {
+  overflow: auto;
+}
+
+/* Remove the border radius that gray theme adds */
+.flexlayout__tabset {
+  border-radius: 0 !important;
+}
+
+/* Ensure panels fill their tab area */
+.flexlayout__tab > div:first-child {
+  height: 100%;
+}
+
+/* Maximize/close button styling */
+.flexlayout__tab_toolbar_button {
+  color: var(--text-muted) !important;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.flexlayout__tab_toolbar_button:hover {
+  color: var(--text) !important;
+  background: var(--btn-hover-bg) !important;
+}
+
+.flexlayout__tabset_header,
+.flexlayout__tabset_header *,
+.flexlayout__tab_button *,
+.flexlayout__tabset_tabbar_outer *,
+.flexlayout__tab_toolbar_button * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+/* Remove gray-theme gradients/shadows so all panel headers match Source style */
+.flexlayout__tabset-selected,
+.flexlayout__tabset-maximized {
+  background-image: none !important;
+}
+
+.flexlayout__tabset_header {
+  box-shadow: none !important;
+}
+
+/* Edge dock indicators */
+.flexlayout__edge_rect {
+  border-color: var(--accent) !important;
+}
+
+/* Dark mode support — FlexLayout variables automatically inherit from
+   our CSS custom properties which already change in [data-color-scheme="dark"] */
+
+/* Mobile: hide the layout and show a fallback (handled by parent) */
+@media (max-width: 768px) {
+  .flexlayout__layout {
+    --font-size: 13px;
+  }
+}

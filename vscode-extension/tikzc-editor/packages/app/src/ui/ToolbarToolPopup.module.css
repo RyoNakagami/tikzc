@@ -1,0 +1,165 @@
+.root {
+  position: relative;
+  display: inline-flex;
+}
+
+.popup {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  min-width: 170px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-pane);
+  box-shadow: 0 6px 16px color-mix(in srgb, black 24%, transparent);
+}
+
+.bucketColorPopup {
+  width: 274px;
+  max-width: min(274px, calc(100vw - 24px));
+  box-sizing: border-box;
+}
+
+.matrixPicker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 2px;
+}
+
+.matrixPickerRow {
+  display: flex;
+  gap: 4px;
+}
+
+.matrixPickerCell {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--bg-pane) 82%, var(--bg-app));
+  cursor: pointer;
+  padding: 0;
+}
+
+.matrixPickerCell:hover,
+.matrixPickerCell:focus-visible {
+  border-color: var(--accent-btn-border);
+  background: color-mix(in srgb, var(--accent-btn-bg) 70%, var(--bg-pane));
+  outline: none;
+}
+
+.matrixPickerCellSelected {
+  border-color: var(--accent-btn-border);
+  background: var(--accent-btn-bg);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sectionTitle {
+  font-size: calc(var(--app-ui-scale, 1) * 11px);
+  color: var(--text-faint);
+}
+
+.choiceList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.choiceButton {
+  width: 100%;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(var(--app-ui-scale, 1) * 11px);
+  text-align: left;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.choiceButton:hover {
+  background: var(--btn-hover-bg);
+  border-color: var(--border-light);
+}
+
+.choiceButtonSelected {
+  background: var(--accent-btn-bg);
+  border-color: var(--accent-btn-border);
+}
+
+.visualChoiceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 280px;
+  max-height: min(52vh, 360px);
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.visualChoiceButton {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-pane) 82%, var(--bg-app));
+  color: var(--text);
+  cursor: pointer;
+}
+
+.visualChoiceButton:hover {
+  background: var(--btn-hover-bg);
+  border-color: var(--border-light);
+}
+
+.visualChoiceButtonSelected {
+  background: var(--accent-btn-bg);
+  border-color: var(--accent-btn-border);
+}
+
+.visualChoicePreview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 76px;
+  margin-bottom: 2px;
+  padding: 2px;
+  background: color-mix(in srgb, var(--bg-app) 78%, white 22%);
+  border: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+:global([data-color-scheme="dark"]) .visualChoicePreview {
+  background: color-mix(in srgb, var(--bg-app) 30%, white 70%);
+  border-color: color-mix(in srgb, white 12%, transparent);
+}
+
+.visualChoicePreview > span,
+.visualChoicePreview svg {
+  width: 100%;
+  max-width: 72px;
+  height: auto;
+  display: block;
+}
+
+.visualChoiceLabel {
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+  line-height: 1.2;
+  text-align: center;
+}

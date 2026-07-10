@@ -1,0 +1,12 @@
+.editor {
+  min-height: 0;
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--bg-pane);
+}
+
+.editor :global(.cm-editor) {
+  height: 100%;
+}

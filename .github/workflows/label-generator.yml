@@ -1,0 +1,116 @@
+name: Label Manager
+
+# Trigger: Runs when labels.yaml is modified
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/config/label_master.yml
+
+# Minimal required permissions
+permissions:
+  contents: read    # Read repository files
+  issues: write     # Create/update/delete labels
+
+jobs:
+  sync-labels:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ============================================================
+      # SETUP: Install required tools and authenticate
+      # ============================================================
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        # uv is used to install Python tools like yamlcli
+
+      - name: Install dependencies
+        run: |
+          # Update package lists quietly
+          sudo apt-get update -qq
+
+          # Install jq (JSON processor) and gh (GitHub CLI)
+          sudo apt-get install -y -qq jq gh
+
+          # Install yamlcli via uv to convert YAML to JSON
+          uv tool install git+https://github.com/RyoNakagami/yamlcli.git
+
+      - name: Authenticate GitHub CLI
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+        # Note: Not setting GH_TOKEN here allows gh to store credentials
+        # This prevents "To have GitHub CLI store credentials..." warning
+
+      # ============================================================
+      # PARSE: Convert YAML configuration to JSON
+      # ============================================================
+
+      - name: Parse labels configuration
+        id: parse
+        run: |
+          # Convert labels.yaml to JSON format and save to file
+          yamlcli --to-json .github/workflows/config/label_master.yml > /tmp/labels.json
+          echo "Labels configuration parsed successfully"
+
+      # ============================================================
+      # SYNC: Create or update labels from configuration
+      # ============================================================
+
+      - name: Sync labels
+        run: |
+          # Exit on error, undefined variables, or pipe failures
+          set -euo pipefail
+
+          # Get list of existing label names once to avoid repeated API calls
+          EXISTING_LABELS=$(gh label list --json name --jq '.[].name')
+
+          # Process each label definition from the JSON array
+          jq -c '.[]' /tmp/labels.json | while IFS= read -r label; do
+            # Extract label properties
+            NAME=$(echo "$label" | jq -r '.name')
+            COLOR=$(echo "$label" | jq -r '.color')
+            DESC=$(echo "$label" | jq -r '.description // ""')  # Default to empty string if null
+
+            echo "Processing label: $NAME"
+
+            # Check if label already exists in repository
+            if echo "$EXISTING_LABELS" | grep -Fxq "$NAME"; then
+              # Update existing label
+              echo "  Updating existing label"
+              gh label edit "$NAME" --color "$COLOR" --description "$DESC"
+            else
+              # Create new label
+              echo "  Creating new label"
+              gh label create "$NAME" --color "$COLOR" --description "$DESC"
+            fi
+          done
+
+      # ============================================================
+      # PRUNE: Remove labels not defined in configuration
+      # ============================================================
+
+      - name: Prune obsolete labels
+        run: |
+          # Exit on error, undefined variables, or pipe failures
+          set -euo pipefail
+
+          # Get list of all existing labels in the repository
+          EXISTING_LABELS=$(gh label list --json name --jq '.[].name')
+
+          # Get list of desired labels from configuration
+          DESIRED_LABELS=$(jq -r '.[].name' /tmp/labels.json)
+
+          # Check each existing label
+          echo "$EXISTING_LABELS" | while IFS= read -r label; do
+            # Skip empty lines
+            if [[ -n "$label" ]] && ! echo "$DESIRED_LABELS" | grep -Fxq "$label"; then
+              # Label exists in repo but not in config - delete it
+              echo "Deleting obsolete label: $label"
+              gh label delete "$label" --yes || echo "  Failed to delete $label (may be in use)"
+            fi
+          done
+        # gh CLI uses stored credentials from auth login step

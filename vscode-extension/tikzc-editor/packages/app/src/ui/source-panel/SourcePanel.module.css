@@ -1,0 +1,364 @@
+/* ── Source Panel ──────────────────────────────────────────────────────────── */
+
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  padding: 2px 6px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.editorWrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.lockBanner {
+  position: absolute;
+  right: 8px;
+  top: 24px;
+  z-index: 2;
+  padding: 4px 8px;
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  background: rgba(255, 248, 230, 0.96);
+  color: #8a5a00;
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.editorWrap :global(.cm-editor) {
+  height: 100%;
+}
+
+.editorWrap :global(.cm-editor.cm-focused) {
+  outline: none;
+}
+
+.hideLineNumbers :global(.cm-gutters) {
+  display: none;
+}
+
+.editorWrap :global(.cm-scroller) {
+  font-family: var(--font-mono);
+  line-height: 1.5;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.editorWrap :global(.cm-content),
+.editorWrap :global(.cm-content *) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.editorWrap :global(.cm-editor.cm-scrub-hover .cm-scroller) {
+  cursor: ew-resize;
+}
+
+.editorWrap :global(.cm-inline-color-swatch) {
+  display: inline-block;
+  width: 0.86em;
+  height: 0.86em;
+  margin-left: 0.12em;
+  margin-right: 0.1em;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  box-sizing: border-box;
+  vertical-align: middle;
+  transform: translateY(-0.08em);
+  cursor: pointer;
+}
+
+.editorWrap :global(.cm-inline-color-swatch-none) {
+  background:
+    linear-gradient(45deg, var(--bg-app) 25%, transparent 25%, transparent 75%, var(--bg-app) 75%, var(--bg-app)),
+    linear-gradient(45deg, var(--bg-app) 25%, transparent 25%, transparent 75%, var(--bg-app) 75%, var(--bg-app));
+  background-size: 8px 8px;
+  background-position: 0 0, 4px 4px;
+}
+
+.editorWrap :global(.cm-inline-color-swatch-readonly) {
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+.editorWrap :global(.cm-inline-color-swatch:not(.cm-inline-color-swatch-readonly):hover) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(47, 122, 216, 0.18);
+}
+
+/* Diagnostic decorations (reused from playground) */
+.editorWrap :global(.cm-highlight-range) {
+  background: rgba(217, 119, 6, 0.15);
+  border-bottom: 2px solid var(--color-warning);
+}
+
+.editorWrap :global(.cm-figure-dimmed) {
+  opacity: 0.34;
+  filter: saturate(0.35);
+}
+
+.editorWrap :global(.cm-figure-box) {
+  width: calc(100% - 12px);
+  margin: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-pane);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+
+.editorWrap :global(.cm-figure-box:hover) {
+  border-color: var(--accent);
+}
+
+.editorWrap :global(.cm-figure-box-thumb) {
+  width: 36px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--text-dim);
+}
+
+.editorWrap :global(.cm-figure-box-thumb img) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.editorWrap :global(.cm-figure-box-label) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editorWrap :global(.cm-editor-diagnostic-range) {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+}
+
+.editorWrap :global(.cm-editor-diagnostic-error) {
+  text-decoration-color: var(--color-error);
+}
+
+.editorWrap :global(.cm-editor-diagnostic-warning) {
+  text-decoration-color: var(--color-warning);
+}
+
+:global(.cm-editor-diagnostic-tooltip) {
+  max-width: 360px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-pane);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-size: calc(var(--app-ui-scale, 1) * 11px);
+  line-height: 1.4;
+  z-index: 220;
+}
+
+:global(.cm-editor-diagnostic-tooltip-header) {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
+:global(.cm-editor-diagnostic-tooltip-header code) {
+  font-weight: 700;
+}
+
+:global(.cm-editor-diagnostic-tooltip-message) {
+  color: var(--text);
+  white-space: normal;
+}
+
+:global(.cm-editor-diagnostic-tooltip-error .cm-editor-diagnostic-tooltip-header code) {
+  color: var(--color-error);
+}
+
+:global(.cm-editor-diagnostic-tooltip-warning .cm-editor-diagnostic-tooltip-header code) {
+  color: var(--color-warning);
+}
+
+:global(.cm-editor-docs-tooltip) {
+  max-width: 420px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-pane);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.18);
+  padding: 8px 10px;
+  font-family: var(--font-ui);
+  font-size: calc(var(--app-ui-scale, 1) * 12px);
+  line-height: 1.45;
+  z-index: 220;
+}
+
+:global(.cm-editor-docs-tooltip-meta) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+}
+
+:global(.cm-editor-docs-tooltip-signature code),
+:global(.cm-editor-docs-tooltip-signature kbd) {
+  font-weight: 700;
+}
+
+:global(.cm-editor-docs-tooltip-default) {
+  color: var(--text-muted);
+  font-size: 0.95em;
+}
+
+:global(.cm-editor-docs-tooltip-snippet) {
+  color: var(--text);
+}
+
+:global(.cm-editor-docs-tooltip-snippet p) {
+  margin: 0 0 6px;
+}
+
+:global(.cm-editor-docs-tooltip-snippet p:last-child) {
+  margin-bottom: 0;
+}
+
+:global(.cm-editor-docs-tooltip-snippet code),
+:global(.cm-editor-docs-tooltip-snippet kbd) {
+  font-family: var(--font-mono);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  border-radius: 3px;
+  padding: 0 0.2em;
+}
+
+:global(.cm-editor-docs-tooltip-link-row) {
+  margin-top: 8px;
+  border-top: 1px solid var(--border-light);
+  padding-top: 6px;
+}
+
+:global(.cm-editor-docs-tooltip-link) {
+  color: var(--accent-dark);
+  text-decoration: none;
+}
+
+:global(.cm-editor-docs-tooltip-link:hover) {
+  text-decoration: underline;
+}
+
+.inlineColorPickerPopover {
+  position: fixed;
+  z-index: 150;
+  width: 284px;
+  max-width: calc(100vw - 16px);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  background: var(--bg-pane);
+  box-shadow: 0 16px 30px rgba(16, 33, 52, 0.22);
+  overflow: hidden;
+}
+
+.editorWrap :global(.cm-foldGutter .cm-gutterElement span[title="Fold line"]) {
+  position: relative;
+  top: -3px;
+}
+
+.editorWrap :global(.cm-foldGutter .cm-gutterElement span[title="Unfold line"]) {
+  position: relative;
+  top: 0;
+}
+
+.diagnostics {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 0;
+  background: var(--bg-diagnostics);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-y: auto;
+  max-height: 120px;
+}
+
+.diagnostic {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  align-items: baseline;
+  gap: 0 4px;
+  padding: 1px 8px;
+  font-size: calc(var(--app-ui-scale, 1) * 11px);
+  font-family: var(--font-mono);
+  cursor: pointer;
+  line-height: 1.5;
+}
+
+.diagnostic:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+}
+
+.diagnosticMore {
+  cursor: default;
+  color: var(--text-muted);
+}
+
+.diagnosticMore:hover {
+  background: none;
+}
+
+.diagnosticIcon {
+  text-align: center;
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+}
+
+.diagnosticMessage {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
+  cursor: text;
+  user-select: text;
+}
+
+.diagnosticLocation {
+  color: var(--text-muted);
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+  white-space: nowrap;
+}
+
+.error {
+  color: var(--color-error);
+}
+
+.warning {
+  color: var(--color-warning);
+}

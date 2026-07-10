@@ -1,0 +1,98 @@
+# labels.yml (updated colors)
+# ------------------------------------------------
+# GitHub Issue Labels aligned with Branch Naming Conventions
+# Author: Ryo Nakagami
+# ------------------------------------------------
+
+# --- Development Workflows (Aligned with Branch Prefixes) ---
+- name: environment
+  color: EFDECD         # almond
+  description: This issue is related to development repository structure etc
+
+- name: feature
+  color: 008000         # green
+  description: New feature development
+
+- name: bugfix
+  color: DC143C         # crimson
+  description: Bug fix or defect correction
+
+- name: refactor
+  color: E6E6FA         # lavender
+  description: Code restructuring without behavior change
+
+- name: docs
+  color: E6E6FA         # lavender
+  description: Documentation updates or improvements
+
+- name: test
+  color: FFFFFF         # white
+  description: Testing-related work or test coverage
+
+- name: enhancement
+  color: 00FFFF         # aqua
+  description: Performance or minor enhancements
+
+# --- Lifecycle / Release Management ---
+- name: release
+  color: FFD700         # gold
+  description: Preparing or finalizing a release
+
+- name: hotfix
+  color: 8B0000         # darkred
+  description: Urgent production fix
+
+- name: experimental
+  color: FF00FF         # fuchsia
+  description: Experimental or prototype work
+
+- name: security
+  color: FF0000         # red
+  description: Related to security vulnerabilities or incidents
+
+# --- Project Management / Coordination ---
+- name: planning
+  color: E6E6FA         # lavender
+  description: Design, specification, or roadmap planning
+
+- name: maintenance
+  color: 90EE90         # lightgreen
+  description: Dependency update or maintenance task
+
+- name: packaging
+  color: 0047AB         # cobalt
+  description: Packaging or distribution-related work
+
+- name: discussion
+  color: E6E6FA         # lavender
+  description: General discussion or design decision needed
+
+# --- Priority / Status ---
+- name: duplicate
+  color: E6E6FA         # lavender
+  description: This issue or pull request already exists
+
+- name: blocked
+  color: E6E6FA         # lavender
+  description: Blocked by another issue or dependency
+
+- name: invalid
+  color: E6E6FA         # lavender
+  description: This issue is not valid or reproducible
+
+# --- Support / Meta ---
+- name: help wanted
+  color: 008080         # teal
+  description: Assistance or collaboration requested
+
+- name: good first issue
+  color: 0000FF         # blue
+  description: Suitable for newcomers to start contributing
+
+- name: question
+  color: E6E6FA         # lavender
+  description: Further clarification or information is requested
+
+- name: wontfix
+  color: DC143C         # crimson
+  description: This issue will not be fixed

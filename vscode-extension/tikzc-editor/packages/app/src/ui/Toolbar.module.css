@@ -1,0 +1,226 @@
+/* ── Toolbar ───────────────────────────────────────────────────────────────── */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--border);
+  padding: 4px 6px;
+  min-height: 40px;
+  flex-shrink: 0;
+}
+
+:global(html[data-desktop-os="macos"]) .toolbar {
+  background: transparent;
+}
+
+.toolbarDesktop {
+  padding-left: 90px;
+  min-height: 46px;
+}
+
+.title {
+  font-size: calc(var(--app-ui-scale, 1) * 12px);
+  font-weight: 700;
+  color: var(--text);
+  padding: 0 8px 0 2px;
+  margin-right: 2px;
+  white-space: nowrap;
+}
+
+.titleQualifier {
+  font-weight: 400;
+}
+
+.separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 3px;
+  flex-shrink: 0;
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* ── Standard Button ──────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px;
+  height: 32px;
+  min-width: 32px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: calc(var(--app-ui-scale, 1) * 11px);
+  font-family: inherit;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: background-color 0.1s ease, border-color 0.1s ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--btn-hover-bg);
+}
+
+.btn:active:not(:disabled) {
+  background: var(--btn-active-bg);
+}
+
+.btn:disabled {
+  color: var(--text-dim);
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* Native-style active state: subtle gray highlight */
+.btnActive {
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+.btnActive:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 18%, transparent);
+}
+
+.btnPartial {
+  border-color: color-mix(in srgb, var(--color-warning) 45%, transparent);
+}
+
+/* ── Split Button (for Bucket) ────────────────────────────────────────────── */
+
+.splitButton {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 6px;
+}
+
+.splitButtonMain {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  padding: 4px 2px 4px 6px;
+  min-width: 28px;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.splitButtonCaret {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  padding: 4px 3px 4px 1px;
+  min-width: 10px;
+}
+
+/* Bucket color indicator bar */
+.bucketColorIndicator {
+  width: 16px;
+  height: 3px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+/* ── Legacy classes (keep for compatibility) ─────────────────────────────── */
+
+.icon {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--app-ui-scale, 1) * 12px);
+  line-height: 1;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.updateChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  margin-left: 8px;
+  margin-right: 3px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-pane));
+  color: var(--text);
+  font: inherit;
+  font-size: calc(var(--app-ui-scale, 1) * 11px);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.updateChip:hover {
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-pane));
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
+}
+
+.updateChip:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 1px;
+}
+
+.modeLabel {
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+  color: var(--text-faint);
+  padding: 0 4px;
+}
+
+.popupLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: calc(var(--app-ui-scale, 1) * 11px);
+  color: var(--text);
+}
+
+.popupValue {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+}
+
+.popupSlider {
+  width: 100%;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .toolbar {
+    min-height: 44px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .title,
+  .separator,
+  .group {
+    flex: 0 0 auto;
+  }
+
+  .btn {
+    height: 36px;
+    min-width: 36px;
+    padding: 8px;
+  }
+}

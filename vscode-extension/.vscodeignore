@@ -1,0 +1,10 @@
+src/**
+webview/**
+tikzc-editor/**
+tsconfig.json
+tsconfig.webview.json
+vite.config.ts
+node_modules/**
+package-lock.json
+*.vsix
+**/*.map

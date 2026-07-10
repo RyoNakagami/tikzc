@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["vite/client", "node"],
+    "paths": {
+      "@tikz-editor/app": ["../tikzc-editor/packages/app/src/index.ts"],
+      "@tikz-editor/app/*": ["../tikzc-editor/packages/app/src/*"],
+      "@tikz-editor/lang-tikz": ["../tikzc-editor/packages/lang-tikz/src/index.ts"],
+      "@tikz-editor/lezer-tikz": ["../tikzc-editor/packages/lezer-tikz/src/index.ts"],
+      "tikz-editor/*": ["../tikzc-editor/packages/core/src/*"]
+    }
+  },
+  "include": ["./**/*.ts", "./**/*.tsx", "./**/*.d.ts"]
+}

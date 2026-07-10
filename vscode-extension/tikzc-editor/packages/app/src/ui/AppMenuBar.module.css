@@ -1,0 +1,153 @@
+.menuBar {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 4px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 30;
+}
+
+.section {
+  position: relative;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(var(--app-ui-scale, 1) * 11px);
+  height: 20px;
+  padding: 0 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.trigger:hover {
+  background: var(--btn-hover-bg);
+  border-color: var(--border-light);
+}
+
+.triggerActive {
+  background: var(--btn-active-bg);
+  border-color: var(--border);
+}
+
+.popup {
+  position: absolute;
+  top: calc(100% + 1px);
+  left: 0;
+  min-width: 220px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-pane);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 10px color-mix(in srgb, black 20%, transparent);
+}
+
+.popupNested {
+  top: -5px;
+  left: calc(100% - 2px);
+  display: none;
+}
+
+.submenu {
+  position: relative;
+}
+
+.submenu:hover > .popupNested,
+.submenu:focus-within > .popupNested {
+  display: flex;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 22px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(var(--app-ui-scale, 1) * 11px);
+  text-align: left;
+  cursor: pointer;
+  padding: 0 8px 0 4px;
+  white-space: nowrap;
+}
+
+.itemNoCheck {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding-left: 8px;
+}
+
+.submenuTrigger {
+  cursor: default;
+}
+
+.item:hover:not(:disabled) {
+  background: var(--btn-hover-bg);
+  border-color: var(--border-light);
+}
+
+.item:disabled {
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.check {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--accent-dark);
+  font-size: calc(var(--app-ui-scale, 1) * 11px);
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shortcut {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+}
+
+.submenuArrow {
+  color: var(--text-faint);
+  justify-self: end;
+  font-size: calc(var(--app-ui-scale, 1) * 11px);
+}
+
+.separator {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--border-lighter);
+}
+
+@media (max-width: 768px) {
+  .menuBar {
+    min-height: 32px;
+  }
+
+  .section {
+    flex: 0 0 auto;
+  }
+
+  .trigger {
+    height: 28px;
+    padding: 0 10px;
+    font-size: calc(var(--app-ui-scale, 1) * 12px);
+  }
+}

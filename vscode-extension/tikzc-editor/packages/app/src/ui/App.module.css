@@ -1,0 +1,72 @@
+/* ── Root layout ───────────────────────────────────────────────────────────── */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg-app);
+  font-family: var(--font-ui);
+  font-size: var(--app-ui-font-size, 11px);
+  color: var(--text);
+}
+
+:global(html[data-desktop-os="macos"]) .app {
+  background: transparent;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.panelLoading {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+}
+
+.centerColumn {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.dropOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--accent, #0078d4) 12%, transparent);
+  border: 3px dashed var(--accent, #0078d4);
+  pointer-events: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent, #0078d4);
+  letter-spacing: 0.01em;
+}
+
+@media print {
+  .app {
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    background: var(--bg-pane) !important;
+  }
+
+  .body {
+    display: block !important;
+    flex: none !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    position: static !important;
+  }
+}

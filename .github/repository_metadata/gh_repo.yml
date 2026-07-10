@@ -1,0 +1,13 @@
+meta-data:
+  repository_name: tikzc
+  visibility: public
+  org-name: RyoNakagami
+  tag:
+    - vscode-extension
+    - command-line-tool
+    - cli
+    - vscode
+    - tikz
+  description: |
+    A VSCode extension and command-line tool for working with TikZ.
+  license: mit

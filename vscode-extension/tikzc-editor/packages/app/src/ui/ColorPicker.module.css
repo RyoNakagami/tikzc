@@ -1,0 +1,523 @@
+.fieldRoot {
+  position: relative;
+  width: 100%;
+}
+
+.triggerButton {
+  width: 100%;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border: 1px solid var(--border-light);
+  border-radius: 2px;
+  background: var(--bg-pane);
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(var(--app-ui-scale, 1) * 11px);
+  text-align: left;
+  cursor: pointer;
+  padding: 2px 5px;
+}
+
+.triggerButtonOpen {
+  border-color: var(--border);
+}
+
+.triggerButton:disabled {
+  color: var(--text-dim);
+  background: var(--btn-disabled-bg);
+  cursor: default;
+}
+
+.triggerValue {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.triggerSwatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid color-mix(in srgb, var(--text) 18%, var(--border));
+  flex-shrink: 0;
+}
+
+.triggerSwatchNone {
+  position: relative;
+  border-color: var(--border);
+  background-color: var(--bg-pane);
+  background-size: 4px 4px;
+  background-image:
+    linear-gradient(45deg, var(--border-light) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--border-light) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--border-light) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--border-light) 75%);
+  background-position: 0 0, 0 2px, 2px -2px, -2px 0;
+}
+
+.triggerSwatchNone::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  top: 50%;
+  height: 1.5px;
+  background: var(--color-error);
+  transform: translateY(-50%) rotate(-45deg);
+}
+
+.triggerLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.triggerCaret {
+  color: var(--text-faint);
+  width: 12px;
+  height: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.triggerCaretIcon {
+  width: 12px;
+  height: 8px;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  z-index: 80;
+  width: 258px;
+  max-width: min(258px, calc(100vw - 24px));
+  overflow-y: auto;
+  box-shadow: 0 10px 24px color-mix(in srgb, black 28%, transparent);
+}
+
+.popoverEnd {
+  left: auto;
+  right: 0;
+}
+
+.popoverUp {
+  top: auto;
+  bottom: calc(100% + 2px);
+}
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--border-light);
+  border-radius: 2px;
+  background: var(--bg-pane);
+  padding: 6px;
+}
+
+.rootDisabled {
+  opacity: 0.78;
+}
+
+.tabRow {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border-lighter);
+  padding-bottom: 4px;
+}
+
+.tabButton {
+  min-height: 22px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+  line-height: 1;
+  padding: 2px 7px;
+  cursor: pointer;
+}
+
+.tabButton:hover {
+  border-color: var(--border-light);
+  background: var(--btn-hover-bg);
+  color: var(--text);
+}
+
+.tabButton:disabled {
+  cursor: default;
+}
+
+.tabButtonActive {
+  border-color: var(--accent-btn-border);
+  background: var(--accent-btn-bg);
+  color: var(--accent-dark);
+}
+
+.standardTabPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.swatchStack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.customTabPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.customLabel {
+  min-width: 56px;
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.customShadePickerStack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.customHueTrack {
+  position: relative;
+  width: 100%;
+  min-height: 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    #ff0000 0%,
+    #ffff00 16.66%,
+    #00ff00 33.33%,
+    #00ffff 50%,
+    #0000ff 66.66%,
+    #ff00ff 83.33%,
+    #ff0000 100%
+  );
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.customHueTrackDisabled {
+  cursor: default;
+  filter: saturate(0.4);
+}
+
+.customHueThumb {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 18px;
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  background: var(--bg-pane);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 35%, transparent);
+  pointer-events: none;
+}
+
+.customShadeArea {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.8 / 1;
+  border: 1px solid var(--border-light);
+  border-radius: 3px;
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.customShadeArea::before,
+.customShadeArea::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.customShadeArea::before {
+  background: linear-gradient(to right, var(--bg-pane) 0%, transparent 100%);
+}
+
+.customShadeArea::after {
+  background: linear-gradient(to top, var(--text) 0%, transparent 100%);
+}
+
+.customShadeAreaDisabled {
+  cursor: default;
+}
+
+.customShadeThumb {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--bg-pane);
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 40%, transparent);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.customChannelStack {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.customChannelRow {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.customChannelLabel {
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+  color: var(--text-dim);
+  font-weight: 600;
+  text-align: left;
+}
+
+.customChannelNumber {
+  width: 100%;
+  min-height: 22px;
+  border: 1px solid var(--border-light);
+  border-radius: 2px;
+  background: var(--bg-pane);
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+  padding: 2px 4px;
+}
+
+.customChannelNumber::-webkit-outer-spin-button,
+.customChannelNumber::-webkit-inner-spin-button {
+  margin: 0;
+}
+
+.customField {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.customTextInputWrap {
+  position: relative;
+}
+
+.customTextInput,
+.customResultInput {
+  width: 100%;
+  min-height: 22px;
+  border: 1px solid var(--border-light);
+  border-radius: 2px;
+  background: var(--bg-pane);
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+  padding: 2px 5px;
+}
+
+.customTextInput {
+  padding-right: 20px;
+}
+
+.customTextInputError {
+  border-color: var(--color-error);
+}
+
+.customTextInputStatus {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: var(--color-error);
+  color: var(--bg-pane);
+  font-size: calc(var(--app-ui-scale, 1) * 9px);
+  font-weight: 700;
+  line-height: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.customResultInput {
+  background: var(--bg-pane);
+}
+
+.customHueTrackDisabled,
+.customShadeAreaDisabled,
+.customChannelNumber:disabled,
+.customTextInput:disabled,
+.customResultInput:disabled {
+  color: var(--text-dim);
+  background: var(--btn-disabled-bg);
+}
+
+.customMessageWarning {
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+  line-height: 1.3;
+}
+
+.customMessageWarning {
+  color: var(--color-warning);
+}
+
+.colorGrid {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.colorGridDivider {
+  border-top: 1px solid var(--border-lighter);
+  margin: 0;
+}
+
+.swatchButton {
+  aspect-ratio: 1 / 1;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.swatchButton:hover {
+  border-color: var(--border-light);
+  background: var(--btn-hover-bg);
+}
+
+.swatchButtonSelected {
+  border-color: var(--accent-btn-border);
+  background: var(--accent-btn-bg);
+}
+
+.swatchButton:disabled {
+  cursor: default;
+}
+
+.swatchDot {
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--text) 16%, var(--border));
+  flex-shrink: 0;
+}
+
+.swatchDotNone {
+  position: relative;
+  border-color: var(--border);
+  background-color: var(--bg-pane);
+  background-size: 4px 4px;
+  background-image:
+    linear-gradient(45deg, var(--border-light) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--border-light) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--border-light) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--border-light) 75%);
+  background-position: 0 0, 0 2px, 2px -2px, -2px 0;
+}
+
+.swatchDotNone::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  top: 50%;
+  height: 1.5px;
+  background: var(--color-error);
+  transform: translateY(-50%) rotate(-45deg);
+}
+
+.brightnessSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brightnessTrack {
+  position: relative;
+  width: 100%;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.brightnessTrackDisabled {
+  cursor: default;
+}
+
+.brightnessTrack:focus-visible {
+  outline: 2px solid var(--accent-btn-border);
+  outline-offset: 1px;
+}
+
+.brightnessThumb {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 4px;
+  border-radius: 2px;
+  border: 1px solid color-mix(in srgb, var(--text) 68%, transparent);
+  background: var(--bg-pane);
+  box-shadow: 0 1px 2px color-mix(in srgb, black 22%, transparent);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.brightnessLabels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: calc(var(--app-ui-scale, 1) * 10px);
+  color: var(--text-faint);
+  line-height: 1;
+}
+
+.brightnessBaseLabel {
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.brightnessEdgeLabel {
+  width: 36px;
+  text-align: left;
+}
+
+.brightnessEdgeLabelRight {
+  text-align: right;
+}
+
+.brightnessCenterLabel {
+  flex: 1;
+  text-align: center;
+}

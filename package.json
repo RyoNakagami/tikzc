@@ -1,0 +1,30 @@
+{
+  "name": "tikzc",
+  "version": "0.1.0",
+  "description": "Compile .tikz files to SVG / PNG (lualatex + dvisvgm / pdftoppm)",
+  "author": "Ryo Nakagami",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RyoNakagami/tikzc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RyoNakagami/tikzc/issues"
+  },
+  "homepage": "https://github.com/RyoNakagami/tikzc#readme",
+  "type": "commonjs",
+  "bin": {
+    "tikzc": "dist/tikzc.cjs"
+  },
+  "scripts": {
+    "build": "esbuild src/cli.ts --bundle --platform=node --target=node18 --format=cjs --outfile=dist/tikzc.cjs \"--banner:js=#!/usr/bin/env node\" && node -e \"if(process.platform!=='win32')require('fs').chmodSync('dist/tikzc.cjs',0o755)\"",
+    "check": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.23.0",
+    "typescript": "^5.5.0"
+  }
+}

@@ -1,0 +1,98 @@
+#| mainfont: Noto Sans CJK JP
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    block/.style={draw=#1!55!black, fill=#1!12, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    ext/.style={draw=gray!70, dashed, fill=gray!8, rounded corners=3pt,
+                align=center, inner sep=5pt},
+    zone/.style={fill=#1!6, draw=#1!40, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=#1!45!black},
+    sig/.style={font=\footnotesize, inner sep=2pt},
+    dot/.style={circle, fill, inner sep=1.4pt},
+  ]
+
+  % ---- オフライン学習（左列，上から下へ） ---------------------------------
+  \node[block=blue, text width=3.8cm] at (2, 1.6) (ds)
+    {学習データ収集\\{\footnotesize $x\in\mathbb{R}^{18}$：関節角 $\Theta_{0,\dots,6}$，\\EE位置・姿勢（四元数），\\障害物位置，衝突フラグ $\mathbb{I}_F$}};
+  \node[block=blue, text width=3.8cm] at (2, -1.1) (dvae)
+    {D-VAE（拡散変分\\オートエンコーダ）\\{\footnotesize 拡散マップ学習＋\\確率的サンプリング $\tilde f_\omega$}};
+  \node[block=blue, text width=3.8cm] at (2, -3.8) (graphdb)
+    {密結合グラフ $\mathcal{G}=(V,E)$\\{\footnotesize 2次元潜在多様体\\$\mathcal{M}_z\subset\mathbb{R}^2$ 上，\\安全ノードのみ接続}};
+
+  % ---- オンライン：計画・実行（上段） --------------------------------------
+  \node[block=orange, text width=3.2cm] at (8.2, 0) (route)
+    {最短経路探索・\\動的経路修正\\{\footnotesize GraphTraverse$(V_{\mathrm{curr}},V_g)$\\→ OptPath}};
+  \node[block=orange, text width=4.0cm, fill=white] at (13.6, 0) (decoder)
+    {生成モーションプランナ\\{\footnotesize デコーダ $\psi_\phi:\mathcal{M}_z\to\mathbb{X}$\\生成関節列 $\Theta_i=\{\theta_0,\dots,\theta_6\}$}};
+  \node[block=orange, text width=3.6cm] at (20.5, 0) (robot)
+    {7-DoF マニピュレータ\\{\footnotesize Franka Emika Panda\\（ROS / libfranka）}};
+
+  % ---- オンライン：知覚・推定・衝突チェック（下段） ------------------------
+  \node[block=teal, text width=3.2cm] at (10.2, -3.4) (ekf)
+    {状態推定（EKF）\\{\footnotesize ターゲット実時間追跡・\\将来位置予測}};
+  \node[block=teal, text width=3.2cm] at (16.5, -3.4) (cam)
+    {RGB-D カメラ\\{\footnotesize RealSense D435i，\\両方向ハンドアイ構成}};
+  \node[ext, text width=3.0cm] at (20.5, -3.4) (env)
+    {環境\\{\footnotesize 飛翔ターゲット・\\動的障害物}};
+  \node[block=teal, text width=3.6cm] at (13.6, -5.9) (gjk)
+    {近接チェックポイント\\{\footnotesize $d_i\sim\mathrm{GJK}(o_{\mathrm{curr}},\Theta_i)$，\\しきい値判定 $d_i<\lambda_{\mathrm{obs}}$}};
+
+  % ---- オフライン配線 -------------------------------------------------------
+  \draw[->] (ds) -- (dvae) node[midway, right, sig] {$x$（200kサンプル）};
+  \draw[->] (dvae) -- (graphdb) node[midway, right, sig] {$z'_i\in\mathcal{M}_z$};
+  \draw[->, dashed] (graphdb.east) -- ++(0.8,0) |- (route.west)
+    node[pos=0.25, right, sig, align=left] {事前構築グラフ $\mathcal{G}$};
+
+  % ---- オンライン：計画・実行配線 ------------------------------------------
+  \draw[->] (route) -- (decoder) node[midway, above, sig] {OptPath};
+  \draw[->] (decoder) -- (robot)
+    node[midway, above, sig] {$\Theta_i$}
+    node[midway, below, sig] {安全時実行};
+  % 現在状態フィードバック（上段ループ）
+  \draw[->] (robot.north) -- ++(0,1.6) -| (route.north)
+    node[pos=0.25, above, sig]
+    {現在状態 $x_o$ → 現在ノード $V_{\mathrm{curr}}$（$\tilde f_\omega$ でエンコード）};
+
+  % ---- オンライン：知覚・判定配線 ------------------------------------------
+  \draw[->] (robot) -- (env) node[midway, right, sig] {迎撃・回避動作};
+  \draw[->] (env) -- (cam);
+  \draw[->] (cam) -- (ekf)
+    node[pos=0.6, above, sig] {画像特徴}
+    node[pos=0.6, below, sig] {$(f_x,f_y,Z)$};
+  % EKF → 経路再計画（目標更新）
+  \draw[->] (ekf.west) -| ($(route.south)+(0.6,0)$);
+  \node[sig, anchor=west, align=left] at (9.1, -2.0)
+    {目標更新：新目標ノード $V_g^{\mathrm{new}}$\\（$\|O_{\mathrm{curr}}-O_{\mathrm{old}}\|_2>\lambda_{\mathrm{obj}}$ 時）};
+  % 計画軌道の衝突チェック（カメラ→EKF線との交差はジャンプ弧）
+  \coordinate (thdrop) at ($(decoder.south)+(0.55,0)$);
+  \coordinate (thcross) at (thdrop |- cam.west);
+  \draw[->] (thdrop) -- ($(thcross)+(0,0.16)$)
+    arc[start angle=90, end angle=-90, radius=0.16]
+    -- ($(gjk.north)+(0.55,0)$);
+  \node[sig, anchor=east] at ($(thdrop)+(-0.15,-3.6)$) {$\Theta_i$（計画軌道）};
+  \draw[->] (cam.south) |- (gjk.east)
+    node[pos=0.4, right, sig] {$o_{\mathrm{curr}}$（障害物位置・形状）};
+  % 衝突リスク時の動的経路修正
+  \draw[->] (gjk.west) -- ++(-1.0,0) -| ($(route.south)+(-0.6,0)$)
+    node[pos=0.25, below, sig, align=center]
+    {衝突リスク時：動的経路修正\\（$V_{\mathrm{colliding}}\to V_{\mathrm{new}}$）};
+
+  % ---- ゾーン（背景） -------------------------------------------------------
+  \coordinate (looptop) at ($(route.north)+(0,2.0)$);
+  \begin{scope}[on background layer]
+    \node[zone=blue, fit=(ds)(dvae)(graphdb)] (zoff) {};
+    \node[zone=orange, fit=(route)(decoder)(robot)(route |- looptop)] (zplan) {};
+    \node[zone=teal, fit=(ekf)(cam)(env)(gjk)] (zperc) {};
+  \end{scope}
+  \node[zlabel=blue] at (zoff.north) {オフライン学習（事前構築）};
+  \node[zlabel=orange] at (zplan.north) {オンライン：計画・実行};
+  \node[zlabel=teal, anchor=north] at (zperc.south)
+    {オンライン：知覚・状態推定・衝突チェック};
+
+  % ---- 出典 -----------------------------------------------------------------
+  \node[font=\scriptsize, text=gray, anchor=north west, align=left]
+    at ($(zoff.west |- zperc.south)+(0,-1.1)$)
+    {出典：A. Dastider, H. Fang and M. Lin, ``Unified Control Framework for Real-Time Interception
+     and Obstacle Avoidance of Fast-Moving Objects with Diffusion Variational Autoencoder''（arXiv:2209.13628v2）};
+
+\end{tikzpicture}
