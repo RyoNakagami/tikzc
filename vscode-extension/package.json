@@ -2,7 +2,7 @@
   "name": "tikzc-preview",
   "displayName": "TikZc Editor",
   "description": "WYSIWYG TikZ editor (vendored tikz-editor) with SVG/PNG export via lualatex + dvisvgm",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "RyoNak",
   "license": "MIT",
   "repository": {
@@ -19,7 +19,8 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Visualization", "SVG", "PNG", "TikZ", "LaTeX"],
+  "categories": ["Visualization", "Programming Languages"],
+  "keywords": ["tikz", "latex", "svg", "png", "diagram"],
   "main": "./dist/extension.js",
   "activationEvents": [
     "onLanguage:tikz"

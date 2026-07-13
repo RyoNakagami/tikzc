@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-13
+
+### Added
+
+- GitHub Actions workflow to manually create release tags
+  (`manually-create-release-tag.yml`).
+- Marketplace `keywords` (`tikz`, `latex`, `svg`, `png`, `diagram`) for the
+  VSCode extension.
+
+### Changed
+
+- Extension Marketplace `categories` narrowed to valid values
+  (`Visualization`, `Programming Languages`).
+- `docs/PUBLISH.md`: replaced the hard-coded publisher ID with a
+  `<your-id>` placeholder.
+
 ## [0.1.0] - 2026-07-10
 
 Initial release.
@@ -31,5 +47,6 @@ Initial release.
 - Docs: manual (EN / JP), branch strategy, commit rules, testing guide, and
   versioning policy.
 
-[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/RyoNakagami/tikzc/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/RyoNakagami/tikzc/releases/tag/v0.1.0
