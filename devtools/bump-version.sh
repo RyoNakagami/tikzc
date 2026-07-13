@@ -47,8 +47,9 @@ set_package_json_version() {
     const file = process.argv[1];
     const version = process.argv[2];
     const text = fs.readFileSync(file, 'utf8');
-    const updated = text.replace(/^(\s*\"version\":\s*\")[^\"]*(\")/m, \`\\\$1\${version}\\\$2\`);
-    if (updated === text) throw new Error('version field not found in ' + file);
+    const pattern = /^(\s*\"version\":\s*\")[^\"]*(\")/m;
+    if (!pattern.test(text)) throw new Error('version field not found in ' + file);
+    const updated = text.replace(pattern, \`\\\$1\${version}\\\$2\`);
     fs.writeFileSync(file, updated);
   " "$file" "$new_version"
 }
