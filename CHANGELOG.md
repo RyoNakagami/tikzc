@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `tikzc -V` / `tikzc --version` flag that prints the CLI version and exits.
 
+### Fixed
+
+- VSCode extension WYSIWYG editor: the `auto` option (e.g. set globally on the
+  `tikzpicture`) no longer overrides an explicit placement key
+  (`above`, `below`, `below=15pt`, `anchor=`, ...) on path nodes. Real TikZ
+  applies `auto` only while the anchor is unset, so edge labels such as
+  `node[midway, below=15pt] {...}` inside an `[auto]` picture rendered on the
+  wrong side of the line in the editor while the lualatex SVG/PNG export
+  placed them correctly.
+
 ## [0.1.2] - 2026-07-14
 
 ### Fixed
