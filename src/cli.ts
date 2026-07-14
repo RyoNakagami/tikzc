@@ -19,6 +19,9 @@ import {
   type OutputFormat,
   type TikzOptions,
 } from "./core";
+// esbuild inlines the JSON at bundle time, so dist/tikzc.cjs stays
+// self-contained; devtools/bump-version.sh keeps this in sync with VERSION
+import { version as VERSION } from "../package.json";
 
 const HELP = `tikzc — compile .tikz files to SVG / PNG (lualatex + dvisvgm/pdftoppm)
 
@@ -35,6 +38,7 @@ Options:
       --keep-tex                also write the generated .tex
   -w, --watch                   watch the input file and recompile on change
   -q, --quiet                   suppress progress output
+  -V, --version                 print the tikzc version
   -h, --help                    show this help
 
 Source header options (override CLI flags):
@@ -70,9 +74,15 @@ function parseCli(argv: string[]): CliConfig {
       "keep-tex": { type: "boolean", default: false },
       watch: { type: "boolean", short: "w", default: false },
       quiet: { type: "boolean", short: "q", default: false },
+      version: { type: "boolean", short: "V", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
   });
+
+  if (values.version) {
+    process.stdout.write(`tikzc ${VERSION}\n`);
+    process.exit(0);
+  }
 
   if (values.help || positionals.length === 0) {
     process.stdout.write(HELP);

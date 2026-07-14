@@ -15,6 +15,7 @@
   \draw[->] (pc1) -- node[midway, above, sig] {平文のまま送信：\texttt{Hello}}
       node[midway, below, sig, text=red!60!black] {第三者に盗聴・改ざんされるリスクがある} (sv1);
 
+
   % ---------- 下段：TLS 通信路 ----------
   \node[block=blue, below=2.4cm of pc1] (pc2) {PC};
   \node[block=blue] at (sv1 |- pc2) (sv2) {サーバー};
