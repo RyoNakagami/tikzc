@@ -1,6 +1,6 @@
 {
   "name": "tikzc",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Compile .tikz files to SVG / PNG (lualatex + dvisvgm / pdftoppm)",
   "author": "Ryo Nakagami",
   "license": "MIT",
