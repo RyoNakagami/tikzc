@@ -13,6 +13,7 @@ import {
 import { evaluateRawCoordinate } from "../coords/evaluate.js";
 import {
   currentAnchorForDirection,
+  parseDirectionalKey,
   resolveNodePositioningTarget,
   targetAnchorForDirection,
   type PositioningDirection
@@ -1947,6 +1948,24 @@ function resolveAutoNodeAnchor(
 ): string | null {
   if (!options || !segment) {
     return null;
+  }
+
+  // auto only applies while the anchor is unset; an explicit anchor= or a
+  // directional placement key (above/below/..., with or without a value)
+  // fixes the anchor and disables auto regardless of option order.
+  for (const entry of options.entries) {
+    if (entry.kind === "kv") {
+      if (entry.key === "anchor" && normalizeOptionValue(entry.valueRaw).length > 0) {
+        return null;
+      }
+      if (parseDirectionalKey(entry.key)) {
+        return null;
+      }
+      continue;
+    }
+    if (entry.kind === "flag" && (entry.key === "centered" || parseDirectionalKey(entry.key))) {
+      return null;
+    }
   }
 
   let autoSide: "left" | "right" | null = null;
