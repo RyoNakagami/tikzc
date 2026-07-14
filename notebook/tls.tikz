@@ -1,0 +1,41 @@
+#| mainfont: IPAexGothic
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    block/.style={draw=#1!55!black, fill=#1!12, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, minimum width=2.6cm, inner sep=5pt},
+    zone/.style={fill=#1!6, draw=#1!40, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=#1!45!black},
+    chip/.style={draw=#1!55!black, fill=#1!12, rounded corners=3pt,
+                 align=center, font=\footnotesize, inner sep=5pt, minimum height=1.0cm},
+    sig/.style={font=\footnotesize, inner sep=2pt},
+  ]
+  % ---------- 上段：通常の通信 ----------
+  \node[block=gray] (pc1) {PC};
+  \node[block=gray, right=9.2cm of pc1] (sv1) {サーバー};
+  \draw[->] (pc1) -- node[midway, above, sig] {平文のまま送信：\texttt{Hello}}
+      node[midway, below, sig, text=red!60!black] {第三者に盗聴・改ざんされるリスクがある} (sv1);
+
+  % ---------- 下段：TLS 通信路 ----------
+  \node[block=blue, below=2.4cm of pc1] (pc2) {PC};
+  \node[block=blue] at (sv1 |- pc2) (sv2) {サーバー};
+  \draw[draw=blue!55!black, line width=1.1pt, double distance=5.5pt]
+      (pc2.east) -- (sv2.west);
+  \draw[->, draw=blue!55!black] (pc2.east) -- (sv2.west)
+      node[midway, above=0.32cm, sig] {暗号文として送信：\texttt{8f3a9b1c...}（盗聴されても読めない）};
+
+  % 3つの保証（チップ）
+  \node[chip=blue, below right={0.55cm and 1.3cm} of pc2.south west, anchor=north west]
+      (c1) {\textbf{暗号化（Encryption）}\\通信内容を第三者に\\読まれないようにする};
+  \node[chip=blue, right=0.55cm of c1]
+      (c2) {\textbf{認証（Authentication）}\\通信相手が正しいサーバー\\であることを確認する};
+  \node[chip=blue, right=0.55cm of c2]
+      (c3) {\textbf{完全性（Integrity）}\\通信途中でデータが改ざん\\されていないことを確認する};
+
+  % ---------- ゾーン背景 ----------
+  \begin{scope}[on background layer]
+    \node[zone=gray, fit=(pc1)(sv1)] (zplain) {};
+    \node[zone=blue, fit=(pc2)(sv2)(c1)(c3)] (ztls) {};
+  \end{scope}
+  \node[zlabel=gray] at (zplain.north) {通常の通信（保護なし）};
+  \node[zlabel=blue] at (ztls.north) {TLS 通信路：確立すると 3 つが保証される};
+\end{tikzpicture}

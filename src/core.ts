@@ -117,6 +117,23 @@ export function parseSource(text: string): {
   return { opts, body: bodyLines.join("\n") };
 }
 
+/**
+ * Accept the common `below right={0.55cm and 1.3cm} of foo` misspelling of
+ * the positioning-library syntax. With braces around only the distance pair,
+ * pgfkeys hands the group to the math parser before `positioning` can split
+ * on ` and `, which dies with "Unknown operator `a' or `an'". Rewrite to the
+ * canonical unbraced form `below right=0.55cm and 1.3cm of foo`.
+ *
+ * Only the four diagonal keys take the two-distance `and` form, and the
+ * braced content must be comma-free (a comma would need the braces to stay).
+ */
+export function normalizePositioningAnd(body: string): string {
+  return body.replace(
+    /\b((?:above|below)\s+(?:left|right)\s*=\s*)\{([^{},]+?\s+and\s+[^{},]+?)\}\s*(of\b)/g,
+    "$1$2 $3"
+  );
+}
+
 // ---------------------------------------------------------------------------
 // tex assembly
 // ---------------------------------------------------------------------------
@@ -150,7 +167,7 @@ export function buildTex(source: string, defaults: TikzOptions = {}): string {
   ];
 
   // allow bare content: wrap in tikzpicture if user omitted it
-  let content = body.trim();
+  let content = normalizePositioningAnd(body.trim());
   if (!/\\begin\s*\{tikzpicture\}/.test(content)) {
     content = `\\begin{tikzpicture}\n${content}\n\\end{tikzpicture}`;
   }
@@ -160,6 +177,70 @@ export function buildTex(source: string, defaults: TikzOptions = {}): string {
 
   lines.push(content, "\\end{document}");
   return lines.join("\n");
+}
+
+/**
+ * Remove the `dvisvgm` class option the embedded editor puts on
+ * `\documentclass` for its original latex->dvi->dvisvgm workflow. tikzc
+ * compiles lualatex->pdf->dvisvgm --pdf instead, and recent standalone.cls
+ * versions make the mismatch fatal ("Backend request inconsistent with
+ * engine: using 'luatex' backend").
+ */
+export function stripDvisvgmClassOption(tex: string): string {
+  return tex.replace(
+    /(\\documentclass)\s*\[([^\]]*)\]/,
+    (_m, cmd: string, opts: string) => {
+      const rest = opts
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0 && s !== "dvisvgm");
+      return rest.length > 0 ? `${cmd}[${rest.join(",")}]` : cmd;
+    }
+  );
+}
+
+/**
+ * Inject tikzc's preamble (fontspec + mainfont, and the `#|` header
+ * packages/libraries of `source` merged with `defaults`) into a standalone
+ * LaTeX document assembled by the embedded editor.
+ *
+ * The editor's exporter only emits `\usepackage{tikz}` plus the libraries it
+ * can infer from the picture: the `#|` header never reaches it, so e.g.
+ * `#| packages: [fontawesome]` icons compile via the CLI but come out as
+ * "Undefined control sequence" in the editor's compiled preview. Merging here
+ * keeps the preview consistent with buildTex() without patching the vendored
+ * editor.
+ */
+export function injectStandalonePreamble(
+  tex: string,
+  source: string,
+  defaults: TikzOptions = {}
+): string {
+  const marker = "\\begin{document}";
+  const at = tex.indexOf(marker);
+  if (at === -1) return tex; // not a standalone document we understand
+
+  const { opts } = parseSource(source);
+  const packages = mergeLists(
+    DEFAULT_PACKAGES,
+    defaults.packages ?? [],
+    parseList(opts.packages)
+  );
+  const libraries = mergeLists(
+    DEFAULT_LIBRARIES,
+    defaults.libraries ?? [],
+    parseList(opts.libraries)
+  );
+  const mainfont = opts.mainfont ?? defaults.mainfont ?? DEFAULT_MAINFONT;
+
+  const preamble = [
+    "\\usepackage{fontspec}",
+    `\\setmainfont{${mainfont}}`,
+    ...packages.map((p) => `\\usepackage{${p}}`),
+    `\\usetikzlibrary{${libraries.join(",")}}`,
+  ].join("\n");
+
+  return `${tex.slice(0, at)}${preamble}\n${tex.slice(at)}`;
 }
 
 // ---------------------------------------------------------------------------

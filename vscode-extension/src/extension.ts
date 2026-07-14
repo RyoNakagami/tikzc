@@ -20,6 +20,9 @@ import { execFile } from "node:child_process";
 import {
   compileTikz,
   compileTexToSvg,
+  injectStandalonePreamble,
+  normalizePositioningAnd,
+  stripDvisvgmClassOption,
   TikzCompileError,
   type TikzOptions,
 } from "../../src/core";
@@ -28,6 +31,9 @@ const PERSISTENCE_KEY = "tikzc.editorPersistence";
 const LOG_FILE = path.join(os.tmpdir(), "tikzc-webview.log");
 
 let panel: vscode.WebviewPanel | undefined;
+// the .tikz document mirrored by the panel (single-document mode); its `#|`
+// header drives the preamble injected into webview latex.compile requests
+let linkedDoc: vscode.TextDocument | undefined;
 let watchedPaths = new Set<string>();
 let fileWatchers: vscode.FileSystemWatcher[] = [];
 let lastCompileLog = "";
@@ -133,6 +139,7 @@ async function openEditorPanel(ctx: vscode.ExtensionContext): Promise<void> {
 
   panel.onDidDispose(() => {
     panel = undefined;
+    linkedDoc = undefined;
     disposeFileWatchers();
     watchedPaths = new Set();
   });
@@ -147,6 +154,7 @@ async function openEditorPanel(ctx: vscode.ExtensionContext): Promise<void> {
 }
 
 function sendOpenDocument(doc: vscode.TextDocument): void {
+  linkedDoc = doc;
   panel?.webview.postMessage({
     type: "open-document",
     source: doc.getText(),
@@ -446,7 +454,19 @@ async function handleRpc(method: string, params: Record<string, unknown>): Promi
 
     case "latex.compile": {
       try {
-        const result = await compileTexToSvg(String(params.latexDocument));
+        // adapt the editor-built document to the lualatex pipeline: its
+        // `dvisvgm` class option is fatal under lualatex, and its standalone
+        // export knows nothing about the `#|` header (packages / libraries /
+        // mainfont) — merge that back in here; the picture body is exported
+        // verbatim, so it needs the same `and` normalization as buildTex()
+        const tex = injectStandalonePreamble(
+          stripDvisvgmClassOption(
+            normalizePositioningAnd(String(params.latexDocument))
+          ),
+          linkedDoc?.getText() ?? "",
+          configDefaults()
+        );
+        const result = await compileTexToSvg(tex);
         lastCompileLog = result.log;
         return result.svg;
       } catch (e) {
