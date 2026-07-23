@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-07-23
+
+### Fixed
+
+- VSCode extension WYSIWYG editor: PNG / SVG / PDF export failed ("Failed to
+  decode SVG for PNG export.") for figures whose node text contains `<` or `>`
+  (e.g. `notebook/test-jp.tikz` with `$d_i<\lambda_{\mathrm{obs}}$`). MathJax's
+  LiteParser serializes fragments in HTML mode, where attribute values only
+  escape `&` and `"`, so the `data-latex` attribute kept a raw `<` and the
+  serialized export document was ill-formed XML — the live canvas still
+  rendered because the HTML parser tolerates it. The webview engine wrapper now
+  escapes `<`/`>` inside attribute values of MathJax fragment markup at the
+  payload boundary (`webview/node-text-fallback/mathjax-xml-safe.ts`).
+
 ## [0.2.1] - 2026-07-23
 
 ### Fixed

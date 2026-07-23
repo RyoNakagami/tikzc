@@ -29,6 +29,7 @@ import type {
   NodeTextValidationIssue,
 } from "../../tikzc-editor/packages/core/src/text/types.js";
 import { NativeTextCompiler } from "./native-compiler";
+import { escapeAngleBracketsInAttributeValues } from "./mathjax-xml-safe";
 import type { NativeSnippetCompiler } from "./types";
 
 export { getActiveMathJaxOutputJax, setWorkerFontLoader };
@@ -52,6 +53,22 @@ export function setNativeSnippetCompiler(compiler: NativeSnippetCompiler): void 
 /** Keep the `#|` header the fallback preamble uses in sync with the document. */
 export function setNativeSnippetHeaderSource(source: string): void {
   nativeCompiler.setHeaderFromSource(source);
+}
+
+// MathJax serializes fragments in HTML mode, leaving raw `<`/`>` in attribute
+// values (e.g. data-latex="$d_i<\lambda$") — fine on the live canvas, fatal
+// for every export path that re-parses the document as strict XML. Escape at
+// the payload boundary; cache per payload object (payloads are engine-cached).
+const xmlSafePayloadCache = new WeakMap<NodeTextRenderPayload, NodeTextRenderPayload>();
+
+function toXmlSafePayload(payload: NodeTextRenderPayload): NodeTextRenderPayload {
+  let safe = xmlSafePayloadCache.get(payload);
+  if (!safe) {
+    const body = escapeAngleBracketsInAttributeValues(payload.body);
+    safe = body === payload.body ? payload : { ...payload, body };
+    xmlSafePayloadCache.set(payload, safe);
+  }
+  return safe;
 }
 
 /** mirror of the vendored engine's private isMathJaxAsyncRetryError() */
@@ -101,7 +118,8 @@ export async function createMathJaxNodeTextEngine(options?: {
       if (cacheKey.startsWith("native:")) {
         return nativeCompiler.renderFromCache(cacheKey);
       }
-      return inner.renderFromCache(cacheKey);
+      const payload = inner.renderFromCache(cacheKey);
+      return payload ? toXmlSafePayload(payload) : null;
     },
 
     async flushPending(): Promise<readonly string[]> {
