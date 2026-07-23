@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-23
+
+### Fixed
+
+- VSCode extension WYSIWYG editor: PNG / SVG export failed ("Failed to decode
+  SVG for PNG export.") for figures using the native lualatex text fallback
+  (e.g. `sandbox/nat.tikz` with fontawesome icons and CJK text). dvisvgm
+  fragments reference glyphs via `xlink:href`, but the editor's root `<svg>`
+  declares only the default namespace, so the serialized export document was
+  ill-formed XML (unbound `xlink:` prefix) — the live canvas still rendered
+  because the HTML parser is namespace-lenient. Fragment post-processing now
+  rewrites `xlink:href` to the SVG2 `href`.
+
 ## [0.2.0] - 2026-07-23
 
 ### Added
@@ -99,7 +112,8 @@ Initial release.
 - Docs: manual (EN / JP), branch strategy, commit rules, testing guide, and
   versioning policy.
 
-[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/RyoNakagami/tikzc/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/RyoNakagami/tikzc/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/RyoNakagami/tikzc/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/RyoNakagami/tikzc/compare/v0.1.1...v0.1.2
