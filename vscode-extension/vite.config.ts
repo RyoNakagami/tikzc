@@ -143,6 +143,13 @@ export default defineConfig({
   },
   resolve: {
     alias: [
+      // native text fallback: node text MathJax cannot render is compiled by
+      // lualatex on the extension host. Must come before the generic
+      // tikz-editor alias (array aliases are first-match-wins).
+      {
+        find: /^tikz-editor\/text\/mathjax-engine$/,
+        replacement: path.resolve(__dirname, "webview/node-text-fallback/engine.ts"),
+      },
       { find: /^@tikz-editor\/app$/, replacement: path.resolve(EDITOR, "packages/app/src/index.ts") },
       { find: /^@tikz-editor\/app\/(.*)$/, replacement: path.resolve(EDITOR, "packages/app/src") + "/$1" },
       { find: /^@tikz-editor\/lang-tikz$/, replacement: path.resolve(EDITOR, "packages/lang-tikz/src/index.ts") },

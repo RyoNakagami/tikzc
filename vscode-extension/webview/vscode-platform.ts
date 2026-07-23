@@ -21,6 +21,10 @@ import {
   type LinkedTextReadResult,
   type LinkedTextWriteResult
 } from "@tikz-editor/app/linked-file-sync";
+import type {
+  NativeSnippetRequest,
+  NativeSnippetResult
+} from "./node-text-fallback/types";
 
 type VsCodeApi = {
   postMessage: (message: unknown) => void;
@@ -368,6 +372,18 @@ export function createVscodePlatformAdapter(): EditorPlatform {
       readLastCompileLog: () => rpc<string>("latex.readLog")
     }
   };
+}
+
+/**
+ * Compile node-text snippets natively (lualatex on the extension host).
+ * Used by the native text fallback engine for node text the MathJax engine
+ * cannot render (e.g. fontawesome icons). Kept off `platform.latex` so the
+ * vendored PlatformLatex type stays untouched.
+ */
+export function compileNativeTextSnippets(
+  requests: NativeSnippetRequest[]
+): Promise<NativeSnippetResult[]> {
+  return rpc<NativeSnippetResult[]>("latex.compileSnippet", { snippets: requests });
 }
 
 /** Tell the extension host the webview is ready to receive the document. */

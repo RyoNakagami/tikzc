@@ -26,6 +26,7 @@ import {
   TikzCompileError,
   type TikzOptions,
 } from "../../src/core";
+import { SnippetService, type SnippetRpcRequest } from "./snippet-service";
 
 const PERSISTENCE_KEY = "tikzc.editorPersistence";
 const LOG_FILE = path.join(os.tmpdir(), "tikzc-webview.log");
@@ -38,6 +39,9 @@ let watchedPaths = new Set<string>();
 let fileWatchers: vscode.FileSystemWatcher[] = [];
 let lastCompileLog = "";
 let logChannel: vscode.OutputChannel | undefined;
+// node-text snippet compiles (native text fallback); caches survive panel
+// reloads so re-opening the editor doesn't recompile every icon
+const snippetService = new SnippetService();
 
 function log(message: string): void {
   const line = `[${new Date().toISOString()}] ${message}`;
@@ -476,6 +480,25 @@ async function handleRpc(method: string, params: Record<string, unknown>): Promi
         }
         throw e;
       }
+    }
+
+    case "latex.compileSnippet": {
+      // native text fallback: node text the webview's MathJax engine cannot
+      // render, compiled as tiny standalone documents. The webview sends the
+      // `#|` header it sees; the linked document is the fallback source.
+      const snippets = (params.snippets ?? []) as SnippetRpcRequest[];
+      const started = Date.now();
+      const results = await snippetService.compileSnippets(
+        snippets,
+        linkedDoc?.getText() ?? "",
+        configDefaults()
+      );
+      log(
+        `compileSnippet: ${results.length} snippet(s) in ${Date.now() - started}ms (` +
+          results.map((r) => r.status).join(",") +
+          ")"
+      );
+      return results;
     }
 
     case "latex.readLog":

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- VSCode extension WYSIWYG editor: native text fallback — node text the
+  embedded editor's MathJax engine cannot render (e.g. `\faGlobe` with
+  `#| packages: [fontawesome]`) is now compiled by lualatex on the extension
+  host (`latex.compileSnippet` RPC) and embedded into the canvas as an SVG
+  fragment, so the canvas shows the same glyphs the tikzc CLI produces while
+  keeping full WYSIWYG interaction. Snippets are compiled at the engine's
+  base font size, cached on both sides (with failure TTL and in-flight
+  de-duplication), and recolored via `currentColor` so `text=` node colors
+  apply.
+- `buildSnippetTex()` / `compileSnippetToSvg()` / `parseSnippetMetrics()` in
+  `src/core.ts`: standalone snippet compilation with exact TeX box metrics
+  (`\wd`/`\ht`/`\dp` written to a metrics file) and a papersize-bbox dvisvgm
+  run so the SVG viewBox matches the TeX box and the baseline is exact.
+
 ## [0.1.3] - 2026-07-14
 
 ### Added

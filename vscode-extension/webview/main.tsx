@@ -7,8 +7,13 @@ import {
   createVscodePlatformAdapter,
   signalReady,
   logToHost,
-  setOpenDocumentInterceptor
+  setOpenDocumentInterceptor,
+  compileNativeTextSnippets
 } from "./vscode-platform";
+import {
+  setNativeSnippetCompiler,
+  setNativeSnippetHeaderSource
+} from "./node-text-fallback/engine";
 
 window.addEventListener("error", (event) => {
   logToHost(`window.onerror: ${event.message} (${event.filename}:${event.lineno})`);
@@ -24,6 +29,9 @@ async function bootstrap() {
   // must run before the first canvas render kicks off MathJax
   const { registerMathJaxFontLoader } = await import("./mathjax-fonts");
   registerMathJaxFontLoader();
+  // native text fallback: node text MathJax cannot render (e.g. \faGlobe)
+  // compiles via lualatex on the extension host instead
+  setNativeSnippetCompiler(compileNativeTextSnippets);
   const { App, APP_MENU_COMMAND_IDS, applyWorkspace } = await import("@tikz-editor/app");
   const { useEditorStore } = await import("@tikz-editor/app/store/store");
   const { getDockLayoutHandle } = await import("@tikz-editor/app/ui/DockLayout");
@@ -41,6 +49,7 @@ async function bootstrap() {
   // document (or create it) and every other document — including tabs
   // restored from a previous session — is closed.
   setOpenDocumentInterceptor(({ source, path }) => {
+    setNativeSnippetHeaderSource(source);
     const { dispatch } = useEditorStore.getState();
     const name = path.split(/[\\/]/).pop() ?? path;
     const fileRef: DocumentFileRef = { kind: "file", name, path, provider: "desktop-fs" };
@@ -94,6 +103,16 @@ async function bootstrap() {
   // save flow (debounced) so changes land in the VSCode buffer immediately.
   // Re-dispatch only when the source actually changed since the last attempt,
   // so a pending conflict dialog is not re-triggered every tick.
+  // keep the native text fallback's `#|` header in sync with source edits
+  // (e.g. adding `#| packages: [fontawesome]` in the VSCode text editor)
+  let lastHeaderSource: string | undefined;
+  useEditorStore.subscribe((state) => {
+    const doc = state.activeDocumentId ? state.documents[state.activeDocumentId] : undefined;
+    if (doc == null || doc.source === lastHeaderSource) return;
+    lastHeaderSource = doc.source;
+    setNativeSnippetHeaderSource(doc.source);
+  });
+
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
   const lastAttemptedSource = new Map<string, string>();
   useEditorStore.subscribe((state) => {

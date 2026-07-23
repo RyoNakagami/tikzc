@@ -244,6 +244,196 @@ export function injectStandalonePreamble(
 }
 
 // ---------------------------------------------------------------------------
+// node-text snippet assembly (native text fallback for the embedded editor)
+// ---------------------------------------------------------------------------
+
+export interface SnippetParams {
+  text: string;
+  mode: "text" | "math";
+  /** wrap width in bp (CSS pt); null = natural single-line width */
+  widthBp: number | null;
+  alignment: "ragged-right" | "ragged-left" | "center" | "justified" | null;
+  fontStyle: "normal" | "italic";
+  fontWeight: "normal" | "bold";
+  fontFamily: "serif" | "sans" | "monospace";
+}
+
+export interface SnippetMetrics {
+  /** TeX pt (72.27/inch), as reported by \wd, \ht, \dp */
+  wdTexPt: number;
+  htTexPt: number;
+  dpTexPt: number;
+}
+
+const SNIPPET_METRICS_FILE = "metrics.txt";
+const SNIPPET_METRICS_PREFIX = "TIKZC-METRICS";
+
+/**
+ * Wrap node text with the same font/width/alignment switches the embedded
+ * editor's MathJax engine applies (buildWrappedTeX), so a natively compiled
+ * snippet measures and renders like its MathJax counterpart.
+ */
+function buildSnippetStyledText(params: SnippetParams): string {
+  let styled = params.text;
+  if (params.mode === "text" && params.fontFamily === "sans") {
+    styled = `\\textsf{${styled}}`;
+  } else if (params.mode === "text" && params.fontFamily === "monospace") {
+    styled = `\\texttt{${styled}}`;
+  }
+  if (params.mode === "text" && params.fontWeight === "bold") {
+    styled = `\\textbf{${styled}}`;
+  }
+  if (params.mode === "text" && params.fontStyle === "italic") {
+    styled = `\\textit{${styled}}`;
+  }
+  if (params.mode === "math") {
+    styled = `$${styled}$`;
+    return params.widthBp == null ? styled : `\\parbox{${params.widthBp}bp}{${styled}}`;
+  }
+  if (params.widthBp == null) {
+    return `\\mbox{${styled}}`;
+  }
+  const align =
+    params.alignment === "ragged-left"
+      ? "\\raggedleft "
+      : params.alignment === "center"
+        ? "\\centering "
+        : params.alignment === "justified"
+          ? ""
+          : "\\raggedright ";
+  return `\\parbox[t]{${params.widthBp}bp}{${align}${styled}}`;
+}
+
+/**
+ * Build a standalone document that typesets one node-text snippet at the
+ * document's base size (10pt class => \normalsize = 9.96264bp, the editor
+ * engine's DEFAULT_TEXT_FONT_SIZE) and writes the exact TeX box dimensions
+ * to metrics.txt (\typeout would wrap long lines in the log, so a dedicated
+ * \write stream is used instead).
+ *
+ * The preamble merges the `#|` header of `headerSource` with `defaults`
+ * using the same rules as buildTex()/injectStandalonePreamble(), so e.g.
+ * `#| packages: [fontawesome]` macros compile in node text too.
+ */
+export function buildSnippetTex(
+  params: SnippetParams,
+  headerSource: string,
+  defaults: TikzOptions = {}
+): string {
+  const { opts } = parseSource(headerSource);
+  const packages = mergeLists(
+    DEFAULT_PACKAGES,
+    defaults.packages ?? [],
+    parseList(opts.packages)
+  );
+  const libraries = mergeLists(
+    DEFAULT_LIBRARIES,
+    defaults.libraries ?? [],
+    parseList(opts.libraries)
+  );
+  const mainfont = opts.mainfont ?? defaults.mainfont ?? DEFAULT_MAINFONT;
+
+  return [
+    "\\documentclass[border=0pt]{standalone}",
+    "\\usepackage{fontspec}",
+    `\\setmainfont{${mainfont}}`,
+    "\\usepackage{tikz}",
+    ...packages.map((p) => `\\usepackage{${p}}`),
+    `\\usetikzlibrary{${libraries.join(",")}}`,
+    "\\newsavebox\\tikzcsnippetbox",
+    "\\newwrite\\tikzcmetricsfile",
+    "\\begin{document}",
+    // body lines end with % so their newlines don't leak interword spaces
+    // into the page box (standalone sets the content in an hbox where a
+    // trailing space is NOT dropped and would widen the page beyond \wd)
+    `\\sbox\\tikzcsnippetbox{${buildSnippetStyledText(params)}}%`,
+    `\\immediate\\openout\\tikzcmetricsfile=${SNIPPET_METRICS_FILE}%`,
+    `\\immediate\\write\\tikzcmetricsfile{${SNIPPET_METRICS_PREFIX}:\\the\\wd\\tikzcsnippetbox:\\the\\ht\\tikzcsnippetbox:\\the\\dp\\tikzcsnippetbox}%`,
+    "\\immediate\\closeout\\tikzcmetricsfile%",
+    "\\usebox\\tikzcsnippetbox%",
+    "\\end{document}",
+  ].join("\n");
+}
+
+/** Parse the TIKZC-METRICS line written by a buildSnippetTex() document. */
+export function parseSnippetMetrics(text: string): SnippetMetrics | null {
+  const m = text.match(
+    new RegExp(`${SNIPPET_METRICS_PREFIX}:(-?[\\d.]+)pt:(-?[\\d.]+)pt:(-?[\\d.]+)pt`)
+  );
+  if (!m) return null;
+  const [wdTexPt, htTexPt, dpTexPt] = [m[1], m[2], m[3]].map(Number);
+  if (![wdTexPt, htTexPt, dpTexPt].every(Number.isFinite)) return null;
+  return { wdTexPt, htTexPt, dpTexPt };
+}
+
+/**
+ * Compile a buildSnippetTex() document to SVG plus exact box metrics.
+ *
+ * dvisvgm runs with --bbox=papersize (not --exact-bbox): the page equals the
+ * TeX box (border=0pt), so the SVG viewBox matches \wd/\ht/\dp and the
+ * caller can place the baseline exactly. --exact-bbox would crop to ink and
+ * lose that correspondence.
+ */
+export async function compileSnippetToSvg(
+  tex: string
+): Promise<{ svg: string; metrics: SnippetMetrics; log: string }> {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "tikzc-"));
+  try {
+    const texPath = path.join(tmp, "snippet.tex");
+    const pdfPath = path.join(tmp, "snippet.pdf");
+    const svgPath = path.join(tmp, "snippet.svg");
+    await fs.writeFile(texPath, tex, "utf8");
+
+    let log = "";
+    try {
+      await run(
+        "lualatex",
+        [
+          "-interaction=nonstopmode",
+          "-halt-on-error",
+          // never let \write18 spawn subprocesses: the .tikz/.tex source is
+          // untrusted input, and shell-escape would be arbitrary code execution
+          "-no-shell-escape",
+          `-output-directory=${tmp}`,
+          texPath,
+        ],
+        tmp
+      );
+      log = await fs.readFile(path.join(tmp, "snippet.log"), "utf8").catch(() => "");
+    } catch {
+      log = await fs
+        .readFile(path.join(tmp, "snippet.log"), "utf8")
+        .catch(() => "no log");
+      throw new TikzCompileError(
+        `lualatex compilation failed:\n${extractLatexError(log)}`,
+        log
+      );
+    }
+
+    const metricsText = await fs
+      .readFile(path.join(tmp, SNIPPET_METRICS_FILE), "utf8")
+      .catch(() => "");
+    const metrics = parseSnippetMetrics(metricsText);
+    if (!metrics) {
+      throw new TikzCompileError("snippet metrics were not produced", log);
+    }
+
+    try {
+      await run(
+        "dvisvgm",
+        ["--pdf", "--no-fonts", "--bbox=papersize", "--optimize=all", "-o", svgPath, pdfPath],
+        tmp
+      );
+    } catch (e) {
+      throw new TikzCompileError(`dvisvgm conversion failed: ${e}`, log);
+    }
+    return { svg: await fs.readFile(svgPath, "utf8"), metrics, log };
+  } finally {
+    await fs.rm(tmp, { recursive: true, force: true });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // compilation
 // ---------------------------------------------------------------------------
 
