@@ -2,7 +2,7 @@
   "name": "tikzc-preview",
   "displayName": "TikZc Editor",
   "description": "WYSIWYG TikZ editor (vendored tikz-editor) with SVG/PNG export via lualatex + dvisvgm",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "RyoNak",
   "license": "MIT",
   "repository": {

@@ -41,6 +41,17 @@ function namespaceIds(body: string, prefix: string): string {
 }
 
 /**
+ * The editor's root <svg> declares only the default namespace, so a fragment
+ * carrying dvisvgm's xlink:href would make the serialized export document
+ * ill-formed XML (unbound prefix) — PNG/SVG export then fails even though
+ * the live canvas (HTML parser) renders fine. Rewrite to the SVG2 plain
+ * href, which every renderer the export targets understands.
+ */
+function dropXlinkPrefix(body: string): string {
+  return body.replace(/\bxlink:href=/g, "href=");
+}
+
+/**
  * MathJax fragments paint with currentColor, which emit.ts drives through the
  * wrapper <svg color="...">. dvisvgm output paints explicit black by default;
  * map those to currentColor (keeping any other explicit colors, e.g. from
@@ -77,6 +88,7 @@ export function toSnippetRenderPayload(
   if (close === -1) return null;
   let body = svgDocument.slice(open.index + open[0].length, close).trim();
   body = namespaceIds(body, `n${hash8(cacheKey)}-`);
+  body = dropXlinkPrefix(body);
   body = adoptCurrentColor(body);
   return { viewBox: { x, y, width, height }, body };
 }
