@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.3.2] - 2026-07-27
 
+### Added
+
+- VSCode extension: hand (pan) tool in the canvas toolbar. A hand-icon button
+  (shortcut `H`) next to Magnify switches left-drag to panning, with grab /
+  grabbing cursors. Injected at build time via `panToolPlugin()` in
+  `vite.config.ts` (exact-string patches on the vendored editor, loud build
+  failure if upstream drifts); the vendored sources stay unmodified. Starting
+  any drag-pan (hand tool, middle-drag, Alt+drag) now also exits
+  fit-to-content mode so the panned viewport no longer snaps back to the
+  fitted position on the next recompute.
+
 ### Changed
 
 - VSCode extension build: re-enabled the compute Web Worker in the VSIX
