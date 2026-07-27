@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-07-27
+
+### Changed
+
+- VSCode extension build: the compute Web Worker introduced in 0.3.0 is
+  disabled in the VSIX bundle. Bundling `compute.worker.ts` duplicated the
+  core + MathJax + fonts graph into the worker bundle (~12 MB, ~60 extra
+  chunks). The build now stubs the worker construction so
+  `computeSnapshotPreferWorker()` takes its existing inline (main-thread)
+  fallback — the pre-0.3.0 status quo for the extension. The stub plugin fails
+  the build loudly if the upstream worker construction code changes, and the
+  standalone (non-VSIX) editor keeps using the worker.
+
 ## [0.3.0] - 2026-07-27
 
 ### Changed
@@ -156,7 +169,8 @@ Initial release.
 - Docs: manual (EN / JP), branch strategy, commit rules, testing guide, and
   versioning policy.
 
-[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/RyoNakagami/tikzc/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/RyoNakagami/tikzc/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/RyoNakagami/tikzc/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/RyoNakagami/tikzc/compare/v0.2.0...v0.2.1
