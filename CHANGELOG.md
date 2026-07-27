@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-27
+
+### Changed
+
+- VSCode extension WYSIWYG editor: canvas text editing no longer feels sluggish
+  with Japanese (IME) input. Three scheduling/architecture changes, no feature
+  changes:
+  - While an IME composition is in progress, preview recomputes are suppressed
+    entirely (intermediate states like `に` → `にほ` → `日本` never reach the
+    render pipeline) and the committed text flushes immediately on
+    composition end. Non-IME canvas text typing is debounced (120ms, 220ms for
+    documents over 80k chars) like source-panel typing, instead of recomputing
+    on every keystroke. Caret and selection overlays stay immediate — only the
+    canvas glyph refresh waits for the debounce.
+  - Canvas text edits now take the incremental compute path (new `edit-text`
+    trigger reusing the drag machinery: incremental parse + selective semantic
+    replay + SVG subtree reuse), so a keystroke re-evaluates the changed node
+    and its dependents instead of the whole document. All existing full-compute
+    fallbacks (structure change, opaque dependencies, parse errors) apply.
+  - The whole compute pipeline (parse → semantic → MathJax measure → SVG emit)
+    moved into a Web Worker (`compute.worker.ts`), so even a full recompute no
+    longer blocks the IME, textarea, or canvas interaction. The native lualatex
+    text fallback is bridged worker → page → extension host, profiling timings
+    are forwarded to the page, and the client transparently falls back to
+    inline (main-thread) compute if the worker cannot start or dies.
+    Known cosmetic limitation: snapshots that crossed the worker boundary carry
+    no Lezer tree (not structured-clone safe) — the named-color swatches
+    re-parse lazily instead, and DevPanel's syntax-tree view is empty for
+    worker-computed snapshots.
+
 ## [0.2.2] - 2026-07-23
 
 ### Fixed
@@ -126,7 +156,9 @@ Initial release.
 - Docs: manual (EN / JP), branch strategy, commit rules, testing guide, and
   versioning policy.
 
-[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/RyoNakagami/tikzc/compare/v0.2.2...v0.3.0
+[0.2.2]: https://github.com/RyoNakagami/tikzc/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/RyoNakagami/tikzc/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/RyoNakagami/tikzc/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/RyoNakagami/tikzc/compare/v0.1.2...v0.1.3

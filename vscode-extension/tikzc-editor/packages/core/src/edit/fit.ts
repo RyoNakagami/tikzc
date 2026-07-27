@@ -1,6 +1,6 @@
 import type { OptionListAst } from "../options/types.js";
 import type { PathStatement } from "../ast/types.js";
-import type { ParseTikzResult } from "../parser/index.js";
+import type { ParseTikzResultData } from "../parser/index.js";
 import { normalizeOptionKey } from "./option-key.js";
 import { resolvePropertyTargetFromParseResult, type PropertyTarget } from "./property-target.js";
 import { findPathStatementById } from "./statement-find.js";
@@ -23,7 +23,7 @@ export function propertyTargetUsesFit(target: Pick<PropertyTarget, "options">): 
 
 export function sourceUsesFitNodeFromParseResult(
   source: string,
-  parseResult: ParseTikzResult | null | undefined,
+  parseResult: ParseTikzResultData | null | undefined,
   sourceId: string
 ): boolean {
   if (!parseResult || sourceId.trim().length === 0) {

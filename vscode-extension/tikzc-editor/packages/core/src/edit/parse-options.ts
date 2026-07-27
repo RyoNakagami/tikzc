@@ -1,4 +1,4 @@
-import { parseTikz, type ParseTikzResult } from "../parser/index.js";
+import { parseTikz, type ParseTikzResultData } from "../parser/index.js";
 import type { EditAnalysisSession, EditAnalysisView } from "./analysis.js";
 import { incrementProfilingCounter } from "../profiling.js";
 import { computeSourceFingerprint } from "../utils/source-fingerprint.js";
@@ -15,7 +15,7 @@ export type EditParseOptions = {
 
 export type PropertyWriteInteractionMode = "commit" | "preview" | "drag-frame" | "drag-end";
 
-export function parseTikzForEdit(source: string, options: EditParseOptions = {}): ParseTikzResult {
+export function parseTikzForEdit(source: string, options: EditParseOptions = {}): ParseTikzResultData {
   incrementProfilingCounter("parseTikzForEditCalls");
   if (
     options.analysisView?.source === source &&

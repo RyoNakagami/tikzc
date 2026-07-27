@@ -1,5 +1,6 @@
 import type { Tree } from "@lezer/common";
 import { useEffect, useMemo, useState } from "react";
+import { parseTikz } from "tikz-editor/parser/index";
 import { BASIC_PICKER_COLOR_SET } from "./color-palette";
 import { resolveDeclaredColorAnalysis } from "./source-color-detection";
 import { useEditorStore } from "../store/store";
@@ -54,6 +55,9 @@ export function useProjectNamedColorSwatches(): NamedColorSwatch[] {
   const activeCanvasDragKind = useEditorStore((s) => s.activeCanvasDragKind);
   const activeSourceScrubSourceId = useEditorStore((s) => s.activeSourceScrubSourceId);
   const source = useEditorStore((s) => s.source);
+  const activeFigureId = useEditorStore((s) => s.activeFigureId);
+  // Snapshots that crossed the compute-worker boundary carry no Lezer tree
+  // (not structured-clone safe); re-parse lazily below in that case.
   const parseTree = useEditorStore((s) => s.snapshot?.parseResult?.tree ?? null);
   const shouldFreeze =
     activeSourceScrubSourceId != null ||
@@ -61,18 +65,21 @@ export function useProjectNamedColorSwatches(): NamedColorSwatch[] {
     activeCanvasDragKind === "resize" ||
     activeCanvasDragKind === "rotate" ||
     activeCanvasDragKind === "handle";
-  const [stable, setStable] = useState({ source, parseTree });
+  const [stable, setStable] = useState({ source, parseTree, activeFigureId });
 
   useEffect(() => {
     if (!shouldFreeze) {
-      setStable({ source, parseTree });
+      setStable({ source, parseTree, activeFigureId });
     }
-  }, [shouldFreeze, source, parseTree]);
+  }, [shouldFreeze, source, parseTree, activeFigureId]);
 
   return useMemo(() => {
-    if (stable.source.trim().length === 0 || !stable.parseTree) {
+    if (stable.source.trim().length === 0) {
       return [];
     }
-    return resolveProjectNamedColorSwatches(stable.source, stable.parseTree);
-  }, [stable.source, stable.parseTree]);
+    const tree =
+      stable.parseTree ??
+      parseTikz(stable.source, { recover: true, activeFigureId: stable.activeFigureId }).tree;
+    return resolveProjectNamedColorSwatches(stable.source, tree);
+  }, [stable.source, stable.parseTree, stable.activeFigureId]);
 }

@@ -176,6 +176,8 @@ export type WorkspaceEphemeralState = {
   activeSourceScrubSourceId: string | null;
   /** Source id currently being edited through the canvas text popup. */
   activeCanvasTextEditSourceId: string | null;
+  /** True while an IME composition is in progress inside the canvas text popup. */
+  canvasTextEditComposing: boolean;
   showGrid: boolean;
   showTransparencyGrid: boolean;
   snapModes: SnapModes;
@@ -264,6 +266,8 @@ export type EditorState = {
   activeSourceScrubSourceId: string | null;
   /** Source id currently being edited through the canvas text popup. */
   activeCanvasTextEditSourceId: string | null;
+  /** True while an IME composition is in progress inside the canvas text popup. */
+  canvasTextEditComposing: boolean;
   showGrid: boolean;
   showTransparencyGrid: boolean;
   snapModes: SnapModes;
@@ -397,6 +401,7 @@ export type EditorAction =
   | { type: "SET_HOVERED_ELEMENT"; id: string | null }
   | { type: "SET_ACTIVE_CANVAS_DRAG"; kind: CanvasDragKind | null }
   | { type: "SET_ACTIVE_CANVAS_TEXT_EDIT"; sourceId: string | null }
+  | { type: "SET_CANVAS_TEXT_EDIT_COMPOSING"; composing: boolean }
   | { type: "SET_FREEHAND_SMOOTHING"; value: number }
   | { type: "SET_BUCKET_FILL_COLOR"; value: string }
   | { type: "SET_ADD_SHAPE_PRESET"; value: Exclude<NodeShapePresetId, "custom"> }

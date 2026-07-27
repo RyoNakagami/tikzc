@@ -32,7 +32,7 @@ import type {
 } from "./types.js";
 import { MAIN_SCENE_LAYER } from "./types.js";
 
-export type IncrementalSemanticTrigger = "drag-element" | "drag-handle" | "other";
+export type IncrementalSemanticTrigger = "drag-element" | "drag-handle" | "edit-text" | "other";
 export type IncrementalSemanticReplayMode = "full" | "suffix" | "selective";
 
 export type IncrementalSemanticHints = {
@@ -716,7 +716,7 @@ function decideFallbackReason(
   statementIds: readonly string[]
 ): IncrementalSemanticFallbackReason | null {
   const trigger = hints.trigger ?? "other";
-  if (trigger !== "drag-element" && trigger !== "drag-handle") {
+  if (trigger !== "drag-element" && trigger !== "drag-handle" && trigger !== "edit-text") {
     return "non-drag-trigger";
   }
   if (!hints.changedSourceIds || hints.changedSourceIds.length === 0) {

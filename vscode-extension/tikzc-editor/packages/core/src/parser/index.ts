@@ -42,6 +42,13 @@ export type ParseTikzResult = {
   features: typeof FeatureFlags;
 };
 
+/**
+ * ParseTikzResult minus the Lezer tree. Consumers that only need the mapped
+ * AST accept this shape so snapshots that crossed a Worker boundary (where
+ * the tree cannot survive structured clone) remain usable.
+ */
+export type ParseTikzResultData = Omit<ParseTikzResult, "tree">;
+
 export function parseTikz(input: string, opts: ParseTikzOptions = {}): ParseTikzResult {
   incrementProfilingCounter("parseTikzCalls");
   const recover = opts.recover ?? true;

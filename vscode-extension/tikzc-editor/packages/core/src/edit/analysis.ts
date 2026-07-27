@@ -1,5 +1,5 @@
 import type { PathStatement, Statement } from "../ast/types.js";
-import { parseTikz, type ParseTikzResult } from "../parser/index.js";
+import { parseTikz, type ParseTikzResultData } from "../parser/index.js";
 import {
   resolveFigurePropertyTargetFromParseResult,
   resolvePropertyTargetFromParseResult,
@@ -17,7 +17,7 @@ export type EditAnalysisOptions = {
 export type EditAnalysisView = {
   source: string;
   activeFigureId: string | null | undefined;
-  parseResult: ParseTikzResult;
+  parseResult: ParseTikzResultData;
   statementSnapshot: StatementSnapshot;
   resolvePropertyTarget: (elementId: string) => PropertyTargetResolution;
   resolveFigurePropertyTarget: () => PropertyTargetResolution;
@@ -27,7 +27,7 @@ export type EditAnalysisView = {
 type EditAnalysisCache = {
   source: string;
   activeFigureId: string | null | undefined;
-  parseResult: ParseTikzResult;
+  parseResult: ParseTikzResultData;
   statementSnapshot: StatementSnapshot;
   propertyTargetCache: Map<string, PropertyTargetResolution>;
   pathStatementCache: Map<string, PathStatement | null>;
@@ -37,7 +37,7 @@ type EditAnalysisCache = {
 
 export type EditAnalysisSession = {
   primeFromParse: (
-    parse: ParseTikzResult,
+    parse: ParseTikzResultData,
     source: string,
     options?: EditAnalysisOptions
   ) => EditAnalysisView;
@@ -107,7 +107,7 @@ export function createEditAnalysisSession(): EditAnalysisSession {
 
 function createCache(
   source: string,
-  parseResult: ParseTikzResult,
+  parseResult: ParseTikzResultData,
   activeFigureId: string | null | undefined
 ): EditAnalysisCache {
   const statementSnapshot = buildStatementSnapshotFromStatements(source, parseResult.figure.body);

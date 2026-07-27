@@ -14,14 +14,18 @@ export function dragKindToComputeTrigger(
 
 export function computeTrigger(
   dragKind: CanvasDragKind | null,
-  sourceScrubSourceId: string | null
-): "drag-element" | "drag-handle" | "other" {
+  sourceScrubSourceId: string | null,
+  canvasTextEditSourceId: string | null = null
+): "drag-element" | "drag-handle" | "edit-text" | "other" {
   const dragTrigger = dragKindToComputeTrigger(dragKind);
   if (dragTrigger !== "other") {
     return dragTrigger;
   }
   if (sourceScrubSourceId) {
     return "drag-element";
+  }
+  if (canvasTextEditSourceId) {
+    return "edit-text";
   }
   return "other";
 }
