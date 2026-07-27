@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-07-27
+
+### Fixed
+
+- VSCode extension canvas: unnatural space before ASCII characters that
+  directly follow a CJK run in node text (e.g. `…を1対1で…` rendered with a
+  ~2.4-character gap before the `1`). The compute worker's MathJax lite
+  adaptor estimated fallback CJK glyphs at 1em each while the SVG output
+  renders them at an x-height-matched 0.884em, and the overestimate
+  accumulated across the run. The worker runtime now measures fallback text
+  with OffscreenCanvas when available and otherwise scales the estimate to
+  the emitted font-size (4th local patch in `tikzc-editor/UPSTREAM.md`;
+  regression test `tests/mathjax-cjk-fallback-width.test.ts`).
+
 ## [0.3.2] - 2026-07-27
 
 ### Added

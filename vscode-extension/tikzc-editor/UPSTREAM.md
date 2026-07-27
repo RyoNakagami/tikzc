@@ -36,6 +36,19 @@ except for the local patches listed below — re-apply them when re-extracting:
   brace-unbalanced fragments and node-text validation reported
   "Missing close brace" errors for valid input (the canvas still rendered —
   only the diagnostics badge was wrong). Candidate for an upstream PR.
+- `packages/core/src/text/mathjax-engine.ts` (4th patch): added
+  `installWorkerFallbackTextMeasurement()` on the worker runtime's lite
+  adaptor. The lite adaptor estimates fallback (non-MathJax-font) characters
+  at a flat 1em per CJK char, but the SVG output emits those fallback
+  `<text>` elements with an x-height-matched font-size (884px for newcm,
+  i.e. 0.884em), so the rendered advance is ~0.884em per glyph. The
+  overestimate accumulated across a CJK run and drew a phantom gap before
+  the next in-font glyph (e.g. `…を1対1で…` showed a space before the
+  ASCII `1`). The override measures fallback text for real via
+  OffscreenCanvas when available, otherwise scales the estimate by the
+  emitted font-size. Regression test:
+  `vscode-extension/tests/mathjax-cjk-fallback-width.test.ts`.
+  Candidate for an upstream PR.
 - `packages/app/src/ui/canvas-panel/{CanvasPanel.tsx,CanvasPanelView.tsx,canvas-text-edit-machine.ts}`:
   IME (Japanese input) support for canvas text editing. The edit textarea was
   a controlled component with no `onChange`: normal keys were intercepted via
