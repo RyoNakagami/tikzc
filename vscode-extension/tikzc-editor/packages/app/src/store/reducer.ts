@@ -48,6 +48,7 @@ function initialUiState(): WorkspaceEphemeralState {
     activeCanvasDragKind: null,
     activeSourceScrubSourceId: null,
     activeCanvasTextEditSourceId: null,
+    canvasTextEditComposing: false,
     showGrid: true,
     showTransparencyGrid: false,
     snapModes: {
@@ -1164,7 +1165,17 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
 
     case "SET_ACTIVE_CANVAS_TEXT_EDIT":
       if (ui.activeCanvasTextEditSourceId === action.sourceId) return state;
-      ui = { ...ui, activeCanvasTextEditSourceId: action.sourceId };
+      ui = {
+        ...ui,
+        activeCanvasTextEditSourceId: action.sourceId,
+        // a closed session can no longer be composing
+        canvasTextEditComposing: action.sourceId == null ? false : ui.canvasTextEditComposing
+      };
+      break;
+
+    case "SET_CANVAS_TEXT_EDIT_COMPOSING":
+      if (ui.canvasTextEditComposing === action.composing) return state;
+      ui = { ...ui, canvasTextEditComposing: action.composing };
       break;
 
     case "TOGGLE_CANVAS_AID":

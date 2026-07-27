@@ -32,6 +32,14 @@ async function bootstrap() {
   // native text fallback: node text MathJax cannot render (e.g. \faGlobe)
   // compiles via lualatex on the extension host instead
   setNativeSnippetCompiler(compileNativeTextSnippets);
+  // the compute worker has its own engine instance; bridge its native
+  // fallback compile requests (worker → page → extension host)
+  const { setComputeWorkerNativeSnippetCompiler } = await import(
+    "@tikz-editor/app/ui/workers/compute-worker-client"
+  );
+  setComputeWorkerNativeSnippetCompiler(
+    (requests) => compileNativeTextSnippets(requests as Parameters<typeof compileNativeTextSnippets>[0])
+  );
   const { App, APP_MENU_COMMAND_IDS, applyWorkspace } = await import("@tikz-editor/app");
   const { useEditorStore } = await import("@tikz-editor/app/store/store");
   const { getDockLayoutHandle } = await import("@tikz-editor/app/ui/DockLayout");

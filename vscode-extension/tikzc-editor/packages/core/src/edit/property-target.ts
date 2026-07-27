@@ -1,5 +1,5 @@
 import type { Span, Statement, PathStatement, PathItem, NodeItem, ChildOperationItem } from "../ast/types.js";
-import type { ParseTikzResult } from "../parser/index.js";
+import type { ParseTikzResult, ParseTikzResultData } from "../parser/index.js";
 import { parseStatementsFromBodyWithMapping } from "../foreach/snippet-parse.js";
 import { parseTikzForEdit, type EditParseOptions } from "./parse-options.js";
 import { normalizeOptionKey } from "./option-key.js";
@@ -145,7 +145,7 @@ export function resolvePropertyTarget(source: string, elementId: string, parseOp
 
 export function resolvePropertyTargetFromParseResult(
   _source: string,
-  parseResult: ParseTikzResult,
+  parseResult: ParseTikzResultData,
   elementId: string
 ): PropertyTargetResolution {
   const parseSource = parseResult.source;
@@ -505,7 +505,7 @@ function parsePicTemplateTargetId(
 }
 
 function resolvePicTemplateTargetFromParseResult(
-  parseResult: ParseTikzResult,
+  parseResult: ParseTikzResultData,
   targetId: string
 ): PropertyTarget | null {
   const parsed = parsePicTemplateTargetId(targetId);
@@ -573,7 +573,7 @@ function parseForeachTemplateTargetId(
 }
 
 function resolveForeachTemplateTargetFromParseResult(
-  parseResult: ParseTikzResult,
+  parseResult: ParseTikzResultData,
   targetId: string
 ): PropertyTarget | null {
   const parsed = parseForeachTemplateTargetId(targetId);

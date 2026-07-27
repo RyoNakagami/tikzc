@@ -12,7 +12,7 @@ import {
 import { parseTikz } from "./index.js";
 import { collectContextDefinitions } from "../transform/cst-to-ast.js";
 
-export type IncrementalParseTrigger = "drag-element" | "drag-handle" | "other";
+export type IncrementalParseTrigger = "drag-element" | "drag-handle" | "edit-text" | "other";
 
 export type IncrementalParseFallbackReason =
   | "non-drag-trigger"
@@ -471,7 +471,11 @@ function decideFallbackReason(input: {
   changedSourceIds: string[];
   trigger: IncrementalParseTrigger;
 }): IncrementalParseFallbackReason | null {
-  if (input.trigger !== "drag-element" && input.trigger !== "drag-handle") {
+  if (
+    input.trigger !== "drag-element" &&
+    input.trigger !== "drag-handle" &&
+    input.trigger !== "edit-text"
+  ) {
     return "non-drag-trigger";
   }
   if (!input.cached) {

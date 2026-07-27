@@ -9,8 +9,9 @@ import path from "path";
 import { readFileSync } from "fs";
 
 const EDITOR = path.resolve(__dirname, "tikzc-editor");
+// About dialog shows the tikzc extension version, not the vendored editor's.
 const editorVersion = (
-  JSON.parse(readFileSync(path.join(EDITOR, "package.json"), "utf8")) as { version?: string }
+  JSON.parse(readFileSync(path.join(__dirname, "package.json"), "utf8")) as { version?: string }
 ).version ?? "0.0.0";
 
 // Rebrand the vendored UI ("TikZ Editor Web" → "Local TikZ Editor") at build

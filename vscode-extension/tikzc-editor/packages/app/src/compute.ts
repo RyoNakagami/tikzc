@@ -25,6 +25,16 @@ import { recordProfilingComputeTiming } from "tikz-editor/profiling";
 import { buildSourceRevisionFingerprint } from "./source-identity";
 
 /**
+ * ParseTikzResult as it appears in a snapshot: the Lezer `tree` is a class
+ * instance that does not survive structured clone, so it is `null` on
+ * snapshots that crossed the compute-worker boundary. Consumers that need the
+ * tree (project named colors, DevPanel) re-parse lazily when it is missing.
+ */
+export type SessionSnapshotParseResult = Omit<ParseTikzResult, "tree"> & {
+  tree: ParseTikzResult["tree"] | null;
+};
+
+/**
  * A plain-data snapshot of a fully evaluated TikZ document.
  * Structured-clone compatible — ready for Web Worker transfer.
  */
@@ -37,13 +47,13 @@ export type SessionSnapshot = {
   scene: SceneFigure | null;
   svg: EmitSvgResult | null;
   svgModel: SvgRenderModel | null;
-  parseResult: ParseTikzResult | null;
+  parseResult: SessionSnapshotParseResult | null;
   semanticResult: EvaluateTikzResult | null;
   incremental: SessionSnapshotIncrementalInfo | null;
 };
 
 export type SessionSnapshotIncrementalInfo = {
-  trigger: Extract<IncrementalSemanticTrigger, "drag-element" | "drag-handle">;
+  trigger: Extract<IncrementalSemanticTrigger, "drag-element" | "drag-handle" | "edit-text">;
   changedSourceIds: string[];
   parseStrategy: IncrementalParseStats["strategy"];
   parseFallbackReason: IncrementalParseStats["fallbackReason"];
@@ -131,7 +141,8 @@ export async function computeSnapshot(request: ComputeRequest): Promise<ComputeR
     const trigger = request.trigger ?? "other";
     const changedSourceIds = normalizeChangedSourceIds(request.changedSourceIds ?? []);
     const patches = normalizePatches(request.patches ?? []);
-    const isDragTrigger = trigger === "drag-element" || trigger === "drag-handle";
+    const isIncrementalTrigger =
+      trigger === "drag-element" || trigger === "drag-handle" || trigger === "edit-text";
     const sourceFingerprint = buildSourceRevisionFingerprint({
       documentId: request.documentId,
       sourceRevision: request.sourceRevision,
@@ -145,7 +156,7 @@ export async function computeSnapshot(request: ComputeRequest): Promise<ComputeR
         diagnostics: []
       };
     }
-    if (isDragTrigger && changedSourceIds.length > 0) {
+    if (isIncrementalTrigger && changedSourceIds.length > 0) {
       const result = await computeSnapshotIncremental(
         request.source,
         request.sourceRevision ?? null,
@@ -322,7 +333,7 @@ async function computeSnapshotIncremental(
   changedSourceIds: string[],
   patches: SourcePatch[],
   patchBaseRevision: number | null,
-  trigger: Extract<IncrementalSemanticTrigger, "drag-element" | "drag-handle">,
+  trigger: Extract<IncrementalSemanticTrigger, "drag-element" | "drag-handle" | "edit-text">,
   sourceFingerprint: string | undefined,
   renderViewBox: SvgViewBox | null
 ): Promise<{

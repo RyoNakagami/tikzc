@@ -8,7 +8,8 @@ import {
 } from "../app-menu";
 import { useEditorStore } from "../store/store";
 import { useWorkspaceListStore } from "../store/workspace-list-store";
-import { computeSnapshot, makeEmptySnapshot, setMathJaxFont, type ComputeRequest, type ComputeResponse } from "../compute";
+import { computeSnapshot, makeEmptySnapshot, type ComputeRequest, type ComputeResponse } from "../compute";
+import { computeSnapshotPreferWorker, setComputeMathJaxFont } from "./workers/compute-worker-client";
 import { applyEditAction } from "tikz-editor/edit/actions";
 import { getRepeatSelectionEligibility } from "tikz-editor/edit/actions/repeat";
 import { collectSourceWorldBounds } from "tikz-editor/edit/snapping";
@@ -238,6 +239,8 @@ export function App() {
     lastEditPatchBaseRevision,
     activeCanvasDragKind,
     activeSourceScrubSourceId,
+    activeCanvasTextEditSourceId,
+    canvasTextEditComposing,
     dispatch
   } = useEditorStore(useShallow((s) => ({
     source: s.source,
@@ -254,6 +257,8 @@ export function App() {
     lastEditPatchBaseRevision: s.lastEditPatchBaseRevision,
     activeCanvasDragKind: s.activeCanvasDragKind,
     activeSourceScrubSourceId: s.activeSourceScrubSourceId,
+    activeCanvasTextEditSourceId: s.activeCanvasTextEditSourceId,
+    canvasTextEditComposing: s.canvasTextEditComposing,
     dispatch: s.dispatch
   })));
   const { uiFontSizePx, colorScheme, canvasInvert, mathJaxFont } = useSettingsStore(useShallow((s) => ({
@@ -894,7 +899,7 @@ export function App() {
 
   useEffect(() => {
     const scheduler = createSingleFlightScheduler<ComputeRequest, ComputeResponse>({
-      run: (request) => computeSnapshot(request),
+      run: (request) => computeSnapshotPreferWorker(request),
       onStart: (request) => {
         if ((request.kind ?? "render") === "prewarm") {
           return;
@@ -937,7 +942,7 @@ export function App() {
     () => lastEditChangedSourceIds ?? (activeSourceScrubSourceId ? [activeSourceScrubSourceId] : null),
     [activeSourceScrubSourceId, lastEditChangedSourceIds]
   );
-  const trigger = computeTrigger(activeCanvasDragKind, activeSourceScrubSourceId);
+  const trigger = computeTrigger(activeCanvasDragKind, activeSourceScrubSourceId, activeCanvasTextEditSourceId);
   const isDragComputeTrigger = trigger === "drag-element" || trigger === "drag-handle";
   if (isDragComputeTrigger && !dragRenderViewBoxRef.current && snapshot.svg?.viewBox) {
     dragRenderViewBoxRef.current = snapshot.svg.viewBox;
@@ -945,16 +950,28 @@ export function App() {
     dragRenderViewBoxRef.current = null;
   }
   const renderViewBox = isDragComputeTrigger ? dragRenderViewBoxRef.current ?? null : null;
-  const typingComputeDelay = trigger === "other" && changedSourceIds == null
-    ? (source.length > 80_000 ? 220 : 120)
-    : null;
+  // Compute scheduling has three modes:
+  //   "immediate"  — drags, scrubs and structural edits render right away
+  //   number       — typing (source panel or canvas text popup) debounces
+  //   "suppressed" — an IME composition is in progress; intermediate states
+  //                  (e.g. "に" → "にほ" → "日本") never reach the pipeline,
+  //                  and the commit flushes with a 0ms debounce
+  const wasComposingRef = useRef(false);
+  const compositionJustEnded = wasComposingRef.current && !canvasTextEditComposing;
+  const typingDebounceMs = source.length > 80_000 ? 220 : 120;
+  const computeSchedule: "immediate" | "suppressed" | number =
+    trigger === "edit-text"
+      ? (canvasTextEditComposing ? "suppressed" : compositionJustEnded ? 0 : typingDebounceMs)
+      : trigger === "other" && changedSourceIds == null
+        ? typingDebounceMs
+        : "immediate";
 
   useEffect(() => {
     const scheduler = computeSchedulerRef.current;
-    if (!scheduler || typingComputeDelay != null) {
+    if (!scheduler || computeSchedule !== "immediate") {
       return;
     }
-    setMathJaxFont(mathJaxFont);
+    setComputeMathJaxFont(mathJaxFont);
     scheduler.schedule({
       id: crypto.randomUUID(),
       documentId: activeDocumentId,
@@ -968,14 +985,14 @@ export function App() {
       trigger,
       renderViewBox
     });
-  }, [activeDocumentId, activeFigureId, changedSourceIds, dispatch, lastEditPatchBaseRevision, lastEditPatches, mathJaxFont, renderViewBox, source, sourceRevision, trigger, typingComputeDelay]);
+  }, [activeDocumentId, activeFigureId, changedSourceIds, dispatch, lastEditPatchBaseRevision, lastEditPatches, mathJaxFont, renderViewBox, source, sourceRevision, trigger, computeSchedule]);
 
   useDebouncedEffect(() => {
     const scheduler = computeSchedulerRef.current;
-    if (!scheduler || typingComputeDelay == null) {
+    if (!scheduler || typeof computeSchedule !== "number") {
       return;
     }
-    setMathJaxFont(mathJaxFont);
+    setComputeMathJaxFont(mathJaxFont);
     scheduler.schedule({
       id: crypto.randomUUID(),
       documentId: activeDocumentId,
@@ -988,7 +1005,13 @@ export function App() {
       patchBaseRevision: lastEditPatchBaseRevision,
       trigger
     });
-  }, typingComputeDelay, [activeDocumentId, activeFigureId, changedSourceIds, dispatch, lastEditPatchBaseRevision, lastEditPatches, mathJaxFont, source, sourceRevision, trigger, typingComputeDelay]);
+  }, typeof computeSchedule === "number" ? computeSchedule : null, [activeDocumentId, activeFigureId, changedSourceIds, dispatch, lastEditPatchBaseRevision, lastEditPatches, mathJaxFont, source, sourceRevision, trigger, computeSchedule]);
+
+  // Sync AFTER the scheduling effects so composition end is observed as a
+  // 0ms flush exactly once (effects run in declaration order).
+  useEffect(() => {
+    wasComposingRef.current = canvasTextEditComposing;
+  }, [canvasTextEditComposing]);
 
   useEffect(() => {
     let prewarmTimer: number | null = null;

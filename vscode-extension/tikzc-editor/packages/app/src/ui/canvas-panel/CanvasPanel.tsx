@@ -980,6 +980,12 @@ export const CanvasPanel = memo(function CanvasPanel({
     const reduced = reduceCanvasTextEdit(canvasTextEditStateRef.current, action);
     canvasTextEditStateRef.current = reduced.state;
     setCanvasTextEditState(reduced.state);
+    // Composing must reach the store in the same batch as the source patch
+    // below, so App's compute scheduling sees it before reacting to the edit.
+    dispatch({
+      type: "SET_CANVAS_TEXT_EDIT_COMPOSING",
+      composing: reduced.state.compositionRange != null
+    });
     for (const effect of reduced.effects) {
       if (effect.type !== "apply_source_patch") {
         continue;
@@ -1019,6 +1025,13 @@ export const CanvasPanel = memo(function CanvasPanel({
       dispatch({ type: "SET_ACTIVE_CANVAS_TEXT_EDIT", sourceId: null });
     };
   }, [activeCanvasTextEditSourceId, dispatch]);
+
+  // IME composition state gates the compute pipeline: while composing, App
+  // suppresses preview recomputes and flushes once the composition commits.
+  const isCanvasTextEditComposing = canvasTextEditState.compositionRange != null;
+  useEffect(() => {
+    dispatch({ type: "SET_CANVAS_TEXT_EDIT_COMPOSING", composing: isCanvasTextEditComposing });
+  }, [isCanvasTextEditComposing, dispatch]);
 
   const editParseOptions = useMemo(
     () => ({

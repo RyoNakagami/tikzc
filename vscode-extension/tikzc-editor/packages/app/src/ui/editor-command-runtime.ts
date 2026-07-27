@@ -148,8 +148,8 @@ export type EditorCommandRuntime = {
 };
 
 const PGF_TIKZ_MANUAL_URL = "https://tikz.dev";
-const GITHUB_REPOSITORY_URL = "https://github.com/DominikPeters/tikz-editor";
-const GITHUB_ISSUES_URL = "https://github.com/DominikPeters/tikz-editor/issues";
+const GITHUB_REPOSITORY_URL = "https://github.com/RyoNakagami/tikzc";
+const GITHUB_ISSUES_URL = "https://github.com/RyoNakagami/tikzc/issues";
 
 export function createEditorCommandRuntime(input: RuntimeInput): EditorCommandRuntime {
   const {

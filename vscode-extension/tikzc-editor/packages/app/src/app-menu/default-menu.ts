@@ -38,45 +38,13 @@ export const APP_MENU_DEFINITION = [
         label: "Save",
         accelerator: "CmdOrCtrl+S"
       },
-      {
-        kind: "command",
-        commandId: APP_MENU_COMMAND_IDS.SAVE_DOCUMENT_AS,
-        label: "Save As..."
-      },
       { kind: "separator" },
-      {
-        kind: "command",
-        commandId: APP_MENU_COMMAND_IDS.CLOSE_DOCUMENT,
-        label: "Close Tab",
-        accelerator: "CmdOrCtrl+W"
-      },
       {
         kind: "command",
         commandId: APP_MENU_COMMAND_IDS.CLOSE_ALL_DOCUMENTS,
         label: "Close All Tabs"
       },
       { kind: "separator" },
-      {
-        kind: "submenu",
-        label: "Import",
-        items: [
-          {
-            kind: "command",
-            commandId: APP_MENU_COMMAND_IDS.IMPORT_IPE,
-            label: "Ipe (.ipe)..."
-          },
-          {
-            kind: "command",
-            commandId: APP_MENU_COMMAND_IDS.IMPORT_POWERPOINT,
-            label: "PowerPoint (.pptx)..."
-          },
-          {
-            kind: "command",
-            commandId: APP_MENU_COMMAND_IDS.IMPORT_SVG,
-            label: "SVG..."
-          }
-        ]
-      },
       {
         kind: "submenu",
         label: "Export",
