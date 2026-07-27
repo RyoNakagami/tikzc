@@ -2,9 +2,9 @@ import { Modal } from "./Modal";
 import css from "./AboutModal.module.css";
 
 const APP_VERSION = (import.meta.env.TIKZ_EDITOR_VERSION as string | undefined) ?? "0.1.0";
-const APP_AUTHOR = "Dominik Peters";
+const APP_AUTHOR = "Ryo Nakagami";
 const APP_LICENSE = "MIT";
-const APP_WEBSITE = "https://tikz.dev/editor/";
+const APP_WEBSITE = "https://github.com/RyoNakagami/tikzc";
 
 type AboutModalProps = {
   onClose: () => void;
@@ -37,8 +37,7 @@ export function AboutModal({ onClose }: AboutModalProps) {
           </div>
 
           <h2 id="about-title" className={css.title}>
-            <span className={css.titleStrong}>TikZ Editor</span>{" "}
-            <span className={css.titleQualifier}>Web</span>
+            <span className={css.titleStrong}>Local TikZ Editor</span>
           </h2>
 
           <p className={css.version}>Version {APP_VERSION}</p>
