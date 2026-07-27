@@ -2,15 +2,6 @@
 
 A CLI that compiles `.tikz` files to SVG / PNG, plus a VSCode extension for
 WYSIWYG editing based on [tikz-editor](https://github.com/DominikPeters/tikz-editor).
-It shares the same pipeline as the [quarto_tikz](https://github.com/ryonakagami) Lua filter:
-
-```text
-.tikz → standalone .tex → lualatex → .pdf → dvisvgm → .svg
-                                          └→ pdftoppm → .png
-```
-
-Because it goes through lualatex + fontspec, Japanese (CJK) labels render with
-system fonts as-is.
 
 ## Requirements
 
