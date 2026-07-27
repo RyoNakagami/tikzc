@@ -91,12 +91,117 @@ const MODULE_STUBS: Record<string, string> = {
 const THUMBNAIL_WORKER_CONSTRUCTION =
   /sharedWorker = new Worker\(new URL\("\.\/thumbnail-render\.worker\.ts", import\.meta\.url\), \{ type: "module" \}\);/;
 
-// Same story for the compute worker (arrived with the 0.3.0 editor update):
-// its bundle graph duplicates core + MathJax + fonts (~12 MB, ~60 chunks).
-// computeSnapshotPreferWorker() falls back to inline compute when the Worker
-// constructor throws — the pre-worker status quo — so disable it too.
-const COMPUTE_WORKER_CONSTRUCTION =
-  /sharedWorker = new Worker\(new URL\("\.\/compute\.worker\.ts", import\.meta\.url\), \{ type: "module" \}\);/;
+// Hand (pan) tool: the upstream editor pans only via middle-drag / Alt+drag /
+// wheel, none of which are discoverable. Inject a "pan" tool mode with a hand
+// icon into the toolbar and route its left-drag through the existing pan drag
+// path. Each patch is an exact-string match on the vendored sources and the
+// build fails loudly if upstream drifts (same convention as the stubs above).
+const PAN_TOOL_PATCHES: Record<string, ReadonlyArray<{ find: string; replace: string }>> = {
+  "ui/tool-config.tsx": [
+    {
+      // Hand icon (Lucide "hand" outline), inserted next to the other icons.
+      find: "export { CaretDownIcon };",
+      replace:
+        "export { CaretDownIcon };\n\n" +
+        "function PanIcon({ size = 20 }: { size?: number }) {\n" +
+        "  return (\n" +
+        '    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">\n' +
+        '      <path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2" />\n' +
+        '      <path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2" />\n' +
+        '      <path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8" />\n' +
+        '      <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />\n' +
+        "    </svg>\n" +
+        "  );\n" +
+        "}",
+    },
+    {
+      find: '  { mode: "magnify",    label: "Magnify",  title: "Magnify (M)",  shortcut: "m", icon: MagnifyIcon },',
+      replace:
+        '  { mode: "magnify",    label: "Magnify",  title: "Magnify (M)",  shortcut: "m", icon: MagnifyIcon },\n' +
+        '  { mode: "pan" as ToolMode, label: "Pan",  title: "Pan (H)",      shortcut: "h", icon: PanIcon },',
+    },
+    {
+      find: '  return mode !== "select" && mode !== "magnify" && mode !== "addBucket" && mode !== "addMatrix";',
+      replace:
+        '  return mode !== "select" && mode !== "magnify" && (mode as string) !== "pan" && mode !== "addBucket" && mode !== "addMatrix";',
+    },
+    {
+      find: '  magnify: "Hold and drag to magnify the canvas",',
+      replace:
+        '  magnify: "Hold and drag to magnify the canvas",\n' +
+        '  ["pan" as ToolMode]: "Drag to pan the canvas",',
+    },
+  ],
+  "ui/capabilities.ts": [
+    {
+      // No pipeline capabilities are needed to pan; register an empty check
+      // list so the toolbar button is not disabled as "unsupported".
+      find: "  magnify: [],",
+      replace: "  magnify: [],\n  ...({ pan: [] } as Record<string, readonly CapabilityCheck[]>),",
+    },
+  ],
+  "ui/canvas-panel/useCanvasToolInteractions.ts": [
+    {
+      find: "      const canPan = event.button === 1 || (event.button === 0 && event.altKey);",
+      replace:
+        '      const canPan = event.button === 1 || (event.button === 0 && (event.altKey || (toolMode as string) === "pan"));',
+    },
+    {
+      // Starting a pan turns off fit-to-content mode; otherwise the next
+      // recompute snaps the viewport back to the fitted position (zoom
+      // gestures already do this upstream, drag-pan did not).
+      find:
+        "      if (canPan) {\n" +
+        "        const clientPoint = makeClientPoint(px(event.clientX), px(event.clientY));",
+      replace:
+        "      if (canPan) {\n" +
+        '        dispatch({ type: "SET_FIT_TO_CONTENT_MODE", active: false });\n' +
+        "        const clientPoint = makeClientPoint(px(event.clientX), px(event.clientY));",
+    },
+  ],
+  "ui/canvas-panel/CanvasPanelView.tsx": [
+    {
+      find:
+        '  const viewportCursorClass = toolMode === "magnify" ? css.viewportMagnify : toolMode === "select" ? "" : css.viewportTool;',
+      replace:
+        '  const viewportCursorClass = (toolMode as string) === "pan" ? css.viewportPan : toolMode === "magnify" ? css.viewportMagnify : toolMode === "select" ? "" : css.viewportTool;',
+    },
+    {
+      find:
+        '  const interactionCursorClass = toolMode === "magnify" ? css.interactionLayerMagnify : toolMode === "select" ? "" : css.interactionLayerTool;',
+      replace:
+        '  const interactionCursorClass = (toolMode as string) === "pan" ? css.viewportPan : toolMode === "magnify" ? css.interactionLayerMagnify : toolMode === "select" ? "" : css.interactionLayerTool;',
+    },
+  ],
+  "ui/canvas-panel/CanvasPanel.module.css": [
+    {
+      find: ".viewportTool {",
+      replace: ".viewportPan {\n  cursor: grab;\n}\n\n.viewportTool {",
+    },
+  ],
+};
+
+function panToolPlugin(): Plugin {
+  return {
+    name: "tikzc-pan-tool",
+    enforce: "pre",
+    transform(code, id) {
+      const entry = Object.entries(PAN_TOOL_PATCHES).find(([suffix]) => id.endsWith(suffix));
+      if (!entry) return null;
+      const [suffix, patches] = entry;
+      let out = code;
+      for (const { find, replace } of patches) {
+        if (!out.includes(find)) {
+          throw new Error(
+            `tikzc-pan-tool: patch anchor not found in ${suffix} — upstream changed, update PAN_TOOL_PATCHES in vite.config.ts. Missing: ${JSON.stringify(find.slice(0, 80))}`
+          );
+        }
+        out = out.replace(find, replace);
+      }
+      return { code: out, map: null };
+    },
+  };
+}
 
 function lightweightStubsPlugin(): Plugin {
   const STUB_PREFIX = "\0tikzc-stub:";
@@ -128,20 +233,6 @@ function lightweightStubsPlugin(): Plugin {
           map: null,
         };
       }
-      if (id.endsWith("ui/workers/compute-worker-client.ts")) {
-        if (!COMPUTE_WORKER_CONSTRUCTION.test(code)) {
-          throw new Error(
-            "tikzc-lightweight-stubs: compute worker construction changed upstream — update COMPUTE_WORKER_CONSTRUCTION in vite.config.ts"
-          );
-        }
-        return {
-          code: code.replace(
-            COMPUTE_WORKER_CONSTRUCTION,
-            'throw new Error("compute worker disabled in the VSCode build (main-thread fallback is used)");'
-          ),
-          map: null,
-        };
-      }
       return null;
     },
   };
@@ -152,7 +243,7 @@ export default defineConfig({
   // relative asset URLs; the extension host injects <base href> pointing at
   // the webview resource root
   base: "./",
-  plugins: [localBrandPlugin(), localMathJaxPlugin(), lightweightStubsPlugin(), react()],
+  plugins: [localBrandPlugin(), localMathJaxPlugin(), lightweightStubsPlugin(), panToolPlugin(), react()],
   publicDir: path.resolve(EDITOR, "packages/app/public"),
   define: {
     "import.meta.env.TIKZ_EDITOR_VERSION": JSON.stringify(editorVersion)

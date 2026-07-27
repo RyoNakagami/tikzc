@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-07-27
+
+### Added
+
+- VSCode extension: hand (pan) tool in the canvas toolbar. A hand-icon button
+  (shortcut `H`) next to Magnify switches left-drag to panning, with grab /
+  grabbing cursors. Injected at build time via `panToolPlugin()` in
+  `vite.config.ts` (exact-string patches on the vendored editor, loud build
+  failure if upstream drifts); the vendored sources stay unmodified. Starting
+  any drag-pan (hand tool, middle-drag, Alt+drag) now also exits
+  fit-to-content mode so the panned viewport no longer snaps back to the
+  fitted position on the next recompute.
+
+### Changed
+
+- VSCode extension build: re-enabled the compute Web Worker in the VSIX
+  bundle, reverting the 0.3.1 stub. The standalone editor's behavior is the
+  source of truth, so the extension accepts the larger bundle (worker chunks
+  duplicate the core + MathJax + fonts graph) in exchange for non-blocking
+  recomputes (IME, textarea, and canvas interaction stay responsive during a
+  full recompute). The webview CSP already allowed `worker-src`, and the
+  inline main-thread fallback still applies if the worker fails to start.
+
 ## [0.3.1] - 2026-07-27
 
 ### Changed
@@ -169,7 +192,8 @@ Initial release.
 - Docs: manual (EN / JP), branch strategy, commit rules, testing guide, and
   versioning policy.
 
-[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/RyoNakagami/tikzc/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/RyoNakagami/tikzc/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/RyoNakagami/tikzc/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/RyoNakagami/tikzc/compare/v0.2.1...v0.2.2

@@ -2,7 +2,7 @@
   "name": "tikzc-preview",
   "displayName": "TikZc Editor",
   "description": "WYSIWYG TikZ editor (vendored tikz-editor) with SVG/PNG export via lualatex + dvisvgm",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "publisher": "RyoNak",
   "license": "MIT",
   "repository": {
@@ -19,8 +19,17 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Visualization", "Programming Languages"],
-  "keywords": ["tikz", "latex", "svg", "png", "diagram"],
+  "categories": [
+    "Visualization",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "tikz",
+    "latex",
+    "svg",
+    "png",
+    "diagram"
+  ],
   "main": "./dist/extension.js",
   "activationEvents": [
     "onLanguage:tikz"
@@ -29,8 +38,12 @@
     "languages": [
       {
         "id": "tikz",
-        "aliases": ["TikZ"],
-        "extensions": [".tikz"],
+        "aliases": [
+          "TikZ"
+        ],
+        "extensions": [
+          ".tikz"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -58,9 +71,18 @@
         }
       ],
       "commandPalette": [
-        { "command": "tikzc.showPreview", "when": "editorLangId == tikz" },
-        { "command": "tikzc.exportSvg", "when": "editorLangId == tikz" },
-        { "command": "tikzc.exportPng", "when": "editorLangId == tikz" }
+        {
+          "command": "tikzc.showPreview",
+          "when": "editorLangId == tikz"
+        },
+        {
+          "command": "tikzc.exportSvg",
+          "when": "editorLangId == tikz"
+        },
+        {
+          "command": "tikzc.exportPng",
+          "when": "editorLangId == tikz"
+        }
       ]
     },
     "keybindings": [
@@ -81,13 +103,17 @@
         },
         "tikzc.extraPackages": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [],
           "description": "Extra \\usepackage applied to every diagram"
         },
         "tikzc.extraLibraries": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [],
           "description": "Extra \\usetikzlibrary applied to every diagram"
         },
