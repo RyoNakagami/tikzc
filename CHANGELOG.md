@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- VSCode extension build: re-enabled the compute Web Worker in the VSIX
+  bundle, reverting the 0.3.1 stub. The standalone editor's behavior is the
+  source of truth, so the extension accepts the larger bundle (worker chunks
+  duplicate the core + MathJax + fonts graph) in exchange for non-blocking
+  recomputes (IME, textarea, and canvas interaction stay responsive during a
+  full recompute). The webview CSP already allowed `worker-src`, and the
+  inline main-thread fallback still applies if the worker fails to start.
+
 ## [0.3.1] - 2026-07-27
 
 ### Changed

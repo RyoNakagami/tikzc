@@ -91,13 +91,6 @@ const MODULE_STUBS: Record<string, string> = {
 const THUMBNAIL_WORKER_CONSTRUCTION =
   /sharedWorker = new Worker\(new URL\("\.\/thumbnail-render\.worker\.ts", import\.meta\.url\), \{ type: "module" \}\);/;
 
-// Same story for the compute worker (arrived with the 0.3.0 editor update):
-// its bundle graph duplicates core + MathJax + fonts (~12 MB, ~60 chunks).
-// computeSnapshotPreferWorker() falls back to inline compute when the Worker
-// constructor throws — the pre-worker status quo — so disable it too.
-const COMPUTE_WORKER_CONSTRUCTION =
-  /sharedWorker = new Worker\(new URL\("\.\/compute\.worker\.ts", import\.meta\.url\), \{ type: "module" \}\);/;
-
 function lightweightStubsPlugin(): Plugin {
   const STUB_PREFIX = "\0tikzc-stub:";
   return {
@@ -124,20 +117,6 @@ function lightweightStubsPlugin(): Plugin {
           code: code.replace(
             THUMBNAIL_WORKER_CONSTRUCTION,
             'throw new Error("thumbnail worker disabled in the VSCode build (main-thread fallback is used)");'
-          ),
-          map: null,
-        };
-      }
-      if (id.endsWith("ui/workers/compute-worker-client.ts")) {
-        if (!COMPUTE_WORKER_CONSTRUCTION.test(code)) {
-          throw new Error(
-            "tikzc-lightweight-stubs: compute worker construction changed upstream — update COMPUTE_WORKER_CONSTRUCTION in vite.config.ts"
-          );
-        }
-        return {
-          code: code.replace(
-            COMPUTE_WORKER_CONSTRUCTION,
-            'throw new Error("compute worker disabled in the VSCode build (main-thread fallback is used)");'
           ),
           map: null,
         };
