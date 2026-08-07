@@ -1,0 +1,63 @@
+#| mainfont: IPAexGothic
+#| packages: [fontawesome]
+\begin{tikzpicture}[
+    font=\small, line width=0.7pt,
+    pc/.style={draw=gray!60!black, fill=gray!8, minimum width=1.1cm, minimum height=1.0cm},
+    gbox/.style={draw=navy!70!black, fill=navy!8, minimum width=3.2cm, minimum height=0.7cm,
+                 font=\footnotesize},
+    panel/.style={draw=teal!45!black, fill=teal!6, rounded corners=6pt, inner sep=14pt},
+    flow/.style={-{Stealth[length=3.2mm]}, teal!45!black, line width=1.1pt},
+    net/.style={ellipse, draw=navy!70!black, fill=navy!6,
+                minimum width=2.6cm, minimum height=1.8cm},
+    faicon/.style={navy, inner sep=0pt},
+    addr/.style={font=\footnotesize, text=black!70},
+    note/.style={draw=gray!60!black, fill=white, rounded corners=3pt, align=center,
+                 font=\footnotesize, text width=3.1cm},
+  ]
+  \definecolor{navy}{HTML}{0E3666}
+
+  % ================= タイトル =================
+  \node[font=\Large\bfseries, navy, align=center] (title) at (0,4.7) {NAT（Network Address Translation）};
+  \node[font=\small, text width=13.5cm, align=left] at (0,3.7)
+    {プライベートアドレスとグローバルアドレスを1対1で対応させて変換する仕組み．\\
+     確保しているグローバルアドレスの数までなら，複数のコンピュータを\\
+     同時にインターネットへ接続できる．};
+
+  % ================= 社内ホスト（左） =================
+  \node[pc] (h1) at (-6.3,1.9) {PC};
+  \node[below=1mm of h1, addr] {192.168.10.15};
+  \node[pc] (h2) at (-6.3,0.0) {PC};
+  \node[below=1mm of h2, addr] {192.168.10.16};
+  \node[pc] (h3) at (-6.3,-1.9) {PC};
+  \node[below=1mm of h3, addr] {192.168.10.17};
+
+  % ================= グローバルアドレスパネル（中央，複数アドレス） =================
+  \node[panel, minimum width=3.9cm, minimum height=4.4cm] (gpanel) at (-0.6,0.0) {};
+  \node[font=\footnotesize\bfseries, navy] (lbl) at (-0.6,1.1) {グローバルアドレス};
+  \node[gbox] (g1) at (-0.6,0.35) {222.232.100.123};
+  \node[gbox] (g2) at (-0.6,-0.55) {222.232.100.125};
+
+  % ================= インターネット（右） =================
+  \node[net] (inet) at (7.6,0.0) {};
+  \node[faicon, font=\fontsize{34}{34}\selectfont] at (inet) {\faGlobe};
+  \node[faicon, font=\fontsize{15}{15}\selectfont] at ($(inet)+(0.62,-0.55)$) {\faSitemap};
+  \node[above=1mm of inet, addr] {インターネット};
+
+  % ================= 配線：ホスト → グローバルアドレス =================
+  \draw[flow] (h1.east) -- (gpanel.west |- h1.east);
+  \draw[flow] (h2.east) -- (gpanel.west |- h2.east);
+  \draw[flow] (h3.east) -- (gpanel.west |- h3.east);
+
+  % ================= 配線：グローバルアドレス → インターネット =================
+  \coordinate (branch) at ($(gpanel.east)+(0.9,0)$);
+  \coordinate (out1) at (branch |- g1);
+  \coordinate (out2) at (branch |- g2);
+
+  \draw[flow] (gpanel.east |- g1) -- (out1) -- (inet.west |- out1);
+  \draw[flow] (gpanel.east |- g2) -- (out2) -- (inet.west |- out2);
+
+  % ================= 待機ノート =================
+  \node[note] (wait) at (-3.36,-2.84) {グローバルアドレスが\\空くまで待つ．};
+  \draw[gray!60!black, thick] (wait.north) -- (-2.5,-1.9);
+
+\end{tikzpicture}

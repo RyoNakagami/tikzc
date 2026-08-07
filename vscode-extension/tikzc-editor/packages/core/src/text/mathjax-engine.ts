@@ -417,6 +417,7 @@ async function initializeWorkerRuntimeOnce(): Promise<MathJaxRuntime> {
   }
 
   const adaptor = liteAdaptor();
+  installWorkerFallbackTextMeasurement(adaptor as unknown as FallbackMeasureAdaptor);
   RegisterHTMLHandler(adaptor);
 
   const tex = new TeX({
@@ -473,6 +474,103 @@ async function initializeWorkerRuntimeOnce(): Promise<MathJaxRuntime> {
     throw new Error("MathJax worker runtime did not produce SVG output.");
   }
   return runtime;
+}
+
+type FallbackMeasureAdaptor = {
+  nodeSize(node: unknown, em?: number, local?: boolean | null): [number, number];
+  getAttribute(node: unknown, name: string): unknown;
+  textContent(node: unknown): string;
+};
+
+type TextMeasureContext = {
+  font: string;
+  measureText(text: string): { width: number };
+};
+
+function createOffscreenTextMeasureContext(): TextMeasureContext | null {
+  const OffscreenCanvasCtor = (
+    globalThis as {
+      OffscreenCanvas?: new (width: number, height: number) => { getContext(kind: "2d"): unknown };
+    }
+  ).OffscreenCanvas;
+  if (typeof OffscreenCanvasCtor !== "function") {
+    return null;
+  }
+  try {
+    const context = new OffscreenCanvasCtor(1, 1).getContext("2d") as TextMeasureContext | null;
+    return context && typeof context.measureText === "function" ? context : null;
+  } catch {
+    return null;
+  }
+}
+
+function readStringAttribute(
+  adaptor: FallbackMeasureAdaptor,
+  node: unknown,
+  name: string
+): string | null {
+  const value = adaptor.getAttribute(node, name);
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function readFallbackFontFamily(adaptor: FallbackMeasureAdaptor, node: unknown): string {
+  const attribute = readStringAttribute(adaptor, node, "font-family");
+  if (attribute) {
+    return attribute;
+  }
+  // -explicitFont variants carry the family in a style attribute instead.
+  const style = readStringAttribute(adaptor, node, "style");
+  const match = style?.match(/font-family:\s*([^;]+)/i);
+  return match ? match[1].trim() : "serif";
+}
+
+/**
+ * The lite adaptor cannot measure text, so MathJax estimates fallback
+ * (non-MathJax-font) characters at a flat 1em per CJK char / 0.6em per other
+ * char (NodeMixin badSizes). The SVG output, however, emits those fallback
+ * <text> elements with an x-height-matched font-size (884px for newcm, i.e.
+ * 0.884em), so the rendered advance of a CJK glyph is ~0.884em. The
+ * overestimate accumulates across a CJK run and shows up as a phantom gap
+ * before the next glyph that exists in the MathJax font (e.g. ASCII digits).
+ *
+ * Measure fallback text for real with OffscreenCanvas when available (the
+ * compute worker has it), otherwise scale the estimate by the emitted
+ * font-size so positions match what the browser will draw. Candidate for an
+ * upstream PR.
+ */
+function installWorkerFallbackTextMeasurement(adaptor: FallbackMeasureAdaptor): void {
+  const measureContext = createOffscreenTextMeasureContext();
+  const originalNodeSize = adaptor.nodeSize.bind(adaptor);
+  adaptor.nodeSize = (
+    node: unknown,
+    em: number = 1,
+    local: boolean | null = null
+  ): [number, number] => {
+    const [estimatedWidth, estimatedHeight] = originalNodeSize(node, em, local);
+    // Only fallback <text> elements produced by unknownText carry font-size.
+    const fontSizeRaw = readStringAttribute(adaptor, node, "font-size");
+    const fontSizePx = fontSizeRaw == null ? Number.NaN : Number.parseFloat(fontSizeRaw);
+    if (!Number.isFinite(fontSizePx) || fontSizePx <= 0 || !Number.isFinite(em) || em <= 0) {
+      return [estimatedWidth, estimatedHeight];
+    }
+    if (measureContext) {
+      const fontStyle =
+        readStringAttribute(adaptor, node, "font-style") === "italic" ? "italic " : "";
+      const fontWeight =
+        readStringAttribute(adaptor, node, "font-weight") === "bold" ? "bold " : "";
+      const family = readFallbackFontFamily(adaptor, node);
+      try {
+        measureContext.font = `${fontStyle}${fontWeight}${fontSizePx}px ${family}`;
+        const measuredWidth = measureContext.measureText(adaptor.textContent(node)).width;
+        if (Number.isFinite(measuredWidth) && measuredWidth > 0) {
+          return [measuredWidth / em, estimatedHeight];
+        }
+      } catch {
+        // fall through to the scaled estimate
+      }
+    }
+    return [(estimatedWidth * fontSizePx) / em, estimatedHeight];
+  };
 }
 
 async function initializeBrowserRuntime(font: MathJaxFont): Promise<MathJaxRuntime> {
