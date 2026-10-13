@@ -1,0 +1,9 @@
+#| mainfont: IPAexGothic
+\begin{tikzpicture}
+  \node[draw, text width=4cm, align=left, anchor=north west] at (0,0)
+    {日本語ABC 123\\ＡＢＣ１２３ 半角ｶﾅ\\制御 $x_i+\alpha=12$};
+  \node[draw, text width=4cm, align=center, anchor=north west] at (5,0)
+    {日本語ABC 123\\ＡＢＣ１２３ 半角ｶﾅ\\制御 $x_i+\alpha=12$};
+  \node[draw, text width=4cm, align=right, anchor=north west] at (10,0)
+    {日本語ABC 123\\ＡＢＣ１２３ 半角ｶﾅ\\制御 $x_i+\alpha=12$};
+\end{tikzpicture}

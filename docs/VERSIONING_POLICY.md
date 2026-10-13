@@ -1,5 +1,5 @@
 ---
-date-modified: "2026-07-10"
+date-modified: "2026-10-13"
 project: tikzc
 ---
 
@@ -7,6 +7,48 @@ project: tikzc
 
 - Versioning of `tikzc` follows [Semantic Versioning](https://semver.org/)
 - Release numbers are managed in the `MAJOR.MINOR.PATCH` format
+
+## Updating and checking versions
+
+[`VERSION`](../VERSION) is the canonical project version. From any working
+directory, invoke [`devtools/bump-version.sh`](../devtools/bump-version.sh)
+by its path, with the intended version or `--check`:
+
+```sh
+devtools/bump-version.sh 1.0.1
+devtools/bump-version.sh --check
+cargo build --release --locked
+target/release/tikzc --version
+```
+
+The update/check targets are shared in `devtools/bump-version.mjs`:
+
+| File | Managed field |
+| --- | --- |
+| `VERSION` | Canonical version |
+| `Cargo.toml` | `[package].version` |
+| `Cargo.lock` | Local `tikzc` package version |
+| `package.json`, `vscode-extension/package.json` | Root `version` |
+| `package-lock.json`, `vscode-extension/package-lock.json` | Root `version` and `packages[""].version` |
+
+The script accepts SemVer, including prerelease/build metadata and an optional
+leading `v`. All target version fields are read and validated before updates.
+`--check` writes nothing and exits 1 for mismatches or missing/invalid fields.
+The current Cargo layout uses an explicit package version; workspace-inherited
+versions require updating the registry/parser before changing that layout.
+
+Dependency versions, `rust-version`, Cargo's lockfile format version,
+historical changelog entries, and diagrams of previous releases are
+independent and are not updated. Documentation refers
+to `VERSION` or reads it in commands instead of repeating the current release.
+Add the release notes to `CHANGELOG.md` separately.
+
+Updating metadata does not rewrite existing binaries or archives. Rebuild (or
+reinstall) the release CLI to embed the new version, and rerun the extension's
+`npm run package` to produce a VSIX carrying the new version. The VSIX does not
+contain the native executable; the extension warns when the installed `tikzc`
+differs from its own major.minor version. The updater itself needs only Bash
+and Node.js; it does not run Cargo, npm or Git.
 
 ## MAJOR.MINOR.PATCH
 

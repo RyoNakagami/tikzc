@@ -1,0 +1,1 @@
+\def\labeltext{Hello}\node {\labeltext};

@@ -1,0 +1,2 @@
+#| libraries: [matrix]
+\matrix[matrix of nodes] { A & B \\ C & D \\ };

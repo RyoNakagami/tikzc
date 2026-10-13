@@ -7,6 +7,156 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- VSCode extension: the `tikzc` executable is now accepted or refused by its
+  reported version. Every version from 1.0.0 on is accepted; a 0.x build gets
+  a `tikzc … is older than 1.0.0` message instead of being misreported as
+  "not the Rust tikzc".
+
+## [1.0.0] - 2026-10-13
+
+### Added
+
+- Rust-native CLI: documented diagram-oriented TikZ subset,
+  outlined SVG and Rust-rasterized PNG, embedded Japanese/math/icon fonts,
+  source diagnostics, corpus and empty-PATH integration tests, benchmarks and
+  cross-platform Rust CI. No TeX, Poppler or Node runtime dependency on this path.
+- Native arrow start/end, intermediate vertex, orthogonal corner and Bézier
+  control-point editing through draggable handles, keyboard nudges and numeric
+  coordinates. Endpoints can reconnect to named anchors; relative `+` / `++`
+  routes are materialized in one undoable edit to preserve other explicit
+  vertices. Selecting an inline label also exposes its parent path's handles.
+- English/Japanese preview toolbar and message selection through the toolbar
+  or `tikzc.language` (English by default).
+- Real Chromium pointer/hit-testing coverage for start/end/bend dragging,
+  inline-label selection and numeric path-point editing.
+- Developer documentation for the Rust engine, feature workflow and editor
+  naming/rename procedure (`docs/RUST_ENGINE.md`, `docs/FEATURE_WORKFLOW.md`
+  and `docs/NAIMING.md`).
+- Native arrow/path selection and translation by dragging or center coordinates,
+  plus object and inline-label deletion through the toolbar or Delete/Backspace.
+  Invalid deletions that would break named references preserve the source.
+- Native canvas object picker, Tab/Alt-click overlap selection, and forward,
+  backward, front and back ordering using PGF layers without moving source
+  declarations across scopes. GUI updates reuse their validated render and swap
+  decoded images while retaining the viewport and selection, eliminating the
+  intermediate blank preview and duplicate refresh.
+- Rust preview canvas label editing with TeX/Japanese input, and text,
+  rectangle, ellipse, circle, line and arrow insertion. Operations validate
+  before applying one undoable source edit; empty diagrams provide a blank
+  canvas, and `reset cm` scopes preserve world-space insertion coordinates.
+- SVG/PNG preview selection, native executable configuration, coalesced live
+  compilation, and suppression of stale images/results on edits and errors.
+- A single platform-independent VSIX. It does not bundle the Rust executable:
+  install `tikzc` separately with `cargo install`. The extension resolves
+  `tikzc` on PATH (or `tikzc.nativePath`) and warns when the executable's
+  major.minor version differs from its own.
+- CLI/artifact byte-parity tests for mixed-width multiline alignment at three
+  DPIs, plus host, webview and update-race regression checks in native CI.
+- Native layout precision: measured baselines and fixed node-font line struts,
+  bundled Latin Modern Mono, font-relative padding and outer separation;
+  node-local scaling/reflection and inherited `transform shape`; cubic
+  arc-length shortening and analytic arrow tangents. Scoped clipping, limited
+  rectangular matrices of nodes, seven basic patterns, geometry regressions
+  and three reviewed native PNG baselines were added.
+- Desktop-driven native compatibility: unbraced/nested foreach with count and
+  empty tuple fields; explicit/smooth coordinate plots; brace decoration; grid,
+  node labels, diamond aspect and upright cylinders; shifted coordinates and
+  point-target positioning; bar arrows; text color/spacing/phantom/circled text,
+  simple tabular and additional math/icon commands. Explicit non-bundled fonts
+  can be loaded from installed system fonts without external commands.
+- Opt-in read-only Desktop comparison harness with content deduplication,
+  source-hash verification, cached reference results and side-by-side SVG/PNG gallery.
+- Native subset expansion: bounded foreach lists/ranges/tuples, parameterized
+  def/newcommand/renewcommand, scalar PGF math and coordinate expressions with
+  source-mapped diagnostics. Added a parameterized pipeline example and feature
+  regression tests.
+- Ordered affine scope/path transforms, transformed circle/ellipse/arc paths,
+  rotated/shifted nodes and rotated anchors/border intersections; independent
+  arrow endpoints, open-tip shaft clearance and single-polyline shortening.
+
+### Changed
+
+- Removed the bundled Noto Sans CJK Regular/Bold fonts, reducing embedded
+  font assets from about 52 MiB to 15 MiB. Japanese typewriter text falls back
+  to IPAexGothic; test fixtures use bundled IPAex fonts. Explicit Noto
+  `mainfont` requests use installed system fonts and fail if unavailable.
+- VSCode's default preview and SVG/PNG export now share the Rust-native renderer
+  and its path-based text layout. Mixed-width labels no longer pass through a
+  separate MathJax layout in the standard preview.
+- Renamed the extension display name, editor tab/header, commands and settings
+  group to **TikZc Editor**. The extension ID `RyoNak.tikzc-preview`, command
+  IDs and `tikzc.*` settings remain compatible with existing installations.
+- SVG labels share verified self-contained Typst glyph symbols across the
+  diagram, with deterministic ordering, collision checks and matrix rollback.
+- Shared glyph outlines use four decimal places; regular diagram paths retain
+  their precision. Redundant default attributes are omitted from generated
+  elements, inherited defaults are set on the root, and node coordinates use
+  five decimal places. Nested label viewports and line joins are preserved.
+- Refactored Rust rendering into coordinate, geometry, node, path, paint and
+  artifact modules while preserving the public API and rendering behavior.
+- Organized the extension around the Rust-native host and webview; activation
+  is now a small entry point. Developer corpus comparison lives under
+  `devtools/`, VSIX archives under `vscode-extension/dist/packages/`, and
+  detailed usage under `docs/`.
+- Defined the native compatibility contract around practical diagram syntax,
+  with documented limits for arbitrary TeX execution and pixel parity. See
+  [Rust engine compatibility](docs/RUST_ENGINE.md) for the supported subset.
+- Aligned the Rust crate version with the canonical `VERSION` (1.0.0).
+- The Rust crate moved from `crates/tikzc/` to the repository root (`src/`,
+  `tests/*.rs`, `examples/`), replacing the Cargo workspace with a single
+  package. Install from a checkout with `cargo install --path . --locked`.
+- `tikzc --version` prints `tikzc <version>` without the `(Rust native)` suffix.
+- `devtools/compare-desktop.mjs` compares two `tikzc` builds: `--legacy` and
+  `--reuse-legacy` are now `--reference` and `--reuse-reference`, and result
+  keys use `reference`.
+- Design principles ([ARCHITRECTURE.md](docs/ARCHITRECTURE.md)) were rewritten
+  for a single Rust renderer; the articles on the legacy editor were removed.
+- The user manuals describe the Rust CLI and extension.
+
+### Removed
+
+- **Breaking:** the TypeScript / LuaLaTeX CLI (`src/cli.ts`, `src/core.ts`,
+  the npm `tikzc` bin and its tests). `tikzc` is now the Rust executable only;
+  install it with `cargo install` and remove an old link with
+  `npm unlink -g tikzc`. The root npm package is private development tooling.
+- **Breaking:** the legacy WYSIWYG editor: the `tikzc.showLegacyEditor`
+  command, the vendored tikz-editor, the MathJax canvas, the lualatex text
+  fallback, and the Vite webview build. The extension now consists of the Rust
+  preview with canvas editing and SVG/PNG export, and the VSIX shrinks from
+  about 9.7 MB to about 65 KB.
+- The extension no longer accepts the TeX-based npm `tikzc` as a renderer. A
+  non-Rust executable is reported with installation instructions instead of
+  being used through TeX.
+- The Phase 0 golden generator (`devtools/golden/`) and its unused lualatex
+  reference data (`tests/fixtures/golden/`). Visual regression continues to use
+  the reviewed Rust-native baselines in `tests/visual-native/`.
+
+### Fixed
+
+- Japanese italic and IPAex synthetic bold now recognize single-font settings
+  as well as font fallback lists, so `\itshape` / `\textit` / `\emph` and
+  `\bfseries` / `\textbf` produce visible styles with bundled Japanese fonts.
+- Returning focus to the same source editor and save/dirty-state notifications
+  without text changes no longer trigger an unnecessary preview refresh after
+  GUI edits. The current image, viewport and selection are retained.
+- IPAex `\bfseries` and `\textbf` use a synthetic stroke so Japanese bold
+  remains visible without system fonts, including zone-heading styles.
+- Rust path labels and coordinates on `-|` / `|-` now follow TikZ's position
+  timing: `pos=0.5` is the corner, and `pos=0.25` / `0.75` are the midpoints
+  of each leg, independent of leg lengths. This restores the feedback label
+  placement in `notebook/test-jp.tikz`; sloped labels use the active leg's tangent.
+- Rust text layout no longer emits a visible leading space for source newlines
+  and indentation following `\\` or `\\[length]`. Explicit spacing commands
+  remain intact. Regression tests cover mixed-width labels, nested font groups,
+  alignment modes, source whitespace and SVG/PNG equivalence.
+- Fixed native bare-color fills, postfix path-label defaults, relative Bezier
+  destination controls, fixed-width label alignment and Japanese punctuation
+  layout; added bounded synthetic regressions for Desktop-discovered syntax.
+- Native Rust CI smoke tests use the existing `tests/fixtures/test.tikz` for
+  SVG and PNG export instead of the missing `example.tikz`.
+
 ## [0.3.3] - 2026-07-27
 
 ### Fixed
@@ -206,7 +356,9 @@ Initial release.
 - Docs: manual (EN / JP), branch strategy, commit rules, testing guide, and
   versioning policy.
 
-[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/RyoNakagami/tikzc/compare/v0.3.3...v1.0.0
+[0.3.3]: https://github.com/RyoNakagami/tikzc/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/RyoNakagami/tikzc/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/RyoNakagami/tikzc/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/RyoNakagami/tikzc/compare/v0.2.2...v0.3.0

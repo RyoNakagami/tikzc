@@ -1,0 +1,2 @@
+#| mainfont: IPAexGothic
+\node[draw,text width=3cm,align=left] {日本語は自動改行せず\\明示改行する};

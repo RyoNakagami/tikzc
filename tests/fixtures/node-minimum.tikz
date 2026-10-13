@@ -1,0 +1,1 @@
+\node[draw,minimum width=2cm,minimum height=1cm,inner xsep=6pt,inner ysep=3pt] (a) {A};

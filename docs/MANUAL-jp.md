@@ -1,21 +1,18 @@
 # tikzc ユーザーマニュアル
 
-本マニュアルでは，このリポジトリに含まれる2つのコンポーネントを詳細に解説します．
+tikzc は，`.tikz` ファイルを Rust 製のエンジンで SVG / PNG に描画します．
+実行時に TeX もネットワークも必要ありません．本マニュアルは次の2つを解説します．
 
-1. **`tikzc` CLI** — ローカルの LuaLaTeX ツールチェーンを用いて `.tikz`
-   ファイルを SVG / PNG にコンパイルするコマンドラインツール
-2. **VSCode 拡張機能（`tikzc-preview` / "TikZc Editor"）** — webview に埋め込んだ
-   WYSIWYG TikZ エディタと，CLI と同じパイプラインによる高精度な SVG / PNG
-   エクスポート
+1. **`tikzc` CLI** — `.tikz` ファイルを SVG / PNG にコンパイルするコマンド
+2. **VSCode 拡張機能（`tikzc-preview` / "TikZc Editor"）** — キャンバス編集つきの
+   ライブプレビューと，CLI と一致する SVG / PNG エクスポート
 
 English version: [MANUAL.md](MANUAL.md)
 
----
-
 ## 目次
 
-- [1. 概要とアーキテクチャ](#1-概要とアーキテクチャ)
-- [2. 前提条件（TeX ツールチェーン）](#2-前提条件tex-ツールチェーン)
+- [1. 概要](#1-概要)
+- [2. インストール](#2-インストール)
 - [3. `.tikz` ソースの書式](#3-tikz-ソースの書式)
 - [4. CLI リファレンス](#4-cli-リファレンス)
 - [5. VSCode 拡張機能](#5-vscode-拡張機能)
@@ -24,440 +21,215 @@ English version: [MANUAL.md](MANUAL.md)
 - [8. 開発](#8-開発)
 - [9. ライセンス](#9-ライセンス)
 
----
-
-## 1. 概要とアーキテクチャ
-
-CLI と拡張機能のエクスポートコマンドは，[`src/core.ts`](../src/core.ts) に
-実装された単一のコンパイルパイプライン（Quarto フィルタ `quarto_tikz.lua`
-の移植）を共有しています．
+## 1. 概要
 
 ```text
-.tikz ──(standalone .tex を組み立て)──▶ .tex
-      ──(lualatex)────────────────────▶ .pdf
-      ──(dvisvgm --pdf --no-fonts)────▶ .svg
-      └─(pdftoppm -png)───────────────▶ .png
+.tikz ──(構文解析，マクロとループの展開)──▶ 図
+      ──(レイアウト．文字は Typst で組版)──▶ .svg   （字形はパス）
+      └─(同じ SVG をラスタライズ)──────────▶ .png
 ```
 
-パイプラインの特徴：
+- **文書化された TikZ のサブセットに対応します．** tikzc は TeX を実行しません．
+  対応構文は[互換性の契約](RUST_ENGINE.md#native-compatibility-contract)にあります．
+  未対応の構文は `file:line:column` 形式の診断で失敗し，別のレンダラーへの
+  フォールバックはありません．
+- **出力は自己完結しています．** 日本語・数式・アイコンのフォントを実行ファイルに
+  埋め込み，字形を SVG パスとして書き出すため，どの環境でも同じ見た目になります．
+- **LaTeX とは画素単位で一致しません．** フォントメトリクス，行分割，矢印の形は，
+  同じソースを lualatex で組んだ結果と異なる場合があります．
 
-- **LuaLaTeX + fontspec**：日本語（CJK）ラベルは OS のシステムフォントで
-  そのまま描画されます．TikZ ソース側でのフォント設定は不要です．
-- **`dvisvgm --no-fonts`**：グリフを SVG パスとして埋め込むため，フォント
-  ファイルを同梱せずにどの環境でも同一の見た目で表示できます．
-- **一時ディレクトリ**：コンパイルは毎回 OS の一時ディレクトリ配下の
-  `tikzc-*` ディレクトリで実行され，終了後に削除されます（CLI の
-  `--keep-tex` で生成された `.tex` のコピーを残せます）．
+## 2. インストール
 
-VSCode 拡張機能はさらに
-[DominikPeters/tikz-editor](https://github.com/DominikPeters/tikz-editor)
-（MIT）の WYSIWYG エディタを埋め込んでおり，その**内蔵 TikZ パーサにより
-LaTeX 環境なしで即座にプレビューが描画**されます．LaTeX が必要になるのは
-エクスポート時のみです．
-
----
-
-## 2. 前提条件（TeX ツールチェーン）
-
-> **重要：** CLI・拡張機能ともに TeX 環境を同梱していません．ローカルに
-> インストール済みのツールチェーンを外部コマンドとして呼び出します．TeX
-> 環境がない場合，コンパイルとエクスポートは失敗します（VSCode 上の
-> WYSIWYG 編集自体は動作します）．
-
-必要な外部コマンド（`PATH` 上にあること）：
-
-| コマンド | 用途 | 入手元 |
-|---|---|---|
-| `lualatex` | `.tex` → `.pdf` | TeX Live / MacTeX / MiKTeX（TikZ/PGF と fontspec を含む構成） |
-| `dvisvgm` | `.pdf` → `.svg` | TeX Live に同梱 |
-| `pdftoppm` | `.pdf` → `.png`（PNG 出力時のみ） | poppler / poppler-utils |
-| `node`（18 以上） | CLI の実行・ビルド | [nodejs.org](https://nodejs.org/) またはパッケージマネージャ |
-
-### Linux（Ubuntu / Debian）
+Rust 1.92 以上（Windows では MSVC Build Tools も）を導入し，次を実行します．
 
 ```sh
-sudo apt install texlive-luatex texlive-pictures texlive-latex-extra poppler-utils
+cargo install --git https://github.com/RyoNakagami/tikzc tikzc --locked
+# チェックアウトから：cargo install --path . --locked
+tikzc --version        # tikzc <version>
 ```
 
-### macOS
-
-```sh
-# MacTeX（lualatex + dvisvgm + TikZ を含む）．GUI アプリが不要なら -no-gui 版で十分
-brew install --cask mactex-no-gui
-
-# pdftoppm（PNG 出力を使う場合のみ）
-brew install poppler
-```
-
-インストール後はターミナルを開き直して `/Library/TeX/texbin` を PATH に
-通してください．反映されない場合は `eval "$(/usr/libexec/path_helper)"` を
-実行します．
-
-### Windows
-
-- **TeX Live**：[tug.org/texlive](https://tug.org/texlive/) のインストーラで
-  導入（`lualatex` / `dvisvgm` を含む．scheme-full 推奨）．
-  [MiKTeX](https://miktex.org/) でも動作します（不足パッケージは自動導入）．
-- **poppler**（PNG 出力時のみ）：`scoop install poppler` または
-  `choco install poppler`．手動導入の場合は
-  [poppler-windows](https://github.com/oschwartz10612/poppler-windows/releases)
-  を展開し `Library\bin` を PATH に追加します．
-
-PowerShell / コマンドプロンプトでそのまま動作します（WSL は不要）．
-
-### インストールの確認
-
-```sh
-lualatex --version && dvisvgm --version && pdftoppm -v && node --version
-```
-
-### 日本語（CJK）フォントについて
-
-デフォルトのメインフォントは **`IPAexMincho`** で，TeX Live / MacTeX の
-フル構成に同梱されています．fontspec が見つけられない場合は，`#| mainfont:`
-ヘッダ・CLI の `--mainfont`・VSCode 設定 `tikzc.mainfont` のいずれかで OS
-フォントを指定してください：
-
-- macOS：例 `Hiragino Mincho ProN`
-- Windows：例 `Yu Mincho`，`MS Mincho`
-
----
+初回ビルドでは Rust の依存をダウンロードし，約 15 MiB のフォントを埋め込みます．
+VSCode 拡張機能は [5.1 節](#51-ビルドとインストール)を参照してください．
 
 ## 3. `.tikz` ソースの書式
 
-`.tikz` ファイルは TikZ コードに，任意で `#|` ヘッダ行を先頭に付けたものです．
+`.tikz` ファイルは TikZ コードで，先頭に `#|` で始まるヘッダ行を置けます．
 
 ### 3.1 ヘッダオプション
 
-ヘッダ行は `quarto_tikz` Lua フィルタと同じ `#| key: value` 記法です．
-**ファイル先頭**に置く必要があり，`#|` オプションでない行が現れた時点で
-ヘッダブロックは終了します．
-
-```text
-#| packages: [circuitikz, pgfplots]   -- 追加の \usepackage
-#| libraries: [arrows.meta, calc]     -- 追加の \usetikzlibrary
-#| scale: 1.5                         -- \scalebox で包む
-#| mainfont: IPAexGothic              -- fontspec のメインフォント
+```latex
+#| mainfont: IPAexGothic
+#| libraries: [arrows.meta, calc]
+#| scale: 1.5
 \begin{tikzpicture}
-  ...
+  \node[draw] (a) {入力};
+  \node[draw, right=2cm of a] (b) {$y = f(x)$};
+  \draw[->] (a) -- (b);
 \end{tikzpicture}
 ```
 
-| キー | 値 | 効果 |
-|---|---|---|
-| `packages` | リスト（`[a, b]` または `a, b`） | 追加の `\usepackage{...}` |
-| `libraries` | リスト | 追加の `\usetikzlibrary{...}` |
-| `scale` | 数値 | 内容を `\scalebox{n}{...}` で包む |
-| `mainfont` | フォント名 | `\setmainfont{...}`（fontspec） |
+| ヘッダ | 意味 |
+| --- | --- |
+| `mainfont` | ラベルのフォント．既定は `IPAexMincho`．同梱フォントは導入不要．それ以外はシステムにインストールされたフォントを読み，見つからなければ失敗する |
+| `scale` | 図全体の拡大率．(0, 100] の範囲 |
+| `libraries` | 図が使う TikZ ライブラリ．指定できるのは `arrows.meta`，`positioning`，`calc`，`shapes.geometric`，`backgrounds`，`fit`，`decorations.pathreplacing`，`patterns`，`matrix` |
+| `packages` | 図が使うパッケージ．指定できるのは `amsmath`，`amssymb`，`fontawesome` |
+| `filename`，`width`，`height` | 互換性のために受け付けるが無視する．出力サイズや出力先は変わらない |
 
-リスト値は `[a, b, c]` 形式と裸の `a, b` 形式のどちらも受け付け，各要素を
-囲むダブルクォートは除去されます．
+ヘッダ行は先頭にまとめて書きます．ヘッダでない行が現れた時点で解析を終えます．
+未知のヘッダキー，ライブラリ，パッケージはエラーになります．
 
 ### 3.2 オプションの優先順位
 
-各オプションの有効値は次の順に解決されます（上が優先）：
+ソースの `#|` ヘッダは VSCode の設定（`tikzc.mainfont`，`tikzc.extraPackages`，
+`tikzc.extraLibraries`）より優先されます．CLI にはフォントやライブラリを指定する
+フラグがないため，ヘッダを使います．
 
-1. ソースファイルの `#|` ヘッダ
-2. CLI フラグ（`--mainfont`，`--packages` など）または VSCode 設定
-   （`tikzc.mainfont`，`tikzc.extraPackages` など）
-3. 組み込みデフォルト
+### 3.3 裸の TikZ コード
 
-リスト系オプション（`packages`，`libraries`）は置き換えではなく
-**マージ**されます（デフォルト + CLI/設定 + ヘッダ．重複は除去）．
-
-### 3.3 組み込みデフォルト
-
-設定なしで常に読み込まれるもの：
-
-- パッケージ：`amsmath`，`amssymb`
-- TikZ ライブラリ：`arrows.meta`，`positioning`，`calc`，`shapes.geometric`，
-  `backgrounds`，`fit`
-- メインフォント：`IPAexMincho`
-
-### 3.4 裸の TikZ コード
-
-本文に `\begin{tikzpicture}` が含まれない場合，自動的に `tikzpicture`
-環境で包まれます．したがって次の1行だけでも完全なファイルとして有効です：
-
-```text
-\draw[->] (0,0) -- (2,1) node[right] {ラベル};
-```
-
-### 3.5 生成されるドキュメント
-
-組み立てられる standalone ドキュメントは次の形になります：
-
-```latex
-\documentclass[border=2pt]{standalone}
-\usepackage{fontspec}
-\setmainfont{<mainfont>}
-\usepackage{tikz}
-\usepackage{<追加パッケージごとに1行>}
-\usetikzlibrary{<全ライブラリをカンマ結合>}
-\begin{document}
-<本文．必要に応じて tikzpicture / \scalebox で包まれる>
-\end{document}
-```
-
-TikZ は（`standalone` クラスの `tikz` オプションではなく）パッケージとして
-読み込みます．これは `\scalebox` を機能させるためです．
-
----
+`\begin{tikzpicture}…\end{tikzpicture}` 全体を書いても，描画コマンドだけを書いても
+構いません．描画コマンドだけの場合は1つの図として扱います．
 
 ## 4. CLI リファレンス
 
-### 4.1 インストール
+### 4.1 書式
 
 ```sh
-npm install
-npm run build          # dist/tikzc.cjs を生成
-npm link               # 任意：tikzc コマンドをグローバルに導入
+tikzc <file.tikz> [-o output.svg|output.png|directory] [-f svg|png|both]
+tikzc check <file.tikz>
 ```
 
-`npm link` しない場合は `node dist/tikzc.cjs` として実行できます．
+### 4.2 オプション一覧
 
-### 4.2 書式
+| オプション | 説明 |
+| --- | --- |
+| `-o`，`--output <path>` | 出力ファイルまたは出力ディレクトリ |
+| `-f`，`--format <format>` | `svg`，`png`，`both`．既定は `-o` の拡張子から推定し，なければ `svg` |
+| `--dpi <number>` | PNG の解像度．既定は 150 |
+| `-q`，`--quiet` | 進捗の1行を出力しない |
+| `-V`，`--version` | バージョンを表示 |
+| `-h`，`--help` | ヘルプを表示 |
 
-```text
-tikzc [options] <file.tikz>
-```
+`tikzc check` はファイルをコンパイルして対応可否だけを報告し，出力は書きません．
 
-使用例：
+### 4.3 出力パスの解決規則
 
-```sh
-tikzc test.tikz                    # -> test.svg（入力と同じ場所）
-tikzc test.tikz -f png --dpi 600   # -> test.png（600 dpi）
-tikzc test.tikz -f both -o out/    # -> out/test.svg と out/test.png
-tikzc test.tikz --watch            # 保存のたびに再コンパイル
-tikzc --help
-```
+- `-o` がなければ，入力と同じ場所に形式の拡張子で出力します
+  （`diagram.tikz` → `diagram.svg`）．
+- `-o` が既存のディレクトリである，パス区切りで終わる，または形式が `both` の場合は，
+  ディレクトリとして扱い，入力のファイル名を使います．
+- それ以外は `-o` を出力ファイルとします．親ディレクトリがなければ作成します．
+- 入力ファイルを上書きする出力先は指定できません．
 
-### 4.3 オプション一覧
+SVG は背景が透明，PNG は背景が白です．すべての変換が終わってからファイルを
+書くため，失敗した実行が既存の出力を置き換えることはありません．
 
-| オプション | デフォルト | 説明 |
-|---|---|---|
-| `-f, --format <svg\|png\|both>` | `svg` | 出力フォーマット |
-| `-o, --output <path>` | 入力の隣 | 出力ファイル**または**ディレクトリ |
-| `--dpi <n>` | `300` | PNG 解像度（正の数） |
-| `--mainfont <font>` | `IPAexMincho` | fontspec のメインフォント |
-| `--packages <a,b>` | — | 追加の `\usepackage`（カンマ区切り） |
-| `--libraries <a,b>` | — | 追加の `\usetikzlibrary`（カンマ区切り） |
-| `--scale <n>` | — | `\scalebox{n}` で包む |
-| `--keep-tex` | off | 生成した `.tex` も出力先に書き出す |
-| `-w, --watch` | off | 入力ファイルを監視し変更のたびに再コンパイル |
-| `-q, --quiet` | off | stderr への進捗表示を抑制 |
-| `-h, --help` | — | ヘルプを表示して終了 |
-
-ソースの `#|` ヘッダはこれらのフラグより**優先**されます
-（[3.2 節](#32-オプションの優先順位)参照）．
-
-### 4.4 出力パスの解決規則
-
-出力のベース名は常に入力ファイル名の拡張子を置き換えたものです
-（`figure.tikz` → `figure.svg` / `figure.png` / `figure.tex`）．
-
-- **`-o` なし**：入力ファイルと同じディレクトリに出力
-- **`-o` が既存ディレクトリ**（またはパス区切り文字で終わる）：その
-  ディレクトリに出力（なければ作成）
-- **`-o` がファイルパス**で単一フォーマット指定：そのパスをそのまま使用
-- **`-f both`**：`-o` は常にディレクトリとして扱われます（2つのファイルが
-  1つのパスを共有できないため）
-
-### 4.5 watch モード
-
-`--watch` は最初に1回コンパイルした後，入力ファイルを監視して変更のたびに
-再コンパイルします．変更イベントは 200 ms でデバウンスされ（エディタは保存
-1回で複数イベントを発火するため），コンパイル中に変更が入った場合は終了後に
-もう1回コンパイルします．コンパイルエラーは表示されますが監視は継続します．
-`Ctrl+C` で終了します．
-
-### 4.6 終了コードとエラー
+### 4.4 終了コード
 
 | コード | 意味 |
-|---|---|
-| `0` | 成功（watch モードではプロセスは動き続ける） |
-| `1` | コンパイル失敗 |
-| `2` | 使用方法の誤り（不正なフラグ・入力が読めない・入力未指定） |
-
-LaTeX が失敗した場合，LaTeX ログから最初の `! ...` エラーブロックを抽出して
-stderr に表示します：
-
-```text
-tikzc: lualatex compilation failed:
-! Undefined control sequence.
-l.12 \drow
-```
-
-進捗表示（`tikzc: test.svg (1234ms)`）は **stderr** に出るため，stdout は
-スクリプトからの利用のためにクリーンに保たれます．
-
----
+| --- | --- |
+| 0 | 成功 |
+| 1 | ラスタライズまたはファイル書き込みの失敗 |
+| 2 | 使い方または入力の誤り：未知のオプション，不正な DPI や形式，読めない入力，入力と同じ出力先 |
+| 3 | ソースが不正，または未対応の構文を使っている（`file:line:column: message`） |
 
 ## 5. VSCode 拡張機能
 
-### 5.1 概要
+拡張機能（`RyoNak.tikzc-preview`，表示名 **TikZc Editor**）は，マシンにインストール
+された `tikzc` を実行し，その SVG または PNG を表示します．エクスポートは
+プレビューと同じ成果物を書き出します．キャンバス編集の詳細は
+[拡張機能の README](../vscode-extension/README.md) を参照してください．
 
-拡張機能（`RyoNak.tikzc-preview`，表示名 **TikZc Editor**）は
-[DominikPeters/tikz-editor](https://github.com/DominikPeters/tikz-editor)
-の WYSIWYG エディタを VSCode の webview パネルに埋め込みます：
+### 5.1 ビルドとインストール
 
-- **キャンバスは即時描画**（tikz-editor 内蔵の TikZ パーサを使用．編集に
-  LaTeX は不要）
-- **キャンバス上の図形操作**（ノードの移動・描画など）は VSCode のテキスト
-  バッファへ自動的に書き戻されます
-- **VSCode 側のテキスト編集**は即座にキャンバスへ反映されます
-- **エクスポートコマンド**は本物の lualatex + dvisvgm / pdftoppm
-  パイプラインで高精度な出力を生成します（日本語ラベルも正しく描画）
-
-### 5.2 ビルドとインストール
+先に `tikzc` をインストールしてください（[2 節](#2-インストール)）．VSIX には
+実行ファイルが含まれません．
 
 ```sh
 cd vscode-extension
-npm install
-npm run package        # webview（Vite）+ 拡張ホストをビルドし .vsix を生成
-code --install-extension tikzc-preview-0.1.0.vsix
+npm ci
+npm run package        # 拡張機能をビルドし .vsix を生成
+code --install-extension "dist/packages/tikzc-preview-$(cat ../VERSION).vsix"
 ```
 
 > macOS で `code` コマンドが見つからない場合は，VSCode のコマンドパレットで
 > "Shell Command: Install 'code' command in PATH" を実行してください．
 
-拡張機能は言語 ID `tikz`（拡張子 `.tikz`）のファイルを開いたときに
-アクティベートされます．
+拡張機能は `.tikz` ファイルを開いたときにアクティベートされます．`tikzc` は PATH から
+探し，`tikzc.nativePath` を設定した場合はそのパスを使います．実行ファイルと拡張機能の
+major.minor バージョンが異なる場合は警告を表示します．
 
-### 5.3 コマンドとキーバインド
+### 5.2 コマンドとキーバインド
 
 | コマンドパレット表示 | ID | 利用条件 |
-|---|---|---|
-| **TikZ: Open Editor to the Side** | `tikzc.showPreview` | アクティブエディタが `.tikz`．エディタタイトルバーのアイコンからも起動可 |
-| **TikZ: Export as SVG** | `tikzc.exportSvg` | アクティブエディタが `.tikz` |
-| **TikZ: Export as PNG** | `tikzc.exportPng` | アクティブエディタが `.tikz` |
+| --- | --- | --- |
+| **TikZc Editor: Open to the Side** | `tikzc.showPreview` | アクティブエディタが `.tikz`．エディタタイトルバーのアイコンからも起動可 |
+| **TikZc Editor: Export as SVG** | `tikzc.exportSvg` | アクティブエディタが `.tikz` |
+| **TikZc Editor: Export as PNG** | `tikzc.exportPng` | アクティブエディタが `.tikz` |
 
 デフォルトキーバインド：`Ctrl+K V`（macOS は `Cmd+K V`）で現在のエディタの
-横にエディタパネルを開きます．
+横にプレビューを開きます．
 
-### 5.4 基本的な使い方
+### 5.3 基本的な使い方
 
 1. VSCode で `.tikz` ファイルを開く
-2. タイトルバーのアイコンまたは `Ctrl+K V` で **Local TikZ Editor**
-   パネルを開く
+2. タイトルバーのアイコンまたは `Ctrl+K V` でプレビューを開く
 3. どちら側からでも編集できます：
-   - VSCode のテキストエディタで TikZ コードを入力 → キャンバスが即時更新
-   - キャンバス上で図形を操作 → 変更が VSCode バッファへ書き戻される
-     （約 600 ms のデバウンス）
-4. **保存は通常どおり `Ctrl+S`**．キャンバスからの書き戻しはバッファ編集
-   のみで，ディスクへの保存はユーザーの判断に委ねられます．キャンバス側の
-   未反映変更がある間，パネルタイトルに `●` が表示されます
-5. 高品質な出力が必要になったら，コマンドパレットから
-   **TikZ: Export as SVG / PNG** を実行し保存先を選択します．エクスポートは
-   進捗通知つきで lualatex パイプライン全体を実行します
+   - テキストエディタで TikZ コードを入力 → 未保存のバッファが
+     `tikzc.debounceMs` 経過後に再コンパイルされる
+   - キャンバス上で編集（ラベル，移動，重なり順，図形の追加，矢印の編集点）→
+     変更をコンパイルして検証したうえで，バッファへ1回の Undo 可能な編集として
+     適用される
+4. **保存は通常どおり `Ctrl+S`**．キャンバスでの編集はバッファを変更するだけです
+5. **TikZc Editor: Export as SVG / PNG** を実行し，保存先を選択する
 
-**単一ドキュメントモード**：パネルは常に，VSCode で現在開いている `.tikz`
-ファイルだけを表示します．タブはなく，別の `.tikz` をアクティブにした状態で
-再度コマンドを実行するとパネルがそのファイルに切り替わります（前回
-セッションから復元されたドキュメントは閉じられます）．VSCode 外でディスク上
-のファイルが変更された場合もファイルウォッチャで検知されます．
+プレビューはアクティブな `.tikz` エディタに追従します．エラーはソース位置つきで
+表示されます．
 
-### 5.5 設定
+### 5.4 設定
 
-設定は **TikZ Preview (tikzc)**（`tikzc.*`）配下にあり，**エクスポート**
-パイプラインに適用されます：
+設定は **TikZc Editor (tikzc)**（`tikzc.*`）配下にあり，プレビューとエクスポートの
+両方に適用されます：
 
 | 設定 | 型 / デフォルト | 説明 |
-|---|---|---|
-| `tikzc.mainfont` | string，`""` | CJK ラベル用 fontspec メインフォント（空 = `IPAexMincho`） |
-| `tikzc.extraPackages` | string[]，`[]` | すべての図に適用する追加の `\usepackage` |
-| `tikzc.extraLibraries` | string[]，`[]` | すべての図に適用する追加の `\usetikzlibrary` |
-| `tikzc.pngDpi` | number，`300` | PNG エクスポートの解像度 |
-| `tikzc.debounceMs` | number，`400` | *宣言のみで現行バージョンでは未使用*（旧プレビュー版の名残） |
-
-CLI と同様に，ソースの `#|` ヘッダはこれらの設定より優先されます．
-
-### 5.6 描画エンジンとその限界
-
-即時プレビューのキャンバスは tikz-editor の TikZ パーサを使っており，
-**TikZ のサブセット**をサポートします：decorations / graphs / plots は部分
-対応で，外部パッケージ（例：`circuitikz`）は描画されません．キャンバスは
-高速でインタラクティブな近似表示であり，**エクスポートは常に正確**です
-（本物の lualatex でコンパイルするため）．キャンバスと lualatex の結果が
-食い違う場合はエクスポート側を信頼してください．
-
-ラベル内の数式は webview 内で MathJax により描画されます．
-
-### 5.7 ログと診断
-
-- 出力チャネル **"TikZ Editor (tikzc)"**（表示 → 出力）に拡張ホストと
-  webview のログ（RPC の失敗を含む）が表示されます
-- 同じログが OS の一時ディレクトリの `tikzc-webview.log` にも追記されます
-- 直近の lualatex ログはメモリに保持され，webview からのコンパイル /
-  エクスポート後にエディタの「ログ表示」機能から参照できます
-- エクスポート失敗時は，抽出された LaTeX エラーが VSCode のエラー通知に
-  表示されます
-
-### 5.8 アーキテクチャ（詳しく知りたい人向け）
-
-```text
-vscode-extension/
-├── tikzc-editor/      ベンダリングした tikz-editor（WYSIWYG エディタ本体．MIT，無改変）
-├── webview/           tikz-editor の App を VSCode webview で動かすブートストラップ +
-│                      EditorPlatform アダプタ（ファイル同期・ダイアログ・クリップボード・
-│                      lualatex ブリッジ）
-├── src/extension.ts   拡張ホスト：webview との RPC，.tikz TextDocument との双方向同期，
-│                      lualatex エクスポート（../src/core.ts を共有）
-└── vite.config.ts     webview バンドルのビルド（エイリアスで tikz-editor ソースを直接解決 +
-                       VSCode 版で使わない機能のビルド時スタブ差し替え）
-```
-
-- webview と拡張ホストは小さな RPC プロトコル（`rpc` / `notify` /
-  `rpc-result` メッセージ）で通信します．ホスト側はリンクファイルの
-  読み書き（`.tikz` TextDocument にマッピング），ファイルダイアログ，
-  クリップボード，メッセージボックス，永続化（VSCode `globalState`），
-  および `src/core.ts` への `latex.check` / `latex.compile` ブリッジを
-  実装しています
-- キャンバスからの書き戻しは `linked.write` を経由します：ドキュメントが
-  VSCode で開かれていればバッファへの WorkspaceEdit になり（黙って
-  ディスクに書くことはありません），開かれていなければファイルへ直接
-  書き込みます
-- ベンダリングした tikz-editor のソースは**無改変**です．
-  `vite.config.ts` が，VSCode の単一ドキュメント・キャンバス専用モードで
-  使わない部分（CodeMirror ソースパネル，タブストリップ，AI アシスタント
-  パネル，サムネイル Web Worker，PowerPoint / IPE インポート，ホバー
-  ドキュメント）をビルド時スタブに差し替えます．上流のコミットは
-  `tikzc-editor/UPSTREAM.md` を参照し，ベンダコピーの更新は
-  `./scripts/update-tikz-editor.sh` で行います
-
----
+| --- | --- | --- |
+| `tikzc.nativePath` | string，`""` | `tikzc` 実行ファイルのパス（空 = PATH 上の `tikzc`）．マシン単位の設定 |
+| `tikzc.mainfont` | string，`""` | ラベルの既定フォント（空 = `IPAexMincho`） |
+| `tikzc.extraPackages` | string[]，`[]` | 追加パッケージ．tikzc が受け付けるものに限る |
+| `tikzc.extraLibraries` | string[]，`[]` | 追加の TikZ ライブラリ．tikzc が受け付けるものに限る |
+| `tikzc.pngDpi` | number，`300` | PNG プレビューとエクスポートの解像度 |
+| `tikzc.debounceMs` | number，`400` | 最後の入力からプレビューを再コンパイルするまでの待ち時間 |
+| `tikzc.language` | `en` \| `ja`，`en` | プレビューのツールバーとメッセージの言語．プレビューのツールバーからも切り替え可能 |
 
 ## 6. トラブルシューティング
 
-**`lualatex compilation failed: ! LaTeX Error: File 'xxx.sty' not found`**
-TeX 環境にパッケージが不足しています．TeX Live なら
-`tlmgr install <package>` で導入してください（MiKTeX は自動導入されます）．
+**`tikzc … is older than 1.0.0`**
+拡張機能は 1.0.0 以上の `tikzc` をすべて受け付けます．PATH 上の `tikzc` が 0.x
+（初期の Rust ビルド，または TeX ベースの npm 版 CLI）です．npm 版があれば削除し
+（`npm unlink -g tikzc`），現行の Rust 版をインストールしてください
+（[2 節](#2-インストール)）．または `tikzc.nativePath` に 1.0.0 以上の実行ファイル
+（例：`~/.cargo/bin/tikzc`）を設定します．
 
-**fontspec が `IPAexMincho` を見つけられない**
-TeX ディストリビューションが IPAex フォントを含まない最小構成です．
-フォントを導入するか，`#| mainfont:` / `--mainfont` / `tikzc.mainfont` で
-OS フォントを指定してください（[2 節](#日本語cjkフォントについて)参照）．
+**`Cannot run Rust tikzc` と表示される／ターミナルでは動くのに VSCode では動かない**
+VSCode がシェルの PATH を継承していない可能性があります（macOS で Dock から
+起動した場合に典型的）．`tikzc.nativePath` を設定するか，ターミナルから `code` で
+VSCode を起動してください．
 
-**`cannot read <file>`（終了コード 2）**
-入力パスが存在しないか読み取れません．
+**`Unsupported …` などの `file:line:column` 形式の診断が出る**
+ソースが対応範囲外の構文を使っています．
+[互換性の契約](RUST_ENGINE.md#native-compatibility-contract)を確認して該当箇所を
+書き換えるか，[機能追加の進め方](FEATURE_WORKFLOW.md)に沿って対応を依頼してください．
 
-**ターミナルではエクスポートできるのに VSCode からは失敗する**
-VSCode がシェルの PATH を継承していない可能性があります（macOS で Dock
-から起動した場合に典型的）．ターミナルから `code` で VSCode を起動するか，
-TeX の bin ディレクトリを GUI アプリからも見えるようにしてください．
+**フォントが見つからないと報告される**
+同梱されていない `mainfont` はシステムへのインストールが必要です．どの環境でも
+描画できる図にするには，同梱フォント（IPAexMincho，IPAexGothic）を使ってください．
+Noto Sans CJK Regular/Bold は同梱していません．`mainfont: Noto Sans CJK JP` を
+指定した図には，そのフォントのシステムへのインストールが必要です．
 
-**キャンバスの描画が正しくない / 何も表示されない**
-即時プレビューは TikZ のサブセットのみをサポートします
-（[5.6 節](#56-描画エンジンとその限界)）．**TikZ: Export as SVG** を実行して
-本物の lualatex で確認してください．エクスポートが正しければソースは
-正しいということです．
-
-**一時ファイルはどこへ？**
-コンパイルは使い捨ての一時ディレクトリで実行されます．生成された `.tex` を
-残すには CLI の `--keep-tex` を使い，拡張機能の問題は出力チャネル /
-`tikzc-webview.log`（[5.7 節](#57-ログと診断)）を確認してください．
-
----
+**バージョン不一致の警告が出続ける**
+インストール済みの `tikzc` と拡張機能の major.minor バージョンが異なります．
+上記の `cargo install` で `tikzc` を入れ直し，同じチェックアウトから VSIX を
+作り直してください．
 
 ## 7. アンインストール
 
@@ -465,37 +237,34 @@ TeX の bin ディレクトリを GUI アプリからも見えるようにして
 # VSCode 拡張機能（拡張 ID は publisher.name）
 code --uninstall-extension RyoNak.tikzc-preview
 
-# CLI（npm link した場合のみ）
+# cargo install で入れた CLI
+cargo uninstall tikzc
+
+# tikzc 0.x の npm 版 CLI が残っている場合
 npm unlink -g tikzc
-
-# 依存パッケージはリポジトリ内に閉じている
-rm -rf node_modules vscode-extension/node_modules
-# Windows (PowerShell): Remove-Item -Recurse -Force node_modules, vscode-extension/node_modules
 ```
-
----
 
 ## 8. 開発
 
 ```sh
-npm run check          # 型チェック（ルートと vscode-extension を別々に）
-npm run build          # CLI のビルド（dist/tikzc.cjs）
-npm test               # テスト実行（tsx --test tests/*.test.ts）
+cargo fmt --all --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked            # レンダラーと CLI
+cargo build --release --locked # 拡張機能のテストに必要
+
+npm ci && npm run check && npm test   # 開発ツール（devtools）のテスト
 
 cd vscode-extension
-npm run check          # 拡張ホスト + webview の型チェック
-npm run build          # 拡張ホスト（esbuild）+ webview（Vite）のビルド
+npm ci
+npm run check          # 拡張ホスト，webview スクリプト，テストの型チェック
+npm test               # プレビュー，エクスポート，キャンバス編集のテスト
 npm run package        # ビルド + .vsix の生成
 ```
 
-[TESTING.md](TESTING.md) と [BRANCH_STRATEGY.md](BRANCH_STRATEGY.md) も
-参照してください．
-
----
+[TESTING.md](TESTING.md)，[REPOSITORY_STRUCTURE.md](REPOSITORY_STRUCTURE.md)，
+[BRANCH_STRATEGY.md](BRANCH_STRATEGY.md) も参照してください．
 
 ## 9. ライセンス
 
-[MIT](../LICENSE)．ベンダリングしている
-[tikz-editor](https://github.com/DominikPeters/tikz-editor)
-（`vscode-extension/tikzc-editor/`，Dominik Peters 氏ほか）も MIT
-ライセンスです．
+[MIT](../LICENSE)．埋め込みフォントのライセンス表示は
+[`assets/fonts/`](../assets/fonts/README.md) にあります．

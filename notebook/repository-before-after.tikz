@@ -1,0 +1,105 @@
+#| mainfont: IPAexGothic
+% Compare the Rust-enabled repository immediately before and after refactoring.
+% Render with: target/release/tikzc notebook/repository-before-after.tikz -f both -o target/repository-before-after
+\definecolor{ink}{HTML}{172B4D}
+\definecolor{muted}{HTML}{52647A}
+\definecolor{paper}{HTML}{F5F7FB}
+\definecolor{amber}{HTML}{A66B16}
+\definecolor{teal}{HTML}{087F8C}
+\begin{tikzpicture}[
+  font=\fontsize{11}{14}\selectfont,
+  text=ink,
+  line width=0.6pt,
+  label/.style={anchor=north west, align=left, inner sep=0pt},
+  before/.style={draw=amber!25, fill=white, rounded corners=5pt},
+  after/.style={draw=teal!35, fill=white, rounded corners=5pt},
+  arrow/.style={-{Latex[length=2.5mm]}, draw=muted!60, line width=1.1pt}
+]
+  % Canvas and heading. Directory roots stay in place.
+  \fill[paper] (0,0) rectangle (30,16.8);
+  \node[label, font=\fontsize{24}{28}\selectfont\bfseries] at (0.7,16.15)
+    {tikzc：リポジトリ構成の Before / After};
+  \node[label, text=muted, font=\fontsize{11}{14}\selectfont] at (0.72,15.08)
+    {比較対象：Rust 対応直後 → 今回のリファクタリング後};
+  \fill[ink!5, rounded corners=3pt] (0.7,13.94) rectangle (29.3,14.56);
+  \node[anchor=west, inner sep=0pt, font=\fontsize{10}{12}\selectfont] at (1.0,14.25)
+    {基本構成を維持：\texttt{crates/}　\texttt{src/}　\texttt{vscode-extension/}　\texttt{tests/}　\texttt{assets/}};
+  \node[label, text=amber, font=\fontsize{16}{19}\selectfont\bfseries] at (0.9,13.58)
+    {BEFORE　処理・ファイルが集中};
+  \node[label, text=teal, font=\fontsize{16}{19}\selectfont\bfseries] at (16.0,13.58)
+    {AFTER　役割ごとに整理};
+
+  % Row 1: public Rust API and crate root are unchanged.
+  \draw[before] (0.7,9.75) rectangle (14.2,12.80);
+  \draw[after] (15.8,9.75) rectangle (29.3,12.80);
+  \draw[arrow] (14.42,11.28) -- (15.58,11.28);
+  \node[label, text=amber, font=\bfseries] at (1.0,12.45)
+    {01　Rust 描画エンジン};
+  \node[label, font=\fontsize{10}{13}\selectfont] at (1.0,11.79)
+    {\texttt{crates/tikzc/src/}};
+  \node[label, font=\fontsize{15}{18}\selectfont\bfseries] at (1.0,11.12)
+    {\texttt{render.rs}：2,385 行};
+  \node[label, text=muted, font=\fontsize{10}{12}\selectfont] at (1.0,10.35)
+    {座標・ノード・パス・装飾・PNG 出力が同居};
+  \node[label, text=teal, font=\bfseries] at (16.1,12.45)
+    {01　統括処理 ＋ 6 つの担当モジュール};
+  \node[label, font=\fontsize{11}{14}\selectfont] at (16.1,11.78)
+    {\texttt{render.rs}：280 行（解析・描画の統括）};
+  \node[label, font=\fontsize{10}{13}\selectfont] at (16.1,11.20)
+    {\texttt{render/coordinates.rs}　\texttt{geometry.rs}\\
+     \texttt{render/nodes.rs}　　　　\texttt{paths.rs}\\
+     \texttt{render/paint.rs}　　　　\texttt{diagram.rs}};
+
+  % Row 2: activation versus native and legacy host implementations.
+  \draw[before] (0.7,5.32) rectangle (14.2,9.47);
+  \draw[after] (15.8,5.32) rectangle (29.3,9.47);
+  \draw[arrow] (14.42,7.4) -- (15.58,7.4);
+  \node[label, text=amber, font=\bfseries] at (1.0,9.12)
+    {02　VSCode 拡張機能};
+  \node[label, font=\fontsize{10}{13}\selectfont] at (1.0,8.45)
+    {\texttt{vscode-extension/src/}};
+  \node[label, font=\fontsize{12}{15}\selectfont\bfseries] at (1.0,7.84)
+    {\texttt{extension.ts}：513 行};
+  \node[label, font=\fontsize{10}{13}\selectfont] at (1.0,7.09)
+    {\texttt{native-preview.ts}　\texttt{rust-renderer.ts}\\
+     \texttt{preview-queue.ts}　 \texttt{snippet-service.ts}};
+  \node[label, text=muted, font=\fontsize{10}{12}\selectfont] at (1.0,5.96)
+    {新旧の描画経路と起動処理が同じ階層に混在};
+  \node[label, text=teal, font=\bfseries] at (16.1,9.12)
+    {02　起動処理・Rust・旧エディタを分離};
+  \node[label, font=\fontsize{11}{14}\selectfont] at (16.1,8.44)
+    {\texttt{src/extension.ts}：12 行（起動のみ）};
+  \node[label, font=\fontsize{10}{13}\selectfont] at (16.1,7.70)
+    {\textbf{\texttt{src/native/}}　Rust プレビュー・書き出し\\
+     \texttt{preview.ts, renderer.ts}\\
+     \texttt{preview-queue.ts, preview-html.ts}};
+  \node[label, font=\fontsize{10}{13}\selectfont] at (16.1,6.22)
+    {\textbf{\texttt{src/legacy/}}　旧 WYSIWYG エディタ\\
+     \texttt{editor.ts, snippet-service.ts}};
+
+  % Row 3: source documentation, development tools, generated artifacts.
+  \draw[before] (0.7,1.27) rectangle (14.2,5.04);
+  \draw[after] (15.8,1.27) rectangle (29.3,5.04);
+  \draw[arrow] (14.42,3.15) -- (15.58,3.15);
+  \node[label, text=amber, font=\bfseries] at (1.0,4.69)
+    {03　説明・開発ツール・生成物};
+  \node[label, font=\fontsize{10}{13}\selectfont] at (1.0,3.98)
+    {\texttt{README.md} に詳細仕様も集中\\
+     \texttt{tests/compare-desktop.mjs} に比較ツール\\
+     \texttt{vscode-extension/*.vsix} に配布物};
+  \node[label, text=muted, font=\fontsize{10}{12}\selectfont] at (1.0,2.25)
+    {入口・詳細説明・実験用ツール・生成物の役割が曖昧};
+  \node[label, text=teal, font=\bfseries] at (16.1,4.69)
+    {03　入口・詳細・ツール・出力先を明確化};
+  \node[label, font=\fontsize{10}{13}\selectfont] at (16.1,3.98)
+    {\texttt{README.md}：構成と実行手順の入口\\
+     \texttt{docs/RUST_ENGINE.md, LEGACY.md}：詳細仕様\\
+     \texttt{devtools/compare-desktop.mjs}：比較ツール\\
+     \texttt{vscode-extension/dist/packages/}：VSIX};
+  \node[label, text=muted, font=\fontsize{9}{11}\selectfont] at (16.1,1.90)
+    {旧 VSIX も保存／生成物をパッケージへ再混入させない};
+
+  % Refactoring verification, not a claim of new rendering functionality.
+  \node[anchor=center, text=ink, font=\fontsize{10}{12}\selectfont] at (15,0.60)
+    {機能・公開 API を維持　｜　71 図の SVG / PNG が変更前後でバイト一致　｜　Rust 44 ＋ 拡張機能 66 テスト成功};
+\end{tikzpicture}

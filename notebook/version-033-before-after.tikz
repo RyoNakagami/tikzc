@@ -1,0 +1,104 @@
+#| mainfont: IPAexGothic
+% Baseline verified with git show v0.3.3:{package.json,src/core.ts,vscode-extension/src/extension.ts}.
+% After is the current working tree, not a published 0.4.0 release.
+\definecolor{ink}{HTML}{172B4D}
+\definecolor{muted}{HTML}{52647A}
+\definecolor{paper}{HTML}{F5F7FB}
+\definecolor{amber}{HTML}{A66B16}
+\definecolor{teal}{HTML}{087F8C}
+\begin{tikzpicture}[
+  font=\fontsize{10.5}{13}\selectfont, text=ink, line width=0.6pt,
+  label/.style={anchor=north west, align=left, inner sep=0pt},
+  box/.style={draw=#1!40, fill=#1!6, rounded corners=4pt,
+    align=center, minimum height=0.85cm, inner sep=5pt},
+  flow/.style={-{Latex[length=2.2mm]}, draw=muted, line width=0.8pt}
+]
+  \fill[paper] (0,0) rectangle (30,16.8);
+  \node[label, font=\fontsize{23}{27}\selectfont\bfseries] at (0.7,16.15)
+    {tikzc：v0.3.3 から何が変わったか};
+  \node[label, text=muted] at (0.72,15.04)
+    {比較基準：Git タグ v0.3.3 → 現在の作業ツリー（Rust / 拡張機能 0.4.0・開発中）};
+  \node[label, text=amber, font=\fontsize{16}{19}\selectfont\bfseries] at (0.9,14.15)
+    {BEFORE　v0.3.3};
+  \node[label, text=teal, font=\fontsize{16}{19}\selectfont\bfseries] at (16.0,14.15)
+    {AFTER　現在の標準経路};
+
+  % Rendering architecture: two engines versus a shared Rust artifact.
+  \draw[draw=amber!25, fill=white, rounded corners=5pt] (0.7,7.02) rectangle (14.2,13.40);
+  \draw[draw=teal!35, fill=white, rounded corners=5pt] (15.8,7.02) rectangle (29.3,13.40);
+  \node[box=amber, minimum width=4cm] (oldsource) at (7.45,12.61)
+    {\texttt{.tikz} ソース};
+  \node[box=amber, minimum width=5.3cm, minimum height=1.2cm] (oldpreview) at (4.05,10.67)
+    {\textbf{画面側}\\tikz-editor ＋ MathJax};
+  \node[box=amber, minimum width=5.3cm, minimum height=1.2cm] (oldexport) at (10.87,10.67)
+    {\textbf{書き出し側}\\LuaLaTeX → PDF};
+  \draw[flow] (oldsource.south) -- (7.45,11.85) -| (oldpreview.north);
+  \draw[flow] (7.45,11.85) -| (oldexport.north);
+  \node[box=amber, minimum width=5.3cm] (oldcanvas) at (4.05,8.69)
+    {WYSIWYG キャンバス};
+  \node[box=amber, minimum width=5.3cm] (oldfiles) at (10.87,8.69)
+    {SVG / PNG ファイル};
+  \draw[flow] (oldpreview.south) -- (oldcanvas.north);
+  \node[anchor=center, text=muted, font=\fontsize{8.5}{10}\selectfont, fill=white, inner sep=2pt]
+    at (4.05,9.48) {必要時は TeX で文字を補完};
+  \draw[flow] (oldexport.south) -- (oldfiles.north);
+  \node[anchor=center, text=muted, font=\fontsize{8.5}{10}\selectfont, fill=white, inner sep=2pt]
+    at (10.87,9.48) {dvisvgm / pdftoppm};
+  \node[anchor=center, text=amber, font=\fontsize{10}{12}\selectfont] at (7.45,7.55)
+    {文字配置を別々に計算 → 画面と書き出しに差が出る};
+
+  \node[box=teal, minimum width=4cm] (newsource) at (22.55,12.61)
+    {\texttt{.tikz} ソース};
+  \node[box=teal, minimum width=10.6cm, minimum height=1.05cm] (engine) at (22.55,11.04)
+    {\textbf{Rust エンジン：\texttt{crates/tikzc/}}\\文字組版：Typst ＋ 同梱フォント};
+  \draw[flow] (newsource.south) -- (engine.north);
+  \node[box=teal, minimum width=10.6cm, minimum height=0.65cm] (svg) at (22.55,9.60)
+    {共通 SVG（文字をパス化）};
+  \draw[flow] (engine.south) -- (svg.north);
+  \node[box=teal, minimum width=4.65cm, minimum height=0.75cm] (newsvg) at (19.63,8.12)
+    {SVG 表示・保存};
+  \node[box=teal, minimum width=4.65cm, minimum height=0.75cm] (newpng) at (25.47,8.12)
+    {PNG 表示・保存};
+  \draw[flow] (19.63,9.26) -- (newsvg.north);
+  \draw[flow] (25.47,9.26) -- (newpng.north);
+  \node[anchor=center, text=muted, font=\fontsize{8.5}{10}\selectfont, fill=white, inner sep=2pt]
+    at (25.47,8.89) {resvg};
+  \node[anchor=center, text=teal, font=\fontsize{10}{12}\selectfont] at (22.55,7.38)
+    {同じ生成物をプレビューと保存で共有};
+
+  % Concrete repository additions and separation of responsibilities.
+  \draw[draw=amber!25, fill=white, rounded corners=5pt] (0.7,3.17) rectangle (14.2,6.73);
+  \draw[draw=teal!35, fill=white, rounded corners=5pt] (15.8,3.17) rectangle (29.3,6.73);
+  \node[label, text=amber, font=\bfseries] at (1.0,6.38)
+    {構成：TypeScript CLI ＋ WYSIWYG 拡張};
+  \node[label, font=\fontsize{10}{13}\selectfont] at (1.0,5.64)
+    {\texttt{src/cli.ts, core.ts}：CLI と TeX 呼び出し\\
+     \texttt{vscode-extension/src/extension.ts}：拡張ホスト\\
+     \texttt{vscode-extension/webview/}：編集 UI\\
+     \texttt{vscode-extension/tikzc-editor/}：同梱エディタ};
+  \node[label, text=muted, font=\fontsize{9.5}{12}\selectfont] at (1.0,3.60)
+    {Rust crate と \texttt{assets/fonts/} は未導入};
+  \node[label, text=teal, font=\bfseries] at (16.1,6.38)
+    {構成：Rust 本体を追加し，新旧の経路を分離};
+  \node[label, font=\fontsize{10}{13}\selectfont] at (16.1,5.64)
+    {\texttt{crates/tikzc/}：Rust CLI・描画エンジンを追加\\
+     \texttt{assets/fonts/}：組版用フォントを追加\\
+     \texttt{vscode-extension/src/native/}：標準表示・保存\\
+     \texttt{vscode-extension/src/legacy/}：旧エディタ};
+  \node[label, text=muted, font=\fontsize{9.5}{12}\selectfont] at (16.1,3.60)
+    {旧 \texttt{src/}・webview・同梱エディタも維持};
+
+  % Dependencies, editing behavior and scope changes.
+  \node[label, text=amber, font=\bfseries] at (1.0,2.71)
+    {実行環境・編集};
+  \node[label, font=\fontsize{10}{13}\selectfont] at (1.0,2.10)
+    {書き出しに TeX Live・dvisvgm・pdftoppm が必要\\
+     標準画面でドラッグ編集／TeX のパッケージを利用};
+  \node[label, text=teal, font=\bfseries] at (16.1,2.71)
+    {実行環境・編集};
+  \node[label, font=\fontsize{10}{13}\selectfont] at (16.1,2.10)
+    {標準経路は TeX 不要／VSIX に Rust 実行ファイルを同梱\\
+     対応は TikZ サブセット／ドラッグ編集は旧版用の別コマンド};
+  \node[anchor=center, text=muted, font=\fontsize{9}{11}\selectfont] at (15,0.57)
+    {旧 npm CLI は 0.3.3 のまま併存．新しい表示・保存の一致は，旧 TeX 出力とのピクセル一致を意味しない．};
+\end{tikzpicture}

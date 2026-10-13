@@ -84,7 +84,7 @@
     \node[zone=orange, fit=(route)(decoder)(robot)(route |- looptop)] (zplan) {};
     \node[zone=teal, fit=(ekf)(cam)(env)(gjk)] (zperc) {};
   \end{scope}
-  \node[zlabel=blue] at (zoff.north) {オフライン学習（事前構築）};
+  \node[zlabel=blue, minimum width=256pt] at (zoff.north) {オフライン学習（事前構築）};
   \node[zlabel=orange] at (zplan.north) {オンライン：計画・実行};
   \node[zlabel=teal, anchor=north] at (zperc.south)
     {オンライン：知覚・状態推定・衝突チェック};

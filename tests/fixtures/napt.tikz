@@ -1,0 +1,73 @@
+#| mainfont: IPAexGothic
+\begin{tikzpicture}[
+    font=\small, line width=0.7pt,
+    pc/.style={draw=gray!60!black, fill=gray!8, minimum width=1.1cm, minimum height=1.0cm},
+    gbox/.style={draw=navy!70!black, fill=navy!8, minimum width=3.2cm, minimum height=0.7cm,
+                 font=\footnotesize},
+    panel/.style={draw=teal!45!black, fill=teal!6, rounded corners=6pt, inner sep=14pt},
+    flow/.style={-{Stealth[length=3.2mm]}, teal!45!black, line width=1.1pt},
+    net/.style={ellipse, draw=navy!70!black, fill=navy!6,
+                minimum width=2.6cm, minimum height=1.8cm},
+    addr/.style={font=\footnotesize, text=black!70},
+    port/.style={font=\scriptsize, text=black!70},
+    note/.style={draw=gray!60!black, fill=white, rounded corners=3pt, align=center,
+                 font=\footnotesize, text width=3.6cm},
+  ]
+  \definecolor{navy}{HTML}{0E3666}
+
+  % ================= タイトル =================
+  \node[font=\Large\bfseries, navy, align=center] (title) at (0,4.7) {NAPT（Network Address Port Translation）};
+  \node[font=\small, text width=13.5cm, align=left] at (0,3.7)
+    {1つのグローバルアドレスを使って，複数のコンピュータを同時にインターネットへ\\
+     接続できる仕組み．ポート番号によって個々のコンピュータを識別するため，\\
+     同じグローバルアドレスを複数の通信で同時に使うことができる．};
+
+  % ================= 社内ホスト（左） =================
+  \node[pc] (h1) at (-6.3,1.9) {PC};
+  \node[below=1mm of h1, addr] {192.168.10.15};
+  \node[pc] (h2) at (-6.3,0.0) {PC};
+  \node[below=1mm of h2, addr] {192.168.10.16};
+  \node[pc] (h3) at (-6.3,-1.9) {PC};
+  \node[below=1mm of h3, addr] {192.168.10.17};
+
+  % ================= グローバルアドレスパネル（中央，単一アドレス） =================
+  \node[panel, minimum width=3.9cm, minimum height=4.4cm] (gpanel) at (-0.6,0.0) {};
+  \node[font=\footnotesize\bfseries, navy] (lbl) at (-0.6,0.7) {グローバルアドレス};
+  \node[gbox] (g1) at (-0.6,0.0) {222.232.100.125};
+
+  % ================= インターネット（右） =================
+  \node[net] (inet) at (7.6,0.0) {};
+  \node[above=1mm of inet, addr] {インターネット};
+
+  % ================= 配線：ホスト → グローバルアドレス =================
+  \draw[flow] (h1.east) -- (gpanel.west |- h1.east);
+  \draw[flow] (h2.east) -- (gpanel.west |- h2.east);
+  \draw[flow] (h3.east) -- (gpanel.west |- h3.east);
+
+  % ================= 配線：グローバルアドレス → インターネット（ポート別） =================
+  \coordinate (branch) at ($(gpanel.east)+(0.9,0)$);
+  \coordinate (ptop) at ($(gpanel.north)+(0,-0.35)$);
+  \coordinate (pbot) at ($(gpanel.south)+(0,0.35)$);
+  \coordinate (out1) at (branch |- ptop);
+  \coordinate (out2) at (branch |- gpanel.east);
+  \coordinate (out3) at (branch |- pbot);
+
+  \draw[flow] (gpanel.east) -- (branch);
+  \draw[flow] (branch) -- (out1) -- (inet.west |- out1);
+  \draw[flow] (branch) -- (out3) -- (inet.west |- out3);
+  \draw[flow] (out2) -- (inet.west |- out2);
+
+  \coordinate (lbl1) at (3.7,0);
+  \coordinate (lbl1) at (lbl1 |- out1);
+  \coordinate (lbl2) at (3.7,0);
+  \coordinate (lbl2) at (lbl2 |- out2);
+  \coordinate (lbl3) at (3.7,0);
+  \coordinate (lbl3) at (lbl3 |- out3);
+  \node[port, above] at (lbl1) {222.232.100.125:4000};
+  \node[port, above] at (lbl2) {222.232.100.125:4001};
+  \node[port, above] at (lbl3) {222.232.100.125:4002};
+
+  % ================= 補足ノート =================
+  \node[note] (memo) at (2.8,-3.2) {NAPTのことを\\IPマスカレードともいう．};
+
+\end{tikzpicture}

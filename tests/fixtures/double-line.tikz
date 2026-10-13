@@ -1,0 +1,1 @@
+\draw[double,double distance=2pt] (0,0) -- (2,0);

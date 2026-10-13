@@ -1,0 +1,1 @@
+\foreach \x in {0,0.5,...,2} {\fill (\x,0) circle (2pt);}

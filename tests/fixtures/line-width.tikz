@@ -1,0 +1,1 @@
+\draw[ultra thick] (0,0) -- (2,0);\draw[line width=1.2pt] (0,1) -- (2,1);

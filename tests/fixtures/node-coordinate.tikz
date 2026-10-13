@@ -1,0 +1,1 @@
+\node[coordinate] (a) at (1,1) {};\fill (a) circle (2pt);

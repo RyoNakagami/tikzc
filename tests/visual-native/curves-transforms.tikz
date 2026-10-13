@@ -1,0 +1,14 @@
+#| libraries: [arrows.meta,positioning]
+\begin{tikzpicture}
+\node[draw,minimum size=8mm] (a) at (0,0) {A};
+\node[draw,minimum size=8mm] (b) at (4,0) {B};
+\draw[-{Latex},shorten >=3pt] (a) to[out=70,in=110] (b);
+\draw[{Stealth}-{Latex[open]},shorten <=2pt,shorten >=2pt] (a) to[out=-60,in=-120] (b);
+\draw[-{Triangle},shorten >=6pt] (0,-2)..controls(0,-3)and(4,-3)..(4,-2);
+\begin{scope}[shift={(6,0)},rotate=25,scale=1.3]
+\node[draw,fill=blue!10,transform shape,minimum width=15mm] (c) at (0,0) {Transform};
+\node[draw,fill=red!10,transform shape=false] (d) at (0,-2) {Upright};
+\draw[->] (c.south)--(d.north);
+\end{scope}
+\node[draw,xscale=-1] at (6,-4) {Mirror};
+\end{tikzpicture}

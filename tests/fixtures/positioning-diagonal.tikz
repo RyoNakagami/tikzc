@@ -1,0 +1,1 @@
+\node[draw] (a) {A};\node[draw,below right=5mm and 1cm of a] (b) {B};

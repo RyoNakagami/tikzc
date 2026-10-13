@@ -1,0 +1,1 @@
+\draw (0,0) to[out=30,in=150,looseness=1.2] (3,0);

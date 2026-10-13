@@ -1,0 +1,1 @@
+\node[draw] (a) {A};\begin{scope}[on background layer]\node[draw,fill=yellow,fit=(a)] {};\end{scope}

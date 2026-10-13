@@ -1,0 +1,2 @@
+#| libraries: [graphs]
+\graph { a -> b -> c };

@@ -1,0 +1,57 @@
+name: Native Rust renderer
+on:
+  workflow_dispatch:
+#   push:
+#   pull_request:
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo test --locked
+      - run: cargo build --locked --release
+      - name: Smoke-test native SVG export
+        run: cargo run --locked --release -- tests/fixtures/test.tikz -o target/ci/test.svg
+      - name: Smoke-test native PNG export
+        run: cargo run --locked --release -- tests/fixtures/test.tikz -o target/ci/test.png
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: vscode-extension/package-lock.json
+      - name: Check project version synchronization
+        run: node devtools/bump-version.mjs --check
+      - run: npm ci
+        working-directory: vscode-extension
+      - run: npm run check
+        working-directory: vscode-extension
+      - run: npm run test:native
+        working-directory: vscode-extension
+  package:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vscode-extension
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: vscode-extension/package-lock.json
+      - run: npm ci
+      - run: npm run package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tikzc-preview-vsix
+          path: vscode-extension/dist/packages/*.vsix
+          if-no-files-found: error
