@@ -22,8 +22,10 @@ fn reviewed_native_raster_baselines() {
         );
         let changed = expected
             .data()
-            .chunks_exact(4)
-            .zip(actual.data().chunks_exact(4))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .zip(actual.data().as_chunks::<4>().0)
             .filter(|(a, b)| a.iter().zip(b.iter()).any(|(x, y)| x.abs_diff(*y) > 8))
             .count();
         let fraction = changed as f64 / (actual.width() as f64 * actual.height() as f64);

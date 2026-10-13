@@ -35,7 +35,9 @@ fn corpus_svg_png_and_determinism() {
         assert_eq!(pix.height(), diagram.height.ceil() as u32);
         assert!(
             pix.data()
-                .chunks_exact(4)
+                .as_chunks::<4>()
+                .0
+                .iter()
                 .filter(|p| p[..3] != [255, 255, 255])
                 .count()
                 > 100,
