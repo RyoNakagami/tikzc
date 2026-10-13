@@ -1,0 +1,31 @@
+#| mainfont: IPAexGothic
+\newcommand{\stage}[3]{\node[block] (#1) at (#2,0) {#3};}
+\begin{tikzpicture}[
+  block/.style={draw=blue!65!black,fill=blue!8,rounded corners=3pt,
+                minimum width=2.2cm,minimum height=1cm,font=\large},
+  >={Stealth[length=2.5mm]}
+]
+  \node[font=\Large] at (4.8,1.2) {Rust-native：パラメータ化した処理パイプライン};
+  \foreach \i/\label in {0/入力,1/特徴抽出,2/推論,3/出力} {
+    \pgfmathsetmacro{\x}{3.2*\i}
+    \stage{b\i}{\x}{\label}
+  }
+  \foreach \i in {0,...,2} {
+    \pgfmathtruncatemacro{\next}{\i+1}
+    \draw[->,shorten <=2pt,shorten >=2pt] (b\i) -- (b\next);
+  }
+  \draw[->] (b3.south) -- ++(0,-0.8) -| (b1.south);
+  \node[below] at (6.4,-0.8) {フィードバック};
+
+  \begin{scope}[shift={(1,-2.6)},rotate=20]
+    \begin{scope}[xscale=1.6,yscale=.7]
+      \draw[draw=teal!65!black,fill=teal!10] (0,0) circle (.7);
+    \end{scope}
+  \end{scope}
+  \node[below] at (1,-3.3) {入れ子の座標変換};
+  \node[draw=orange!70!black,fill=orange!10,rotate=15,
+        minimum width=2cm,minimum height=.8cm] (rotated) at (4.5,-2.6) {回転ノード};
+  \node[draw=orange!70!black,fill=orange!10] (target) at (8.5,-2.6) {アンカー接続};
+  \draw[arrows={Stealth[length=2mm]}-{Latex[length=2mm]}]
+    (rotated.east) -- (target.west);
+\end{tikzpicture}

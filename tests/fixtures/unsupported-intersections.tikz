@@ -1,0 +1,2 @@
+#| libraries: [intersections]
+\path[name path=a] (0,0)--(1,1);

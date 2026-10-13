@@ -1,0 +1,1 @@
+\node[draw,ellipse,minimum width=2cm,minimum height=1cm] (a) {A};

@@ -1,0 +1,12 @@
+#| libraries: [positioning]
+\begin{tikzpicture}
+\draw[gray!50] (-0.3,0)--(8,0);
+\node[draw,anchor=base west] (a) at (0,0) {Ag 日本語};
+\node[draw,anchor=base west,font=\Large] (b) at (2.3,0) {Ag 日本語};
+\node[draw,anchor=base west,font=\ttfamily] (c) at (5.5,0) {Wi-Fi 0123};
+\node[draw,align=left,anchor=north west,font=\fontsize{10}{14}\selectfont] at (0,-0.7) {First line Ag\\日本語と ABC\\\texttt{mono 012345}};
+\node[draw,text width=3cm,anchor=north west,align=left] at (3.5,-0.7) {日本語と Latin の混植です。行送りと折り返しを確認します。};
+\node[draw,inner sep=8pt,outer sep=6pt] (p) at (1,-3) {Padding};
+\node[draw,right=1cm of p,outer sep=0] (q) {Outer sep};
+\draw[->] (p)--(q);
+\end{tikzpicture}

@@ -1,0 +1,90 @@
+#| mainfont: IPAexGothic
+\begin{tikzpicture}[
+    >={Latex[length=2.4mm]}, line width=0.6pt, font=\small,
+    cls/.style={draw=rdfBlueD, fill=rdfBlueF, rounded corners=4pt, align=center,
+                minimum height=0.92cm, inner sep=6pt},
+    prop/.style={draw=rdfYellowD, fill=rdfYellowF, align=center,
+                 minimum height=0.92cm, inner sep=6pt},
+    res/.style={draw=rdfGreenD, fill=rdfGreenF, ellipse, align=center,
+                minimum height=0.92cm, inner sep=2.5pt},
+    typ/.style={->, dashed, black!55},
+    rel/.style={->, black!70},
+    elab/.style={font=\footnotesize, fill=white, inner sep=1.5pt, text=black!80},
+    leg/.style={font=\footnotesize, minimum height=0.55cm, inner sep=4pt},
+  ]
+  \definecolor{rdfBlueF}{HTML}{DAE8FC}\definecolor{rdfBlueD}{HTML}{6C8EBF}
+  \definecolor{rdfGreenF}{HTML}{D5E8D4}\definecolor{rdfGreenD}{HTML}{82B366}
+  \definecolor{rdfYellowF}{HTML}{FFF2CC}\definecolor{rdfYellowD}{HTML}{D6B656}
+
+  % ===== タイトル・凡例 =====
+  \node[anchor=west, font=\large\bfseries] at (-0.5,4.4) {In\_retail-rdfs（50 triples）};
+  \node[cls, leg]  (LegC) at (12.6,4.4) {クラス};
+  \node[prop, leg, right=0.45 of LegC] (LegP) {プロパティ};
+  \node[res,  leg, right=0.45 of LegP] (LegR) {参照リソース・型};
+  \draw[typ] ($(LegR.east)+(0.5,0)$) -- +(1.0,0)
+    node[anchor=west, font=\footnotesize] {rdf:type};
+
+  % ===== メタ層 =====
+  \node[res] (Class)    at (6.4, 2.9)  {rdfs:Class};
+  \node[res] (Property) at (12.4, 2.9) {rdf:Property};
+
+  % ===== クラス層 =====
+  \node[cls] (Chain)  at (0.7, 0)  {rtl:Chain};
+  \node[cls] (Plano)  at (4.6, 0)  {rtl:PlanogramEntry};
+  \node[cls] (Visit)  at (7.6, 0)  {rtl:Visit};
+  \node[cls] (Promo)  at (10.0, 0) {rtl:Promotion};
+  \node[cls] (Commit) at (13.2, 0) {rtl:Commitment};
+
+  % ===== プロパティ・サブクラス層 =====
+  \node[res]  (PosInt)   at (0.8, -2.7)  {xsd:positiveInteger};
+  \node[prop] (FaceCnt)  at (5.1, -2.7)  {rtl:faceCount};
+  \node[prop] (OccursAt) at (7.6, -2.7)  {rtl:occursAt};
+  \node[cls]  (Supply)   at (10.7, -2.7) {rtl:SupplyAgreement};
+  \node[cls]  (TradeF)   at (13.7, -2.7) {rtl:TradeFund};
+  \node[cls]  (FranC)    at (16.9, -2.7) {rtl:FranchiseContract};
+  \node[prop] (InvParty) at (20.4, -2.7) {rtl:involvesParty};
+
+  % ===== サブプロパティ層 =====
+  \node[res] (ContrBy)    at (16.4, -5.1) {rtl:contributedBy};
+  \node[res] (Franchisor) at (20.4, -5.1) {rtl:franchisor};
+  \node[res] (Franchisee) at (23.6, -5.1) {rtl:franchisee};
+
+  % ===== rdf:type（破線，凡例参照）=====
+  \draw[typ] (Chain)  to[bend left=12] (Class);
+  \draw[typ] (Plano)  -- (Class);
+  \draw[typ] (Visit)  -- (Class);
+  \draw[typ] (Promo)  -- (Class);
+  \draw[typ] (Commit) to[bend right=8] (Class);
+  \draw[typ] (Supply) -- (Class);
+  \draw[typ] (TradeF.north) to[out=115, in=-25] (Class.-40);
+  \draw[typ] (FranC.north)  to[out=100, in=-15, looseness=0.85] (Class.-20);
+  \draw[typ] (FaceCnt.north) to[out=75, in=190] (Property.west);
+  \draw[typ] (OccursAt.north) .. controls (9.3,-1.0) and (11.6,-0.9) ..
+             (11.9,0.6) to[out=80, in=-105] (Property.south);
+  \draw[typ] (InvParty.north) .. controls (19.9,0.9) and (16.6,2.9) ..
+             (Property.east);
+
+  % ===== rdfs:subClassOf =====
+  \draw[rel] (Supply) -- node[elab, pos=0.4] {rdfs:subClassOf} (Commit);
+  \draw[rel] (TradeF) -- node[elab, pos=0.62] {rdfs:subClassOf} (Commit);
+  \draw[rel] (FranC)  -- node[elab, pos=0.32] {rdfs:subClassOf} (Commit);
+
+  % ===== rdfs:domain / rdfs:range =====
+  \draw[rel] (FaceCnt) -- node[elab, anchor=east, pos=0.5] {rdfs:domain} (Plano);
+  \draw[rel] (FaceCnt) -- node[elab, above=2pt, pos=0.42] {rdfs:range} (PosInt);
+  \draw[rel] (OccursAt) -- node[elab, anchor=east, pos=0.5] {rdfs:domain} (Visit);
+  \draw[rel] (InvParty) -- node[elab, pos=0.35] {rdfs:domain} (Commit);
+
+  % ===== rdfs:subPropertyOf =====
+  \draw[rel] (ContrBy) -- node[elab, sloped, above=1pt, pos=0.38]
+    {rdfs:subPropertyOf} (InvParty);
+  \draw[rel] (Franchisor) -- node[elab, pos=0.5]
+    {rdfs:subPropertyOf} (InvParty);
+  \draw[rel] (Franchisee) -- node[elab, sloped, above=1pt, pos=0.38]
+    {rdfs:subPropertyOf} (InvParty);
+
+  % ===== 脚注 =====
+  \node[anchor=west, font=\scriptsize, text=black!55, align=left]
+    at (-0.5,-6.2)
+    {※ 元スクリーンショットで画面外に切れていたノード・エッジ（rtl:occursAt の rdfs:range 先など）は省略し，判読できた範囲を再構成．};
+\end{tikzpicture}

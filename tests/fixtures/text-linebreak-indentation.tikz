@@ -1,0 +1,8 @@
+#| mainfont: IPAexGothic
+\begin{tikzpicture}
+  \node[draw, align=left, anchor=north west] at (0,0)
+    {\texttt{crates/tikzc/}：Rust CLI・描画エンジンを追加\\
+     \texttt{assets/fonts/}：組版用フォントを追加\\
+     \texttt{vscode-extension/src/native/}：標準表示・保存\\
+     \texttt{vscode-extension/src/legacy/}：旧エディタ};
+\end{tikzpicture}

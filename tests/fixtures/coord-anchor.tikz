@@ -1,0 +1,1 @@
+\node[draw,minimum size=1cm] (a) at (0,0) {A};\fill (a.north east) circle (2pt);\fill (a.30) circle (2pt);

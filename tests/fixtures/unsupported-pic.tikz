@@ -1,0 +1,1 @@
+\tikzset{pics/x/.style={code={\draw circle (2pt);}}}\pic {x};

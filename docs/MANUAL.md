@@ -1,21 +1,18 @@
 # tikzc User Manual
 
-This manual covers the two components of this repository in detail:
+tikzc renders `.tikz` files to SVG / PNG with a Rust-native engine. It needs no
+TeX installation and no network access at runtime. This manual covers:
 
-1. **`tikzc` CLI** — compiles `.tikz` files to SVG / PNG through a local
-   LuaLaTeX toolchain.
-2. **VSCode extension (`tikzc-preview` / "TikZc Editor")** — a WYSIWYG TikZ
-   editor embedded in a webview, plus accurate SVG / PNG export using the same
-   pipeline as the CLI.
+1. **`tikzc` CLI** — compiles a `.tikz` file to SVG / PNG.
+2. **VSCode extension (`tikzc-preview` / "TikZc Editor")** — live preview with
+   canvas editing, and SVG / PNG export that matches the CLI.
 
 日本語版は [MANUAL-jp.md](MANUAL-jp.md) を参照してください。
 
----
-
 ## Table of contents
 
-- [1. Overview and architecture](#1-overview-and-architecture)
-- [2. Prerequisites (TeX toolchain)](#2-prerequisites-tex-toolchain)
+- [1. Overview](#1-overview)
+- [2. Installation](#2-installation)
 - [3. The `.tikz` source format](#3-the-tikz-source-format)
 - [4. CLI reference](#4-cli-reference)
 - [5. VSCode extension](#5-vscode-extension)
@@ -24,435 +21,217 @@ This manual covers the two components of this repository in detail:
 - [8. Development](#8-development)
 - [9. License](#9-license)
 
----
-
-## 1. Overview and architecture
-
-Both the CLI and the extension's export commands share a single compile
-pipeline, implemented in [`src/core.ts`](../src/core.ts) (a port of the
-`quarto_tikz.lua` Quarto filter):
+## 1. Overview
 
 ```text
-.tikz ──(assemble standalone .tex)──▶ .tex
-      ──(lualatex)──────────────────▶ .pdf
-      ──(dvisvgm --pdf --no-fonts)──▶ .svg
-      └─(pdftoppm -png)─────────────▶ .png
+.tikz ──(parse, expand macros and loops)──▶ diagram
+      ──(layout; text through Typst)──────▶ .svg   (glyphs as paths)
+      └─(rasterize the same SVG)──────────▶ .png
 ```
 
-Key properties of the pipeline:
+- **A documented subset of TikZ.** tikzc does not run TeX. The supported
+  syntax is listed in the [compatibility contract](RUST_ENGINE.md#native-compatibility-contract).
+  Unsupported syntax fails with a `file:line:column` diagnostic; there is no
+  fallback to another renderer.
+- **Self-contained output.** Japanese, math and icon fonts are embedded in the
+  executable, and glyphs are written as SVG paths, so the output looks the same
+  on any machine.
+- **Not pixel-identical to LaTeX.** Font metrics, line breaking and arrow
+  shapes can differ from a lualatex rendering of the same source.
 
-- **LuaLaTeX + fontspec**: Japanese / CJK labels render with system fonts
-  as-is — no font setup inside the TikZ source is required.
-- **`dvisvgm --no-fonts`**: glyphs are embedded as SVG paths, so the resulting
-  SVG displays identically everywhere without shipping font files.
-- **Temporary directories**: each compile runs in a fresh
-  `tikzc-*` directory under the OS temp dir and is removed afterwards
-  (pass `--keep-tex` to the CLI to keep a copy of the generated `.tex`).
+## 2. Installation
 
-The VSCode extension additionally embeds the WYSIWYG editor from
-[DominikPeters/tikz-editor](https://github.com/DominikPeters/tikz-editor)
-(MIT), whose **built-in TikZ parser renders previews instantly without any
-LaTeX installation**. LaTeX is only needed when you export.
-
----
-
-## 2. Prerequisites (TeX toolchain)
-
-> **Important:** neither the CLI nor the extension bundles a TeX environment.
-> They invoke your locally installed toolchain as external commands. Without
-> it, compilation and export fail (WYSIWYG editing in VSCode still works).
-
-Required external commands (must be on your `PATH`):
-
-| Command | Used for | Where it comes from |
-|---|---|---|
-| `lualatex` | `.tex` → `.pdf` | TeX Live / MacTeX / MiKTeX (with TikZ/PGF and fontspec) |
-| `dvisvgm` | `.pdf` → `.svg` | bundled with TeX Live |
-| `pdftoppm` | `.pdf` → `.png` (PNG output only) | poppler / poppler-utils |
-| `node` (18+) | running the CLI / building | [nodejs.org](https://nodejs.org/) or your package manager |
-
-### Linux (Ubuntu / Debian)
+Install Rust 1.92 or later (on Windows, also the MSVC Build Tools), then:
 
 ```sh
-sudo apt install texlive-luatex texlive-pictures texlive-latex-extra poppler-utils
+cargo install --git https://github.com/RyoNakagami/tikzc tikzc --locked
+# from a checkout: cargo install --path . --locked
+tikzc --version        # tikzc <version>
 ```
 
-### macOS
-
-```sh
-# MacTeX (includes lualatex + dvisvgm + TikZ); -no-gui is enough without the GUI apps
-brew install --cask mactex-no-gui
-
-# pdftoppm (only if you use PNG output)
-brew install poppler
-```
-
-Reopen your terminal after installing so `/Library/TeX/texbin` is on your
-PATH. If it is not picked up, run `eval "$(/usr/libexec/path_helper)"`.
-
-### Windows
-
-- **TeX Live**: install via [tug.org/texlive](https://tug.org/texlive/)
-  (includes `lualatex` / `dvisvgm`; scheme-full recommended).
-  [MiKTeX](https://miktex.org/) also works (missing packages install on the fly).
-- **poppler** (PNG output only): `scoop install poppler` or
-  `choco install poppler`, or extract
-  [poppler-windows](https://github.com/oschwartz10612/poppler-windows/releases)
-  and add `Library\bin` to your PATH.
-
-Everything runs natively in PowerShell / Command Prompt — WSL is not required.
-
-### Verify the installation
-
-```sh
-lualatex --version && dvisvgm --version && pdftoppm -v && node --version
-```
-
-### Japanese / CJK fonts
-
-The default main font is **`IPAexMincho`**, which ships with the full TeX Live
-/ MacTeX distribution. If fontspec cannot find it, point to an OS font
-instead, via a `#| mainfont:` header, the `--mainfont` CLI flag, or the
-VSCode setting `tikzc.mainfont`:
-
-- macOS: e.g. `Hiragino Mincho ProN`
-- Windows: e.g. `Yu Mincho`, `MS Mincho`
-
----
+The first build downloads Rust dependencies and embeds about 15 MiB of fonts.
+See [section 5.1](#51-build-and-install) for the VSCode extension.
 
 ## 3. The `.tikz` source format
 
-A `.tikz` file contains TikZ code, optionally preceded by `#|` header lines.
+A `.tikz` file is TikZ code, optionally preceded by `#|` header lines.
 
 ### 3.1 Header options
 
-Header lines use the same `#| key: value` notation as the `quarto_tikz` Lua
-filter. They must appear at the **top of the file** — the header block ends at
-the first line that is not a `#|` option.
-
-```text
-#| packages: [circuitikz, pgfplots]   -- extra \usepackage
-#| libraries: [arrows.meta, calc]     -- extra \usetikzlibrary
-#| scale: 1.5                         -- wrap the picture in \scalebox
-#| mainfont: IPAexGothic              -- fontspec main font
+```latex
+#| mainfont: IPAexGothic
+#| libraries: [arrows.meta, calc]
+#| scale: 1.5
 \begin{tikzpicture}
-  ...
+  \node[draw] (a) {入力};
+  \node[draw, right=2cm of a] (b) {$y = f(x)$};
+  \draw[->] (a) -- (b);
 \end{tikzpicture}
 ```
 
-| Key | Value | Effect |
-|---|---|---|
-| `packages` | list (`[a, b]` or `a, b`) | extra `\usepackage{...}` lines |
-| `libraries` | list | extra `\usetikzlibrary{...}` entries |
-| `scale` | number | wraps the content in `\scalebox{n}{...}` |
-| `mainfont` | font name | `\setmainfont{...}` (fontspec) |
+| Header | Meaning |
+| --- | --- |
+| `mainfont` | Label font. Default: `IPAexMincho`. Bundled families need no installation; other families are read from installed system fonts and fail if missing |
+| `scale` | Scales the whole picture. Must be in (0, 100] |
+| `libraries` | TikZ libraries the diagram uses. Accepted: `arrows.meta`, `positioning`, `calc`, `shapes.geometric`, `backgrounds`, `fit`, `decorations.pathreplacing`, `patterns`, `matrix` |
+| `packages` | Packages the diagram uses. Accepted: `amsmath`, `amssymb`, `fontawesome` |
+| `filename`, `width`, `height` | Accepted for compatibility and ignored; they do not change the output size or destination |
 
-List values accept both `[a, b, c]` and bare `a, b` forms; surrounding double
-quotes on items are stripped.
+Header lines must come first; parsing stops at the first line that is not a
+header. An unknown header key, library or package is an error.
 
 ### 3.2 Option precedence
 
-For each option, the effective value is resolved as (highest first):
+`#|` headers in the source override the VSCode settings (`tikzc.mainfont`,
+`tikzc.extraPackages`, `tikzc.extraLibraries`). The CLI has no font or library
+flags; use headers.
 
-1. `#|` header in the source file
-2. CLI flag (`--mainfont`, `--packages`, …) or VSCode setting
-   (`tikzc.mainfont`, `tikzc.extraPackages`, …)
-3. Built-in default
+### 3.3 Bare TikZ code
 
-For the list options (`packages`, `libraries`) the levels are **merged**
-(defaults + CLI/settings + header, duplicates removed) rather than replaced.
-
-### 3.3 Built-in defaults
-
-Always loaded, no configuration needed:
-
-- Packages: `amsmath`, `amssymb`
-- TikZ libraries: `arrows.meta`, `positioning`, `calc`, `shapes.geometric`,
-  `backgrounds`, `fit`
-- Main font: `IPAexMincho`
-
-### 3.4 Bare TikZ code
-
-If the body does not contain `\begin{tikzpicture}`, it is wrapped in a
-`tikzpicture` environment automatically. This is valid as a complete file:
-
-```text
-\draw[->] (0,0) -- (2,1) node[right] {ラベル};
-```
-
-### 3.5 Generated document
-
-The assembled standalone document has this shape:
-
-```latex
-\documentclass[border=2pt]{standalone}
-\usepackage{fontspec}
-\setmainfont{<mainfont>}
-\usepackage{tikz}
-\usepackage{<each extra package>}
-\usetikzlibrary{<all libraries, comma-joined>}
-\begin{document}
-<body, wrapped in tikzpicture and/or \scalebox as needed>
-\end{document}
-```
-
-TikZ is loaded as a package (not as the `standalone` class's `tikz` option)
-so that `\scalebox` works.
-
----
+A file may contain a complete `\begin{tikzpicture}…\end{tikzpicture}` or just
+the drawing commands; a bare fragment is treated as one picture.
 
 ## 4. CLI reference
 
-### 4.1 Installation
+### 4.1 Synopsis
 
 ```sh
-npm install
-npm run build          # produces dist/tikzc.cjs
-npm link               # optional: install the `tikzc` command globally
+tikzc <file.tikz> [-o output.svg|output.png|directory] [-f svg|png|both]
+tikzc check <file.tikz>
 ```
 
-Without `npm link` you can run it as `node dist/tikzc.cjs`.
+### 4.2 Options
 
-### 4.2 Synopsis
+| Option | Description |
+| --- | --- |
+| `-o`, `--output <path>` | Output file or directory |
+| `-f`, `--format <format>` | `svg`, `png` or `both`. Default: inferred from the `-o` extension, otherwise `svg` |
+| `--dpi <number>` | PNG resolution. Default: 150 |
+| `-q`, `--quiet` | Suppress the progress line |
+| `-V`, `--version` | Print the version |
+| `-h`, `--help` | Print help |
 
-```text
-tikzc [options] <file.tikz>
-```
+`tikzc check` compiles the file and reports whether it is supported, without
+writing output.
 
-Examples:
+### 4.3 Output path resolution
 
-```sh
-tikzc test.tikz                    # -> test.svg (next to the input)
-tikzc test.tikz -f png --dpi 600   # -> test.png at 600 dpi
-tikzc test.tikz -f both -o out/    # -> out/test.svg and out/test.png
-tikzc test.tikz --watch            # recompile on every save
-tikzc --help
-```
+- Without `-o`, the output is written next to the input with the format's
+  extension (`diagram.tikz` → `diagram.svg`).
+- If `-o` is an existing directory, ends with a path separator, or the format
+  is `both`, it is treated as a directory and the input's file name is used.
+- Otherwise `-o` is the output file. Missing parent directories are created.
+- The output may not overwrite the input.
 
-### 4.3 Options
+SVG keeps a transparent background; PNG has a white background. All
+conversions finish before any file is written, so a failed run does not
+replace existing output.
 
-| Option | Default | Description |
-|---|---|---|
-| `-f, --format <svg\|png\|both>` | `svg` | output format(s) |
-| `-o, --output <path>` | next to input | output file **or** directory |
-| `--dpi <n>` | `300` | PNG resolution (positive number) |
-| `--mainfont <font>` | `IPAexMincho` | fontspec main font |
-| `--packages <a,b>` | — | extra `\usepackage` (comma-separated) |
-| `--libraries <a,b>` | — | extra `\usetikzlibrary` (comma-separated) |
-| `--scale <n>` | — | wrap in `\scalebox{n}` |
-| `--keep-tex` | off | also write the generated `.tex` next to the outputs |
-| `-w, --watch` | off | watch the input file and recompile on change |
-| `-q, --quiet` | off | suppress the progress line on stderr |
-| `-h, --help` | — | show help and exit |
-
-Remember that `#|` headers in the source **override** these flags
-(see [3.2](#32-option-precedence)).
-
-### 4.4 Output path resolution
-
-The output base name is always the input file name with its extension
-replaced (`figure.tikz` → `figure.svg` / `figure.png` / `figure.tex`).
-
-- **No `-o`**: outputs are written next to the input file.
-- **`-o` is an existing directory** (or ends with a path separator): outputs
-  go into that directory (created if needed).
-- **`-o` is a file path** and a single format was requested: that exact path
-  is used.
-- **`-f both`**: `-o` is always treated as a directory (two files cannot share
-  one path).
-
-### 4.5 Watch mode
-
-`--watch` compiles once, then watches the input file and recompiles on each
-change. Change events are debounced by 200 ms (editors typically fire several
-events per save), and if a change arrives while a compile is running, one more
-compile runs afterwards. Compile errors are printed but do not terminate the
-watcher. Stop with `Ctrl+C`.
-
-### 4.6 Exit codes and errors
+### 4.4 Exit codes
 
 | Code | Meaning |
-|---|---|
-| `0` | success (in watch mode: the process keeps running) |
-| `1` | compilation failed |
-| `2` | usage error (bad flags, unreadable input, no input file) |
-
-On a LaTeX failure, the first `! ...` error block from the LaTeX log is
-printed to stderr, e.g.:
-
-```text
-tikzc: lualatex compilation failed:
-! Undefined control sequence.
-l.12 \drow
-```
-
-Progress output (`tikzc: test.svg (1234ms)`) goes to **stderr**, so stdout
-stays clean for scripting.
-
----
+| --- | --- |
+| 0 | Success |
+| 1 | Rasterization or file write failed |
+| 2 | Usage or input error: unknown option, invalid DPI or format, unreadable input, output equal to input |
+| 3 | The source is invalid or uses unsupported syntax (`file:line:column: message`) |
 
 ## 5. VSCode extension
 
-### 5.1 What it is
+The extension (`RyoNak.tikzc-preview`, display name **TikZc Editor**) runs the
+`tikzc` executable installed on your machine and shows its SVG or PNG. Export
+writes the same artifact as the preview. The details of canvas editing are in
+the [extension README](../vscode-extension/README.md).
 
-The extension (`RyoNak.tikzc-preview`, display name **TikZc Editor**) embeds
-the WYSIWYG editor from
-[DominikPeters/tikz-editor](https://github.com/DominikPeters/tikz-editor)
-into a VSCode webview panel:
+### 5.1 Build and install
 
-- The **canvas renders instantly** using tikz-editor's own TikZ parser — no
-  LaTeX needed for editing.
-- **Shape operations on the canvas** (moving nodes, drawing, etc.) are
-  written back into VSCode's text buffer automatically.
-- **Text edits in VSCode** appear on the canvas immediately.
-- **Export commands** produce accurate output through the real
-  lualatex + dvisvgm / pdftoppm pipeline (CJK labels render correctly).
-
-### 5.2 Build and install
+Install `tikzc` first ([section 2](#2-installation)); the VSIX does not contain it.
 
 ```sh
 cd vscode-extension
-npm install
-npm run package        # builds webview (Vite) + extension host, produces the .vsix
-code --install-extension tikzc-preview-0.1.0.vsix
+npm ci
+npm run package        # builds the extension and produces the .vsix
+code --install-extension "dist/packages/tikzc-preview-$(cat ../VERSION).vsix"
 ```
 
 > If the `code` command is missing on macOS, run "Shell Command: Install
 > 'code' command in PATH" from the VSCode command palette.
 
-The extension activates when a file with language id `tikz` (extension
-`.tikz`) is opened.
+The extension activates when a `.tikz` file is opened. It looks up `tikzc` on
+PATH, or uses `tikzc.nativePath`. A warning appears when the executable's
+major.minor version differs from the extension's.
 
-### 5.3 Commands and keybindings
+### 5.2 Commands and keybindings
 
 | Command palette entry | ID | Availability |
-|---|---|---|
-| **TikZ: Open Editor to the Side** | `tikzc.showPreview` | active editor is a `.tikz` file; also as an icon in the editor title bar |
-| **TikZ: Export as SVG** | `tikzc.exportSvg` | active editor is a `.tikz` file |
-| **TikZ: Export as PNG** | `tikzc.exportPng` | active editor is a `.tikz` file |
+| --- | --- | --- |
+| **TikZc Editor: Open to the Side** | `tikzc.showPreview` | active editor is a `.tikz` file; also as an icon in the editor title bar |
+| **TikZc Editor: Export as SVG** | `tikzc.exportSvg` | active editor is a `.tikz` file |
+| **TikZc Editor: Export as PNG** | `tikzc.exportPng` | active editor is a `.tikz` file |
 
-Default keybinding: `Ctrl+K V` (`Cmd+K V` on macOS) opens the editor panel
-beside the current editor.
+Default keybinding: `Ctrl+K V` (`Cmd+K V` on macOS) opens the preview beside
+the current editor.
 
-### 5.4 Everyday usage
+### 5.3 Everyday usage
 
 1. Open a `.tikz` file in VSCode.
-2. Open the **Local TikZ Editor** panel via the title-bar icon or `Ctrl+K V`.
+2. Open the preview via the title-bar icon or `Ctrl+K V`.
 3. Edit either side:
-   - Type TikZ code in VSCode's text editor → the canvas updates instantly.
-   - Manipulate shapes on the canvas → the change is written back to the
-     VSCode buffer (debounced by ~600 ms).
-4. **Save with `Ctrl+S` as usual.** Canvas write-back only edits the buffer;
-   persisting to disk stays your decision. The panel title shows `●` while
-   there are unwritten canvas changes.
-5. When you need publication-quality output, run **TikZ: Export as SVG / PNG**
-   from the command palette and pick a save location. Export runs the full
-   lualatex pipeline with a progress notification.
+   - Type TikZ code in the text editor → the unsaved buffer is recompiled
+     after `tikzc.debounceMs`.
+   - Edit on the canvas (labels, moving, ordering, adding shapes, arrow
+     points) → the change is validated by compiling it, then applied to the
+     buffer as one undoable edit.
+4. **Save with `Ctrl+S` as usual.** Canvas edits only change the buffer.
+5. Run **TikZc Editor: Export as SVG / PNG** and pick a save location.
 
-**Single-document mode**: the panel always mirrors exactly the `.tikz` file
-currently open in VSCode. There is no tab strip; running the open command
-while another `.tikz` file is active switches the panel to that file, and
-documents restored from a previous session are closed. Files changed on disk
-outside VSCode are also picked up via a file watcher.
+The preview follows the active `.tikz` editor. Errors are shown with their
+source position.
 
-### 5.5 Settings
+### 5.4 Settings
 
-Settings live under **TikZ Preview (tikzc)** (`tikzc.*`) and are applied to
-the **export** pipeline:
+Settings live under **TikZc Editor (tikzc)** (`tikzc.*`) and apply to preview
+and export alike:
 
 | Setting | Type / default | Description |
-|---|---|---|
-| `tikzc.mainfont` | string, `""` | fontspec main font for CJK labels (empty = `IPAexMincho`) |
-| `tikzc.extraPackages` | string[], `[]` | extra `\usepackage` applied to every diagram |
-| `tikzc.extraLibraries` | string[], `[]` | extra `\usetikzlibrary` applied to every diagram |
-| `tikzc.pngDpi` | number, `300` | resolution for PNG export |
-| `tikzc.debounceMs` | number, `400` | *declared but unused in the current version* (left over from the earlier preview-based extension) |
-
-`#|` headers in the source override these settings, same as with the CLI.
-
-### 5.6 Rendering engine and its limits
-
-The instant canvas preview uses tikz-editor's TikZ parser, which supports a
-**subset of TikZ**: decorations / graphs / plots are partially supported, and
-external packages (e.g. `circuitikz`) are not rendered. The canvas is a
-fast, interactive approximation — **exports are always accurate**, because
-they compile with real lualatex. When the canvas and lualatex disagree, trust
-the export.
-
-Math in labels is rendered with MathJax inside the webview.
-
-### 5.7 Logs and diagnostics
-
-- Output channel **"TikZ Editor (tikzc)"** (View → Output) shows extension
-  and webview log lines, including RPC failures.
-- The same log is appended to `tikzc-webview.log` in the OS temp directory.
-- The last lualatex log is kept in memory and served to the editor's
-  "view log" feature after an export/compile from the webview.
-- Export failures surface the extracted LaTeX error in a VSCode error
-  notification.
-
-### 5.8 Architecture (for the curious)
-
-```text
-vscode-extension/
-├── tikzc-editor/      vendored tikz-editor (the WYSIWYG editor; MIT, unmodified)
-├── webview/           bootstrap that runs the tikz-editor App in the webview +
-│                      an EditorPlatform adapter (file sync, dialogs, clipboard,
-│                      lualatex bridge)
-├── src/extension.ts   extension host: RPC with the webview, two-way sync with
-│                      the .tikz TextDocument, lualatex export (shares ../src/core.ts)
-└── vite.config.ts     builds the webview bundle (resolves tikz-editor sources via
-                       aliases + build-time stubs for features unused in VSCode)
-```
-
-- The webview and the extension host talk over a small RPC protocol
-  (`rpc` / `notify` / `rpc-result` messages). The host implements linked-file
-  read/write (mapped onto the `.tikz` TextDocument), file dialogs, clipboard,
-  message boxes, persistence (VSCode `globalState`), and the
-  `latex.check` / `latex.compile` bridge to `src/core.ts`.
-- Canvas write-back goes through `linked.write`: if the document is open in
-  VSCode it becomes a WorkspaceEdit on the buffer (never a silent disk
-  write); otherwise the file is written directly.
-- The vendored tikz-editor sources are **unmodified**; `vite.config.ts` swaps
-  in build-time stubs for parts the VSCode single-document, canvas-only mode
-  doesn't use (the CodeMirror source panel, tab strip, AI assistant panel,
-  thumbnail Web Worker, PowerPoint / IPE import, hover docs). See
-  `tikzc-editor/UPSTREAM.md` for the upstream commit; update the vendored
-  copy with `./scripts/update-tikz-editor.sh`.
-
----
+| --- | --- | --- |
+| `tikzc.nativePath` | string, `""` | path to the `tikzc` executable (empty = `tikzc` on PATH); machine-scoped |
+| `tikzc.mainfont` | string, `""` | default label font (empty = `IPAexMincho`) |
+| `tikzc.extraPackages` | string[], `[]` | additional packages; must be ones tikzc accepts |
+| `tikzc.extraLibraries` | string[], `[]` | additional TikZ libraries; must be ones tikzc accepts |
+| `tikzc.pngDpi` | number, `300` | resolution for PNG preview and export |
+| `tikzc.debounceMs` | number, `400` | delay after the last keystroke before the preview recompiles |
+| `tikzc.language` | `en` \| `ja`, `en` | language of the preview toolbar and messages; also switchable from the preview toolbar |
 
 ## 6. Troubleshooting
 
-**`lualatex compilation failed: ! LaTeX Error: File 'xxx.sty' not found`**
-The package is missing from your TeX installation. Install it via
-`tlmgr install <package>` (TeX Live) — MiKTeX installs missing packages
-automatically.
+**`tikzc … is older than 1.0.0`**
+The extension accepts every `tikzc` from 1.0.0 on. The one found on PATH is a
+0.x build: an early Rust build or the TeX-based npm CLI. Remove the npm CLI if
+present (`npm unlink -g tikzc`) and install the current Rust version
+([section 2](#2-installation)), or set `tikzc.nativePath` to a 1.0.0 or newer
+executable (for example `~/.cargo/bin/tikzc`).
 
-**`fontspec` cannot find `IPAexMincho`**
-Your TeX distribution is a minimal scheme without the IPAex fonts. Either
-install them, or set an OS font with `#| mainfont:` / `--mainfont` /
-`tikzc.mainfont` (see [section 2](#japanese--cjk-fonts)).
-
-**`cannot read <file>` (exit code 2)**
-The input path does not exist or is not readable.
-
-**Export works in a terminal but fails from VSCode**
+**`Cannot run Rust tikzc`, or it works in a terminal but not from VSCode**
 VSCode may not inherit your shell PATH (typical on macOS when launched from
-the Dock). Launch VSCode from a terminal with `code`, or make the TeX bin
-directory available to GUI apps.
+the Dock). Set `tikzc.nativePath`, or launch VSCode from a terminal with `code`.
 
-**The canvas renders my diagram wrong / not at all**
-The instant preview supports only a TikZ subset ([5.6](#56-rendering-engine-and-its-limits)).
-Run **TikZ: Export as SVG** to check with real lualatex; if the export is
-fine, the source is fine.
+**`Unsupported …` or another `file:line:column` diagnostic**
+The source uses syntax outside the supported subset. Check the
+[compatibility contract](RUST_ENGINE.md#native-compatibility-contract) and
+rewrite that part, or request the feature following the
+[feature workflow](FEATURE_WORKFLOW.md).
 
-**Where did my temp files go?**
-Compiles run in disposable temp dirs. Use `--keep-tex` (CLI) to keep the
-generated `.tex`, and check the output channel / `tikzc-webview.log`
-([5.7](#57-logs-and-diagnostics)) for extension issues.
+**A font is reported missing**
+A `mainfont` that is not bundled must be installed on the system. Use a
+bundled family (IPAexMincho or IPAexGothic) for portable diagrams.
+Noto Sans CJK Regular/Bold are not bundled; a diagram specifying
+`mainfont: Noto Sans CJK JP` requires a system installation of that family.
 
----
+**The warning about a version mismatch keeps appearing**
+The installed `tikzc` and the extension differ in major.minor version.
+Reinstall `tikzc` with the `cargo install` command above and rebuild the VSIX
+from the same checkout.
 
 ## 7. Uninstalling
 
@@ -460,36 +239,34 @@ generated `.tex`, and check the output channel / `tikzc-webview.log`
 # VSCode extension (extension ID = publisher.name)
 code --uninstall-extension RyoNak.tikzc-preview
 
-# CLI (only if you ran npm link)
+# CLI installed with cargo install
+cargo uninstall tikzc
+
+# npm CLI from tikzc 0.x, if it is still linked
 npm unlink -g tikzc
-
-# dependencies are contained in the repository
-rm -rf node_modules vscode-extension/node_modules
-# Windows (PowerShell): Remove-Item -Recurse -Force node_modules, vscode-extension/node_modules
 ```
-
----
 
 ## 8. Development
 
 ```sh
-npm run check          # type-check (root and vscode-extension separately)
-npm run build          # build the CLI (dist/tikzc.cjs)
-npm test               # run tests (tsx --test tests/*.test.ts)
+cargo fmt --all --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked            # renderer and CLI
+cargo build --release --locked # needed by the extension tests
+
+npm ci && npm run check && npm test   # development tool tests
 
 cd vscode-extension
-npm run check          # type-check extension host + webview
-npm run build          # build extension host (esbuild) + webview (Vite)
+npm ci
+npm run check          # type-check extension host, webview script and tests
+npm test               # preview, export and canvas-editing tests
 npm run package        # build + produce the .vsix
 ```
 
-See also [TESTING.md](TESTING.md) and [BRANCH_STRATEGY.md](BRANCH_STRATEGY.md).
-
----
+See also [TESTING.md](TESTING.md), [REPOSITORY_STRUCTURE.md](REPOSITORY_STRUCTURE.md)
+and [BRANCH_STRATEGY.md](BRANCH_STRATEGY.md).
 
 ## 9. License
 
-[MIT](../LICENSE). The vendored
-[tikz-editor](https://github.com/DominikPeters/tikz-editor)
-(`vscode-extension/tikzc-editor/`, by Dominik Peters and others) is also
-MIT-licensed.
+[MIT](../LICENSE). Notices for the embedded fonts are in
+[`assets/fonts/`](../assets/fonts/README.md).

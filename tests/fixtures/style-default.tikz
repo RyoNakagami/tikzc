@@ -1,0 +1,1 @@
+\tikzset{box/.style={draw=#1},box/.default=blue}\node[box] {A};

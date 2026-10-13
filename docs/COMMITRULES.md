@@ -20,10 +20,10 @@
 ### Example
 
 ```text
-feat(parser): add support for nested config blocks
+feat(render): add star node shape
 
-The parser now recurses into nested tables so that deeply
-structured pyproject.toml files are read correctly.
+Star nodes now contain their text and expose border anchors, so
+paths connect to the outline instead of the bounding box.
 
 Closes #42
 ```
@@ -41,7 +41,7 @@ The `<type>` describes the kind of change and must be one of the following:
 | `refactor` | A code change that neither fixes a bug nor adds a feature            |
 | `perf`     | A code change that improves performance                              |
 | `test`     | Adding missing tests or correcting existing tests                    |
-| `build`    | Changes to the build system or external deps (e.g. `uv`, pyproject)  |
+| `build`    | Changes to the build system or external deps (e.g. Cargo, npm)      |
 | `ci`       | Changes to CI configuration files and scripts                        |
 | `chore`    | Other changes that don't modify `src` or test files                  |
 | `revert`   | Reverts a previous commit                                            |
@@ -49,7 +49,7 @@ The `<type>` describes the kind of change and must be one of the following:
 ## Scope
 
 The `<scope>` is optional and provides additional context about the section of the
-codebase affected, e.g. `feat(glossary):`, `fix(quarto):`, `docs(commitrules):`.
+codebase affected, e.g. `feat(render):`, `fix(extension):`, `docs(commitrules):`.
 Use a short, lowercase noun. Omit the scope when the change is global.
 
 ## Description
@@ -78,9 +78,9 @@ A breaking change is indicated either by appending a `!` after the type/scope, o
 by a `BREAKING CHANGE:` footer (or both).
 
 ```
-feat(api)!: drop support for Python 3.9
+feat(cli)!: require Rust 1.92 to build
 
-BREAKING CHANGE: the minimum supported Python version is now 3.10.
+BREAKING CHANGE: the minimum supported Rust version is now 1.92.
 ```
 
 ## Quick Reference

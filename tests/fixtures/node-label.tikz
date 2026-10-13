@@ -1,0 +1,1 @@
+\node[draw,label={[red]45:label}] (a) {A};

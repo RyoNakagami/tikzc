@@ -1,0 +1,141 @@
+#| mainfont: IPAexGothic
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    lowc/.style={draw=green!55!black, fill=green!15, rounded corners=2pt,
+                 align=center, minimum height=1.05cm, inner sep=5pt},
+    midc/.style={draw=orange!60!black, fill=yellow!30, rounded corners=2pt,
+                 align=center, minimum height=1.05cm, inner sep=5pt},
+    highc/.style={draw=red!55!black, fill=red!12, rounded corners=2pt,
+                  align=center, minimum height=1.05cm, inner sep=5pt},
+    plantc/.style={draw=black!70, fill=white, rounded corners=2pt,
+                   align=center, minimum height=1.05cm, inner sep=5pt},
+    ext/.style={draw=gray!70, dashed, fill=gray!8, rounded corners=3pt,
+                align=center, inner sep=5pt},
+    sumn/.style={draw=black!70, fill=white, circle, inner sep=1.5pt},
+    frame/.style={draw=black!55, rounded corners=4pt, inner sep=8pt, fill=none},
+    ftitle/.style={anchor=south, font=\bfseries},
+    obsframe/.style={draw=blue!60!black, line width=1pt, rounded corners=4pt,
+                     inner sep=8pt, fill=blue!4},
+    sig/.style={font=\footnotesize, inner sep=2pt},
+    dot/.style={circle, fill, inner sep=1.4pt},
+  ]
+
+  % ---- 主経路（左 → 右，y=0） ----------------------------------------------
+  \node[lowc, text width=3.0cm] at (1.8, 0) (targen)
+    {絶対把持位置・\\姿勢生成};
+  \node[sumn] at (4.7, 0) (sum) {$\Sigma$};
+  \node[midc, text width=1.8cm] at (6.65, 0) (pbvs) {PBVS};
+  \node[midc, text width=2.4cm] at (10.35, 0) (qpik)
+    {QP-based IK\\{\footnotesize\color{red!65!black} 拘束付き\\軌道生成}};
+  \node[midc, text width=2.4cm] at (14.6, 0) (rl)
+    {RL\\{\footnotesize\color{red!65!black} 軌道補正・\\把持力調整}};
+  \node[highc, text width=2.0cm] at (18.65, 0) (interp)
+    {指令値補間器};
+  \node[highc, text width=2.2cm] at (22.3, 0) (servo)
+    {サーボ\\コントローラ};
+  \node[plantc, text width=2.6cm] at (26.6, 0) (plant)
+    {制御対象\\{\footnotesize ［アーム・\\5指ハンド・箱］}};
+
+  % ---- 前提条件・拘束 -------------------------------------------------------
+  \node[ext, text width=3.0cm] at (1.8, 2.4) (prel)
+    {事前定義 相対把持位置・姿勢 $p_{\mathrm{rel}}$\\{\scriptsize（開始前に1回のみ読込）}};
+  \node[ext, draw=red!60, text=red!65!black, text width=3.0cm] at (10.35, -2.1) (eecon)
+    {EE幾何拘束条件};
+
+  % ---- FK・内界センサ行（y=3.9） -------------------------------------------
+  \node[midc, text width=2.6cm] at (5.7, 3.9) (fk)
+    {FK\\{\footnotesize（EE位置・\\姿勢計算）}};
+  \node[highc, text width=3.0cm] at (22.3, 3.9) (enc)
+    {内蔵エンコーダ・\\電流センサ};
+  \node[lowc, text width=3.0cm] at (22.3, 5.7) (yolo)
+    {YOLO＋\\Foundation Pose};
+
+  % ---- EKF データ同化（状態観測機） -----------------------------------------
+  \node[midc, text width=2.9cm] at (10.35, 2.2) (pred)
+    {予測（時間更新）\\{\footnotesize 内界センサ値で\\高頻度に伝播}};
+  \node[midc, text width=2.9cm] at (15.3, 2.2) (upd)
+    {観測更新\\{\footnotesize 低頻度の視覚観測\\$X_{\mathrm{box}}$ 到着時に補正}};
+  \coordinate (obstitle) at (12.8, 3.2);
+  \begin{scope}[on background layer]
+    \node[obsframe, fit=(pred)(upd)(obstitle)] (obsgrp) {};
+  \end{scope}
+  \node[font=\bfseries\small, text=blue!55!black, anchor=north] at (obsgrp.north)
+    {状態観測機：EKFによるデータ同化};
+  \draw[->] ($(pred.east)+(0,0.2)$) -- ($(upd.west)+(0,0.2)$)
+    node[midway, above, sig] {$\hat x_{k|k-1}$};
+  \draw[->] ($(upd.west)+(0,-0.2)$) -- ($(pred.east)+(0,-0.2)$)
+    node[midway, below, sig] {$\hat x_{k|k}$};
+
+  % ---- 主経路配線 -----------------------------------------------------------
+  \draw[->, dashed, gray!60!black] (prel) -- (targen);
+  \draw[->] (targen) -- (sum)
+    node[midway, above, sig] {$p_{\mathrm{target}}$}
+    node[pos=0.9, below, sig] {$+$};
+  \draw[->] (sum) -- (pbvs) node[midway, above, sig] {$e$};
+  \draw[->] (pbvs) -- (qpik) node[midway, above, sig] {$v_{\mathrm{target}}$};
+  \draw[->] (qpik) -- (rl) node[midway, above, sig] {$q_{\mathrm{ref}},\,\dot q_{\mathrm{ref}}$};
+  \draw[->] (rl) -- (interp) node[midway, above, sig] {$q_{\mathrm{ref}},\,\tau_{\mathrm{ref}}$};
+  \draw[->] (interp) -- (servo)
+    node[midway, above, sig] {$u$};
+  \draw[->] (servo) -- (plant)
+    node[midway, above, sig] {駆動トルク};
+  \draw[->, red!60] (eecon) -- (qpik);
+
+  % ---- センサ経路 -----------------------------------------------------------
+  % 物理状態（プラント → 内蔵センサ）
+  \draw[->] (plant.north) |- (enc.east)
+    node[pos=0.25, right, sig, align=left] {物理状態\\（角度・電流等）};
+  % 内蔵センサ → サーボ
+  \draw[->] (enc.south) -- (servo.north)
+    node[midway, right, sig, align=left] {モータ電流・\\エンコーダ角};
+  % 光学像（プラント → 視覚認識）
+  \draw[->] (plant.east) -- ++(0.5,0) |- (yolo.east)
+    node[pos=0.75, above, sig] {光学像};
+  % 内界センサバス（高頻度）：エンコーダ → FK・EKF予測
+  \draw[->] (enc.west) -- (fk.east)
+    node[pos=0.12, above, sig] {$q,\,\dot q,\,I_{\mathrm{EE}}$（高頻度）}
+    node[pos=0.92, above, sig] {$q,\,\dot q$};
+  \node[dot] at (pred |- enc.west) {};
+  \draw[->] (pred |- enc.west) -- (pred.north);
+  % 視覚観測（低頻度）：YOLO → EKF観測更新（バスとの交差はジャンプ弧）
+  \coordinate (viscross) at (upd |- enc.west);
+  \draw[->] (yolo.west) -| ($(viscross)+(0,0.16)$)
+    arc[start angle=90, end angle=-90, radius=0.16]
+    -- (upd.north);
+  \node[sig, anchor=west] at ($(upd.north)+(0.12,1.7)$) {$X_{\mathrm{box}}$（低速 30〜60Hz）};
+  % FK → 誤差計算
+  \draw[->] (fk.south) -- ++(0,-0.6) -| (sum.north)
+    node[pos=0.75, right, sig] {$p$}
+    node[pos=0.97, right, sig] {$-$};
+  % EKF出力（融合状態，中速で常時出力）
+  \coordinate (xhatbr) at (10.35, 0.95);
+  \draw[->] (obsgrp.south -| qpik) -- (qpik.north)
+    node[pos=0.7, right, sig] {$\hat x$（融合状態ベクトル，Tc=中速）};
+  \node[dot] at (xhatbr) {};
+  \draw[->] (xhatbr) -- ($(sum.north |- xhatbr)+(0.16,0)$)
+    arc[start angle=0, end angle=180, radius=0.16]
+    -| ($(targen.north)+(0.5,0)$);
+  \node[sig] at (3.35, 1.25) {$\hat X_{\mathrm{box}}$};
+
+  % ---- セクション枠 ---------------------------------------------------------
+  \begin{scope}[on background layer]
+    \node[frame] (sec1) [fit=(prel)(targen)] {};
+    \node[frame] (sec2) [fit=(sum)(pbvs)(qpik)(rl)(interp)(fk)(obsgrp)(eecon)] {};
+    \node[frame] (sec3) [fit=(yolo)(enc)] {};
+    \node[frame] (sec4) [fit=(servo)(plant)] {};
+  \end{scope}
+  \node[ftitle] at (sec1.north) {目標把持位置・姿勢生成};
+  \node[ftitle] at (sec2.north) {制御器};
+  \node[ftitle] at (sec3.north) {センサ・推定量};
+  \node[ftitle] at (sec4.north) {駆動系・制御対象};
+
+  % ---- 凡例 -----------------------------------------------------------------
+  \node[sig, anchor=east] at (3.9, 6.9) {凡例：};
+  \node[lowc, minimum height=0.55cm, font=\footnotesize, inner sep=4pt] at (5.6, 6.9)
+    {$T_c$=低速（30〜60Hz）};
+  \node[midc, minimum height=0.55cm, font=\footnotesize, inner sep=4pt] at (9.6, 6.9)
+    {$T_c$=中速（100〜250Hz）};
+  \node[highc, minimum height=0.55cm, font=\footnotesize, inner sep=4pt] at (13.9, 6.9)
+    {$T_c$=高速（500〜1000Hz）};
+  \draw[->] (16.4, 6.9) -- (17.4, 6.9) node[right, sig] {信号};
+\end{tikzpicture}

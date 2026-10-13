@@ -1,0 +1,1 @@
+\newcommand{\pair}[2]{#1--#2}\node {\pair{A}{B}};

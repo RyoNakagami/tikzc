@@ -1,0 +1,1 @@
+\pgfmathsetmacro{\r}{sqrt(4)+sin(30)}\draw (0,0) circle (\r cm);

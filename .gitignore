@@ -59,6 +59,7 @@ sandbox/
 node_modules/
 
 # ---- Build artifacts ----
+target/
 dist/
 build/
 out/

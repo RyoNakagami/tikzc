@@ -1,0 +1,105 @@
+#| mainfont: IPAexGothic
+\begin{tikzpicture}[
+    auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
+    block/.style={draw=#1!55!black, fill=#1!12, rounded corners=3pt,
+                  align=center, minimum height=1.1cm, inner sep=5pt},
+    sum/.style={draw=#1!55!black, fill=#1!12, circle, inner sep=1.5pt},
+    ext/.style={draw=gray!70, dashed, fill=gray!8, rounded corners=3pt,
+                align=center, inner sep=5pt},
+    zone/.style={fill=#1!6, draw=#1!40, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=#1!45!black},
+    sig/.style={font=\footnotesize, inner sep=2pt},
+    dot/.style={circle, fill, inner sep=1.4pt},
+  ]
+
+  % ---- 主経路（左 → 右） -------------------------------------------------
+  \node[block=blue, text width=3.3cm] (targen)
+    {絶対把持位置・姿勢生成\\{\footnotesize（$P_{\mathrm{rel}}$＋EE幾何拘束条件）}};
+  \node[sum=teal, right=1.9cm of targen] (sum) {$\Sigma$};
+  \node[block=teal, right=1.0cm of sum, text width=2.5cm] (pbvs)
+    {PBVS\\{\footnotesize（位置ベース\\視覚サーボ）}};
+  \node[block=teal, right=1.5cm of pbvs, text width=3.1cm] (qpik)
+    {QP-based IK\\{\footnotesize（二次計画法ベース\\逆運動学）}\\{\scriptsize ※強い拘束条件下で求解}};
+  \node[block=teal, right=1.8cm of qpik, text width=2.9cm] (rl)
+    {RLモジュール\\{\footnotesize（軌道補正・\\把持力調整）}};
+  \node[block=orange, right=1.8cm of rl, text width=2.3cm] (interp)
+    {指令値補間器\\{\footnotesize（中速→高速）}};
+  \node[block=orange, right=1.0cm of interp, text width=3.3cm] (servo)
+    {サーボコントローラ\\{\footnotesize（電流制御）}};
+  \node[block=orange, right=1.5cm of servo, text width=3.0cm] (plant)
+    {モータ駆動系\\{\footnotesize アーム・ハンド（EE）\\＋把持箱}};
+
+  % ---- 前提条件（ループ開始前に1回のみ） ---------------------------------
+  \node[ext, above=1.1cm of targen, text width=3.5cm] (prel)
+    {事前定義 相対把持位置・姿勢 $P_{\mathrm{rel}}\in SE(3)$\\{\scriptsize（ループ開始前に1回のみ読込）}};
+
+  % ---- フィードバック系（下段） -------------------------------------------
+  \node[block=teal, below=1.5cm of sum, text width=2.0cm] (fk)
+    {FK\\{\footnotesize（順運動学）}};
+  \node[block=teal, below=3.6cm of qpik, text width=4.2cm] (obs)
+    {状態観測器（Observer）\\{\footnotesize 拡張カルマンフィルタ等による\\データ同化（周波数ギャップ補償）}};
+  \node[block=blue, text width=3.3cm] (yolo) at (targen |- obs)
+    {視覚認識\\{\footnotesize YOLO / Foundation Pose}};
+
+  % ---- 主経路の配線 --------------------------------------------------------
+  \draw[->, dashed, gray!60!black] (prel) -- (targen);
+  \draw[->] (targen) -- (sum)
+    node[midway, above, sig] {$P_{\mathrm{target}}$}
+    node[pos=0.92, below, sig] {$+$};
+  \draw[->] (sum) -- (pbvs) node[midway, above, sig] {$e$};
+  \draw[->] (pbvs) -- (qpik) node[midway, above, sig] {$v_{\mathrm{target}}$};
+  \draw[->] (qpik) -- (rl) node[midway, above, sig] {$q_{\mathrm{ref}},\,\dot q_{\mathrm{ref}}$};
+  \draw[->] (rl) -- (interp) node[midway, above, sig] {$q_{\mathrm{ref}},\,\tau_{\mathrm{ref}}$};
+  \draw[->] (interp) -- (servo);
+  \draw[->] (servo) -- (plant) node[midway, above, sig] {電流};
+
+  % ---- フィードバック配線 --------------------------------------------------
+  % エンコーダ・電流センサ（高頻度）
+  \draw[->] (plant.south) -- (plant.south |- obs.east) -- (obs.east)
+    node[pos=0.75, above, sig] {$q,\,\dot q,\,\tau,\,I_{\mathrm{EE}}$（エンコーダ・電流センサ，高頻度）};
+  \coordinate (buscross) at (qpik |- fk.east);
+  \draw[->] (plant.south |- fk.east) -- ($(buscross)+(0.16,0)$)
+    arc[start angle=0, end angle=180, radius=0.16] -- (fk.east)
+    node[pos=0.9, above, sig] {$q,\,\dot q$};
+  \node[dot] at (plant.south |- fk.east) {};
+  % FK → 誤差計算
+  \draw[->] (fk) -- (sum)
+    node[midway, right, sig] {$p$（現在EE位置・姿勢）}
+    node[pos=0.9, right, sig] {$-$};
+  % 観測器 → QP-IK
+  \draw[->] (obs) -- (qpik) node[pos=0.28, right, sig] {$\hat X_{\mathrm{box}}$};
+  % 視覚認識 → 目標生成・観測器
+  \draw[->] (yolo) -- (targen) node[midway, right, sig] {$X_{\mathrm{box}}$};
+  \draw[->] (yolo) -- (obs) node[midway, above, sig] {$X_{\mathrm{box}}$（低頻度）};
+  % 光学像（カメラ）：プラント → 視覚認識
+  \coordinate (optcorner) at ($(plant.east)+(0.7,0)$);
+  \coordinate (optlow) at ($(yolo.south)+(0,-0.9)$);
+  \draw[->] (plant.east) -- (optcorner) -- (optcorner |- optlow) -- (optlow)
+    node[midway, above, sig] {光学像（カメラ）}
+    -- (yolo.south);
+
+  % ---- 変数凡例（上部の空きスペース） --------------------------------------
+  \node[ext, align=left, font=\footnotesize, text width=9.2cm]
+    at (qpik |- prel) (legend) {
+    $P_{\mathrm{rel}}$：EEの箱に対する相対把持位置・姿勢 \quad
+    $P_{\mathrm{target}}$：目標EE位置・姿勢\\
+    $p$：現在EE位置・姿勢 \quad
+    $X_{\mathrm{box}}$：箱の位置・姿勢（$\in SE(3)$，6自由度）\\
+    $q,\,\dot q\in\mathbb{R}^n$：関節角度・角速度 \quad
+    $v_{\mathrm{target}}$：目標手先速度};
+
+  % ---- 周期ゾーン（背景） --------------------------------------------------
+  \coordinate (ztop) at ($(prel.north)+(0,0.25)$);
+  \coordinate (zbot) at ($(optlow)+(0,-0.3)$);
+  \begin{scope}[on background layer, xshift=-7pt, yshift=0pt, yscale=0.98]
+    \node[zone=blue, fit=(prel)(targen)(yolo)(targen |- ztop)(targen |- zbot)] (zlow) {};
+    \node[zone=teal, fit=(sum)(pbvs)(qpik)(rl)(fk)(obs)(sum |- ztop)(sum |- zbot)] (zmid) {};
+    \node[zone=orange, fit=(interp)(servo)(plant)(optcorner)(interp |- ztop)(interp |- zbot)] (zhigh) {};
+  \end{scope}
+  \node[zlabel=blue] at (zlow.north)
+    {低速：$T_c=30$--$60\,$Hz（視覚認識・目標生成）};
+  \node[zlabel=teal] at (zmid.north)
+    {中速：$T_c=200$--$250\,$Hz（制御演算）};
+  \node[zlabel=orange] at (zhigh.north)
+    {高速：$T_c=500$--$1000\,$Hz（駆動・電流制御）};
+\end{tikzpicture}

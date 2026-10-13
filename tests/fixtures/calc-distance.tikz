@@ -1,0 +1,1 @@
+\coordinate (a) at (0,0);\coordinate (b) at (3,1);\fill ($(a)!1cm!(b)$) circle (2pt);

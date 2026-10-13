@@ -1,0 +1,1 @@
+\filldraw[fill=yellow,draw=black] (0,0) rectangle (2,1);

@@ -1,0 +1,20 @@
+[package]
+name = "tikzc"
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.92"
+license = "MIT"
+description = "Rust-native renderer for a practical subset of TikZ"
+
+[dependencies]
+typst = "=0.15.1"
+typst-layout = "=0.15.1"
+typst-svg = "=0.15.1"
+mitex = "=0.2.4"
+resvg = { version = "=0.47.0", default-features = false }
+fontdb = { version = "=0.23.0", default-features = false, features = ["fs"] }
+serde_json = "=1.0.151"
+
+[profile.release]
+lto = "thin"
+strip = true

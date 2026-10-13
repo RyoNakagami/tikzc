@@ -1,7 +1,7 @@
 ---
-author: "xxxxx"
-date-modified: "yyyy-mm-dd"
-project: <default-package-name-for-rename>
+author: "Ryo Nakagami"
+date-modified: "2026-10-13"
+project: tikzc
 ---
 
 # Branch Strategy
@@ -104,13 +104,13 @@ Create this only when you want to review multiple subtasks together.
 
 ```bash
 git switch develop
-git switch -c issue/0123
+git switch -c issue/0123/integration
 git merge feature/0123/add-login
 git merge bugfix/0123/fix-login-error
-git push -u origin issue/0123
+git push -u origin issue/0123/integration
 ```
 
-- Create an integration PR: `issue/0123` → `develop`
+- Create an integration PR: `issue/0123/integration` → `develop`
 - Review and test together as a team.
 
 ### Step 3. Integration into develop
@@ -120,15 +120,21 @@ git push -u origin issue/0123
 
 ### Step 4. Release
 
-- Update the version tag in `project.yml` and create a PR into the `main` branch.
-- Tagging and release-note creation are performed automatically when the PR is merged.
+- Update the version with `devtools/bump-version.sh <version>` (see the
+  [versioning policy](VERSIONING_POLICY.md)) and add a `## [<version>]` section
+  to `CHANGELOG.md`.
+- Create a PR from `develop` into `main` and add the `release` label. PRs into
+  `main` from branches other than `develop` or `hotfix/*` are rejected by the
+  `Guard main source branch` workflow.
+- When the labeled PR is merged, the `v<version>` tag and the GitHub Release
+  (with the changelog section as release notes) are created automatically.
 
 ### Operational Notes
 
 | Target                    | Branch Naming Convention                                          | Use / Scope                   | Operational Policy                     | Notes                                |
 | ------------------------- | ----------------------------------------------------------------- | ----------------------------- | -------------------------------------- | ------------------------------------ |
-| **Small Issue**           | `feature/<issue-number>-<task>`<br>`bugfix/<issue-number>-<task>` | Small new features or fixes   | PR directly into `develop`             | For single tasks and minor fixes     |
-| **Medium-to-large Issue** | `issue/<issue-number>`                                            | Integrating multiple subtasks | Combine subtasks and PR into `develop` | Review `feature` / `bugfix` together |
+| **Small Issue**           | `feature/<issue-number>/<task>`<br>`bugfix/<issue-number>/<task>` | Small new features or fixes   | PR directly into `develop`             | For single tasks and minor fixes     |
+| **Medium-to-large Issue** | `issue/<issue-number>/integration`                                | Integrating multiple subtasks | Combine subtasks and PR into `develop` | Review `feature` / `bugfix` together |
 
 ## 3. Branch Deletion Policy
 

@@ -1,183 +1,159 @@
 # tikzc
 
-A CLI that compiles `.tikz` files to SVG / PNG, plus a VSCode extension for
-WYSIWYG editing based on [tikz-editor](https://github.com/DominikPeters/tikz-editor).
+A Rust-native renderer for a practical subset of TikZ, with a VSCode preview
+that shares its SVG/PNG output. Rendering requires no TeX Live or network access.
 
-## Requirements
+## Installation
 
-> [!IMPORTANT]
-> **This tool does not bundle a TeX environment.** It invokes your locally
-> installed TeX toolchain (LuaLaTeX + TikZ/PGF + fontspec) as external commands,
-> so you must set up TeX Live (or equivalent) beforehand. Without a TeX
-> environment, compilation fails.
-
-- `lualatex` (included in TeX Live; install with the TikZ/PGF and fontspec packages)
-- `dvisvgm` (SVG output; bundled with TeX Live)
-- `pdftoppm` (poppler; only needed for PNG output)
-- Node.js 18+ (from [nodejs.org](https://nodejs.org/) or your package manager)
-
-### Linux (Ubuntu / Debian)
+`tikzc` is built from source with Cargo. It needs Rust 1.92 or later; on
+Windows, also the MSVC Build Tools.
 
 ```sh
-sudo apt install texlive-luatex texlive-pictures texlive-latex-extra poppler-utils
+# 1. Install Rust, if `cargo --version` does not work yet (Linux / macOS).
+#    On Windows, use rustup-init.exe from https://rustup.rs instead.
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# 2. Install tikzc into ~/.cargo/bin
+cargo install --git https://github.com/RyoNakagami/tikzc tikzc --locked
+
+# 3. Verify
+tikzc --version
 ```
 
-### macOS
+To install from a checkout instead:
 
 ```sh
-# MacTeX (includes lualatex + dvisvgm + TikZ). The -no-gui build is enough if you don't need the GUI apps.
-brew install --cask mactex-no-gui
-
-# pdftoppm (only if you use PNG output)
-brew install poppler
+git clone https://github.com/RyoNakagami/tikzc.git
+cd tikzc
+cargo install --path . --locked
 ```
 
-After installing, reopen your terminal so `/Library/TeX/texbin` is on your PATH.
-If it isn't picked up, run `eval "$(/usr/libexec/path_helper)"`.
+The first build downloads the Rust dependencies and embeds about 15 MiB of
+fonts, so it takes a while. If `tikzc` is not found afterwards, add
+`~/.cargo/bin` (Windows: `%USERPROFILE%\.cargo\bin`) to PATH. To update, run
+the same `cargo install` command again.
 
-### Windows
-
-- **TeX Live**: install via the [tug.org/texlive](https://tug.org/texlive/)
-  installer (includes `lualatex` / `dvisvgm`; scheme-full recommended).
-  [MiKTeX](https://miktex.org/) also works (missing packages are installed on the fly).
-- **poppler** (only if you use PNG output): `scoop install poppler` or
-  `choco install poppler`. To install manually, extract
-  [poppler-windows](https://github.com/oschwartz10612/poppler-windows/releases)
-  and add `Library\bin` to your PATH.
-
-The commands run as-is in PowerShell / Command Prompt (WSL is not required).
-
-### Verifying the installation
+Then render a diagram:
 
 ```sh
-lualatex --version && dvisvgm --version && pdftoppm -v && node --version
+tikzc diagram.tikz -o diagram.svg     # format follows the -o extension
+tikzc diagram.tikz -f both -o out/    # SVG and PNG into out/
+tikzc check diagram.tikz              # compile only, write nothing
 ```
 
-### About Japanese fonts
+The preview extension is installed separately; see
+[VSCode extension](#vscode-extension).
 
-The default font `IPAexMincho` ships with the full TeX Live / MacTeX
-distribution. If it isn't found, specify an OS font with a `#| mainfont:` header
-or the VSCode setting `tikzc.mainfont`:
+## Rust CLI
 
-- macOS: e.g. `Hiragino Mincho ProN`
-- Windows: e.g. `Yu Mincho`, `MS Mincho`
-
-## CLI
+To build and run without installing:
 
 ```sh
-npm install
-npm run build          # produces dist/tikzc.cjs
-npm link               # optional: install the tikzc command globally
-
-tikzc test.tikz                    # -> test.svg
-tikzc test.tikz -f png --dpi 600   # -> test.png
-tikzc test.tikz -f both -o out/    # -> out/test.svg, out/test.png
-tikzc test.tikz --watch            # recompile on every save
-tikzc --help
+cargo build --release --locked
+target/release/tikzc notebook/native-subset.tikz -f both -o target/example
+target/release/tikzc check notebook/native-subset.tikz
 ```
 
-## Header options in `.tikz` sources
+Use `tikzc.exe` on Windows. Building requires Rust 1.92+;
+compiled binaries embed the Japanese/math fonts. Unsupported syntax produces
+source-position diagnostics. See [native usage and compatibility](docs/RUST_ENGINE.md).
 
-Uses the same `#|` notation as quarto_tikz. These take precedence over CLI flags
-and VSCode settings.
+## VSCode extension
 
-```text
-#| packages: [circuitikz, pgfplots]   -- extra \usepackage
-#| libraries: [arrows.meta, calc]     -- extra \usetikzlibrary
-#| scale: 1.5                         -- wrap in \scalebox
-#| mainfont: IPAexGothic              -- fontspec main font (default: IPAexMincho)
-```
-
-Bare TikZ code without `\begin{tikzpicture}` is wrapped automatically.
-
-## VSCode extension (vscode-extension/)
-
-A TikZ editor that embeds the WYSIWYG editor from
-[DominikPeters/tikz-editor](https://github.com/DominikPeters/tikz-editor) (MIT)
-into a webview. Only the parts needed to build it (sources and assets under
-`packages/`) are vendored, unmodified, into `vscode-extension/tikzc-editor/`
-(see `UPSTREAM.md` in that directory for the origin and commit; update with
-`./scripts/update-tikz-editor.sh`).
+The extension runs the `tikzc` executable installed on your machine; the VSIX
+does not contain it. Install `tikzc` first ([Installation](#installation)),
+then build and install the extension from a checkout (needs Node.js):
 
 ```sh
 cd vscode-extension
-npm install
-npm run package        # build the webview (Vite) + extension host and produce the .vsix
-code --install-extension tikzc-preview-0.1.0.vsix
+npm ci
+npm run package
+code --install-extension "dist/packages/tikzc-preview-$(cat ../VERSION).vsix"
 ```
 
-> [!NOTE]
-> If the `code` command isn't found on macOS, run "Shell Command: Install 'code'
-> command in PATH" from the VSCode command palette.
+The same VSIX works on Linux, macOS and Windows. Open a `.tikz` file and press
+**Ctrl+K V** (macOS: **Cmd+K V**). Preview and SVG/PNG export share Rust's
+path-based text layout, including mixed full-width and half-width labels.
+The preview also supports canvas editing: labels, moving, ordering, adding
+shapes and arrow points. If another `tikzc` comes first on PATH, set
+`tikzc.nativePath` to the Rust executable (for example `~/.cargo/bin/tikzc`).
+See [extension settings and usage](vscode-extension/README.md).
 
-### Usage
+## Repository layout
 
-- Open a `.tikz` file and open the **Local TikZ Editor** to the side via the icon
-  in the editor's top-right or `Ctrl+K V`.
-- The panel is a canvas-only layout (you edit code in VSCode's own text editor).
-  Rendering uses tikz-editor's TikZ parser for instant previews (no LaTeX needed).
-- Single-document mode: the panel only ever shows the `.tikz` file currently open
-  in VSCode (no tabs; running the command again on another `.tikz` switches to it).
-- Edits in the VSCode text editor are reflected in the canvas instantly, and shape
-  operations on the canvas are written back to VSCode's buffer automatically
-  (save to disk with `Ctrl+S` as usual).
-- Command palette: `TikZ: Export as SVG` / `TikZ: Export as PNG` (these use the
-  usual accurate lualatex + dvisvgm / pdftoppm compilation; CJK labels render
-  correctly in exports).
-- Settings: `tikzc.mainfont` / `tikzc.extraPackages` / `tikzc.extraLibraries` /
-  `tikzc.pngDpi` (applied on export).
+| Path | Responsibility |
+| --- | --- |
+| `src/` | Rust CLI and renderer; `render.rs` orchestrates the modules in `render/`. `Cargo.toml` is at the root. |
+| `vscode-extension/src/` | Extension activation; `preview/` hosts the preview, export and canvas-edit source patches. |
+| `vscode-extension/webview/` | Browser-side script of the preview panel. |
+| `vscode-extension/scripts/` | VSIX packaging and the opt-in Chromium interaction test. |
+| `assets/fonts/` | Embedded fonts and redistribution notices. |
+| `tests/`, `vscode-extension/tests/` | Rust integration tests, fixtures, visual baselines and extension suites. |
+| `examples/` | Rust benchmark. |
+| `devtools/` | Versioning and opt-in corpus comparison tools. |
+| `docs/` | Usage, compatibility, testing and project policies. |
+| `notebook/` | Working diagrams, including the runnable `native-subset.tikz` example; some are read by Rust tests. |
 
-### Layout
+A per-directory breakdown is in [repository structure](docs/REPOSITORY_STRUCTURE.md).
 
-```text
-vscode-extension/
-├── tikzc-editor/      vendored tikz-editor (the WYSIWYG editor itself; MIT, unmodified)
-├── webview/           bootstrap that runs the tikz-editor App in a VSCode webview +
-│                      an EditorPlatform adapter (file sync, dialogs, clipboard, lualatex bridge)
-├── src/extension.ts   extension host: RPC with the webview, two-way sync with the
-│                      .tikz TextDocument, lualatex export (shares ../src/core.ts)
-└── vite.config.ts     builds the webview bundle (resolves tikz-editor sources directly
-                       via aliases + build-time stubs for features unused in the VSCode build)
-```
+Generated files belong in `target/` (Rust and comparison outputs) or
+`vscode-extension/dist/` (extension builds). VSIX archives go in
+`vscode-extension/dist/packages/` and are excluded from the VSIX itself.
 
-tikz-editor's rendering supports a subset of TikZ (decorations / graphs / plots
-are partially supported; external packages are not). When you need accurate
-output, use the export commands (lualatex).
-
-### Slim build
-
-The vendored sources stay unmodified; `vite.config.ts` swaps in build-time stubs
-for features that the VSCode single-document, canvas-only mode doesn't use:
-
-- Source panel (the whole CodeMirror stack), tab strip, AI assistant panel
-- The thumbnail Web Worker (it double-bundles core + MathJax + fonts; falls back
-  to main-thread rendering instead)
-- PowerPoint / IPE import (new documents can't be opened in the tab-less
-  single-document mode)
-- Source-panel-only hover docs (`public/docs/`, also excluded from the vendor extraction)
-
-## Uninstalling
-
-```sh
-# VSCode extension (the extension ID is publisher.name)
-code --uninstall-extension RyoNak.tikzc-preview
-
-# CLI (only if you ran npm link)
-npm unlink -g tikzc
-
-# Dependencies are contained within the repository
-rm -rf node_modules vscode-extension/node_modules
-# Windows (PowerShell): Remove-Item -Recurse -Force node_modules, vscode-extension/node_modules
-```
+Rust rendering responsibilities are split into `coordinates.rs`, `geometry.rs`,
+`nodes.rs`, `paths.rs`, `paint.rs`, `diagram.rs`, `label_svg.rs`, `glyph_path.rs`,
+and `path_editing.rs` (canvas editing metadata) under `src/render/`.
+The public API remains `tikzc::compile`, `tikzc::Diagram`, and `tikzc::render::*`.
 
 ## Development
 
 ```sh
-npm run check          # type-check (root and vscode-extension separately)
-npm run build
+cargo fmt --all --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked
+cargo build --release --locked
+
+npm ci
+npm run check
+npm test
+
+npm --prefix vscode-extension ci
+npm --prefix vscode-extension run check
+npm --prefix vscode-extension test
+npm --prefix vscode-extension run package
 ```
+
+Build the Rust release binary before running extension tests. The root npm
+package holds development tooling only (tests for `devtools/`). No test needs TeX.
+Detailed commands and acceptance criteria are in [TESTING.md](docs/TESTING.md).
+
+- [Rust CLI and compatibility](docs/RUST_ENGINE.md)
+- [Feature workflow](docs/FEATURE_WORKFLOW.md) (Japanese)
+- [Editor naming and rename procedure](docs/NAIMING.md) (Japanese)
+- [User manual (English)](docs/MANUAL.md) / [日本語](docs/MANUAL-jp.md)
+- [Design principles](docs/ARCHITRECTURE.md)
+- [Versioning](docs/VERSIONING_POLICY.md), [branch strategy](docs/BRANCH_STRATEGY.md), [commit rules](docs/COMMITRULES.md)
+- [Publishing](docs/PUBLISH.md) / [日本語](docs/PUBLISH-jp.md)
+
+## Uninstalling
+
+The steps depend on how tikzc was installed.
+
+```sh
+# Rust CLI installed with cargo install
+cargo uninstall tikzc
+
+# VSCode extension
+code --uninstall-extension RyoNak.tikzc-preview
+
+# npm CLI from tikzc 0.x, if it is still linked
+npm unlink -g tikzc
+```
+
+A binary built with `cargo build` only lives in `target/`; remove it with
+`cargo clean`. npm dependencies stay inside the repository
+(`node_modules`, `vscode-extension/node_modules`).
 
 ## License
 
-[MIT](LICENSE). The vendored [tikz-editor](https://github.com/DominikPeters/tikz-editor)
-(`vscode-extension/tikzc-editor/`, by Dominik Peters and others) is also MIT-licensed.
+[MIT](LICENSE). Embedded font notices are in [assets/fonts/](assets/fonts/README.md).

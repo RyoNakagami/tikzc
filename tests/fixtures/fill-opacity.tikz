@@ -1,0 +1,1 @@
+\fill[blue,fill opacity=.3,draw=black,draw opacity=.6] (0,0) rectangle (1,1);

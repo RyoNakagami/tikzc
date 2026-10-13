@@ -1,0 +1,1 @@
+\tikzset{box/.style={draw},box/.append style={fill=yellow}}\node[box] {A};

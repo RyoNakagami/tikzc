@@ -1,0 +1,1 @@
+\tikzset{every node/.style={draw,circle}}\node (a) {A};

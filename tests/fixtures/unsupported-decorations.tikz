@@ -1,0 +1,2 @@
+#| libraries: [decorations.pathmorphing]
+\draw[decorate,decoration={snake}] (0,0) -- (2,0);
