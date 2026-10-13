@@ -114,14 +114,18 @@ impl Engine<'_> {
                 continue;
             }
             if cur.rest().starts_with('(') || cur.rest().starts_with('+') {
-                if !endpoint_ranges.is_empty() { editable_endpoints = false; }
+                if !endpoint_ranges.is_empty() {
+                    editable_endpoints = false;
+                }
                 let coordinate_start = cur.pos;
                 let relative = cur.rest().starts_with('+');
                 let keep_base = cur.rest().starts_with('+') && !cur.rest().starts_with("++");
                 let (p, name) = self.read_point(cur, relative_base)?;
                 endpoint_ranges.push((coordinate_start, cur.pos));
                 vertices.push(p);
-                if relative { normalizations.push(self.path_coordinate_edit(coordinate_start, cur.pos, p)?); }
+                if relative {
+                    normalizations.push(self.path_coordinate_edit(coordinate_start, cur.pos, p)?);
+                }
                 if !keep_base {
                     relative_base = p;
                 }
@@ -145,7 +149,9 @@ impl Engine<'_> {
                 cur.word()
             };
             timing = PathTiming::Distance;
-            if !["line", "vertical", "horizontal", "to", "bezier", "arc"].contains(&operation) { editable_endpoints = false; }
+            if !["line", "vertical", "horizontal", "to", "bezier", "arc"].contains(&operation) {
+                editable_endpoints = false;
+            }
             match operation {
                 "grid" => {
                     let end = self.read_point(cur, current)?.0;
@@ -319,7 +325,13 @@ impl Engine<'_> {
                     let keep_base = cur.rest().starts_with('+') && !cur.rest().starts_with("++");
                     let (mut p, name) = self.read_point(cur, relative_base)?;
                     endpoint_ranges.push((coordinate_start, cur.pos));
-                    if relative { normalizations.push(self.path_coordinate_edit(coordinate_start, cur.pos, p)?); }
+                    if relative {
+                        normalizations.push(self.path_coordinate_edit(
+                            coordinate_start,
+                            cur.pos,
+                            p,
+                        )?);
+                    }
                     if !keep_base {
                         relative_base = p;
                     }
@@ -382,7 +394,12 @@ impl Engine<'_> {
                     match operation {
                         "vertical" => {
                             let corner = orthogonal_corner(matrix, start, p, true);
-                            let mut handle = self.path_handle(operation_start, operation_start+2, corner, "bend")?;
+                            let mut handle = self.path_handle(
+                                operation_start,
+                                operation_start + 2,
+                                corner,
+                                "bend",
+                            )?;
                             handle["replacement"] = "corner".into();
                             extra_handles.push(handle);
                             d.push_str(&format!(" L {} L {} ", corner.svg(), p.svg()));
@@ -391,7 +408,12 @@ impl Engine<'_> {
                         }
                         "horizontal" => {
                             let corner = orthogonal_corner(matrix, start, p, false);
-                            let mut handle = self.path_handle(operation_start, operation_start+2, corner, "bend")?;
+                            let mut handle = self.path_handle(
+                                operation_start,
+                                operation_start + 2,
+                                corner,
+                                "bend",
+                            )?;
                             handle["replacement"] = "corner".into();
                             extra_handles.push(handle);
                             d.push_str(&format!(" L {} L {} ", corner.svg(), p.svg()));
@@ -438,12 +460,20 @@ impl Engine<'_> {
                                     p.add(Point { x: bx, y: by }),
                                 )
                             };
-                            for (index, point) in [a,b].into_iter().enumerate() {
-                                let mut handle = self.path_handle(operation_start, operation_end, point, "control")?;
+                            for (index, point) in [a, b].into_iter().enumerate() {
+                                let mut handle = self.path_handle(
+                                    operation_start,
+                                    operation_end,
+                                    point,
+                                    "control",
+                                )?;
                                 handle["replacement"] = "curve".into();
                                 handle["controlIndex"] = index.into();
                                 let shift = self.state.canvas_shift;
-                                handle["controls"] = serde_json::json!([[a.x+shift.x,a.y+shift.y],[b.x+shift.x,b.y+shift.y]]);
+                                handle["controls"] = serde_json::json!([
+                                    [a.x + shift.x, a.y + shift.y],
+                                    [b.x + shift.x, b.y + shift.y]
+                                ]);
                                 extra_handles.push(handle);
                             }
                             if relative_controls {
@@ -576,13 +606,22 @@ impl Engine<'_> {
         // Materialize relative coordinates when editing so other vertices stay put.
         if editable_endpoints && ends_with_coordinate && !closed && endpoint_ranges.len() >= 2 {
             for (index, (&range, &point)) in endpoint_ranges.iter().zip(&vertices).enumerate() {
-                let kind = if index == 0 { "start" } else if index+1 == vertices.len() { "end" } else { "bend" };
+                let kind = if index == 0 {
+                    "start"
+                } else if index + 1 == vertices.len() {
+                    "end"
+                } else {
+                    "bend"
+                };
                 let handle = self.path_handle(range.0, range.1, point, kind)?;
-                if kind != "bend" { self.path_endpoints.push(handle.clone()); }
+                if kind != "bend" {
+                    self.path_endpoints.push(handle.clone());
+                }
                 self.path_points.push(handle);
             }
             self.path_points.extend(extra_handles);
-            self.path_points.sort_by_key(|h| h["start"].as_u64().unwrap());
+            self.path_points
+                .sort_by_key(|h| h["start"].as_u64().unwrap());
             self.path_normalizations = normalizations;
         }
         let (start_arrow, end_arrow) = crate::arrows::pair(

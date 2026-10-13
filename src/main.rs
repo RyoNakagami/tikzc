@@ -151,18 +151,30 @@ fn preview_server() -> Result<(), String> {
     loop {
         let mut line = String::new();
         // Bound each line before deserializing, including malicious clients.
-        let n = (&mut input).take(16 * 1024 * 1024).read_line(&mut line).map_err(|e| e.to_string())?;
-        if n == 0 { break; }
-        if !line.ends_with('\n') { return Err("preview request exceeds limit or is incomplete".into()); }
+        let n = (&mut input)
+            .take(16 * 1024 * 1024)
+            .read_line(&mut line)
+            .map_err(|e| e.to_string())?;
+        if n == 0 {
+            break;
+        }
+        if !line.ends_with('\n') {
+            return Err("preview request exceeds limit or is incomplete".into());
+        }
         let result = (|| -> Result<serde_json::Value, String> {
-            let request: serde_json::Value = serde_json::from_str(&line).map_err(|e| e.to_string())?;
+            let request: serde_json::Value =
+                serde_json::from_str(&line).map_err(|e| e.to_string())?;
             let source = request["source"].as_str().ok_or("missing source")?;
             let dpi = request["dpi"].as_f64().unwrap_or(150.);
-            let diagram = tikzc::render::compile_with_text(source, &mut engine).map_err(|e| format!("document.tikz:{}:{}: {}", e.line, e.column, e.message))?;
+            let diagram = tikzc::render::compile_with_text(source, &mut engine)
+                .map_err(|e| format!("document.tikz:{}:{}: {}", e.line, e.column, e.message))?;
             let png = diagram.png(dpi)?;
             Ok(serde_json::json!({"svg": diagram.svg, "png": png, "editing": diagram.editing}))
         })();
-        let response = match result { Ok(v) => v, Err(e) => serde_json::json!({"error": e}) };
+        let response = match result {
+            Ok(v) => v,
+            Err(e) => serde_json::json!({"error": e}),
+        };
         serde_json::to_writer(&mut output, &response).map_err(|e| e.to_string())?;
         output.write_all(b"\n").map_err(|e| e.to_string())?;
         output.flush().map_err(|e| e.to_string())?;

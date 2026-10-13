@@ -187,8 +187,8 @@ impl Engine<'_> {
             .layout("", &outer, &self.state.styles, &self.mainfont)?;
         self.place_node(
             Pending {
-                    edit_source: None,
-                    move_matrix: [1., 0., 0., 1.],
+                edit_source: None,
+                move_matrix: [1., 0., 0., 1.],
                 options: outer,
                 name: Some(outer_name.clone()),
                 point: at,
@@ -254,9 +254,13 @@ impl Engine<'_> {
         let source_label = self.expanded.origin(label_start);
         let source_end = self.expanded.origin(cur.pos - 1) + 1;
         // Generated macro bodies/expanded labels cannot be edited unambiguously.
-        let edit_source = (self.original.get(source_start..source_end).map(crate::syntax::clean)
-            .as_deref() == Some(&cur.source[edit_start..cur.pos]))
-            .then_some((source_start, source_label, source_end));
+        let edit_source = (self
+            .original
+            .get(source_start..source_end)
+            .map(crate::syntax::clean)
+            .as_deref()
+            == Some(&cur.source[edit_start..cur.pos]))
+        .then_some((source_start, source_label, source_end));
         if ["matrix of nodes", "nodes", "row sep", "column sep"]
             .iter()
             .any(|k| options.contains_key(*k))
@@ -290,7 +294,12 @@ impl Engine<'_> {
         let move_transform = parent.then(matrix)?.0;
         Ok(Pending {
             edit_source,
-            move_matrix: [move_transform[0], move_transform[1], move_transform[2], move_transform[3]],
+            move_matrix: [
+                move_transform[0],
+                move_transform[1],
+                move_transform[2],
+                move_transform[3],
+            ],
             options,
             name,
             point,
@@ -523,8 +532,8 @@ impl Engine<'_> {
             let font = get(o, "font", "");
             // Path sloping rotates the displacement along with the label.
             let rotation = Matrix::option("rotate", &path_angle.to_string())?.unwrap();
-            let [a,b,c,d] = p.move_matrix;
-            let moved = rotation.then(Matrix([a,b,c,d,0.,0.]))?.0;
+            let [a, b, c, d] = p.move_matrix;
+            let moved = rotation.then(Matrix([a, b, c, d, 0., 0.]))?.0;
             self.editing.push(serde_json::json!({
                 "id": start, "start": start, "labelStart": label_start, "end": end,
                 "bounds": [bounds.min.x, -bounds.max.y, bounds.max.x-bounds.min.x, bounds.max.y-bounds.min.y],

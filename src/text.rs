@@ -265,7 +265,9 @@ impl TextEngine {
         self.timings.layout_svg_ms += started.elapsed().as_secs_f64() * 1000.;
         // Bound a long-lived preview worker's cache. Large individual labels
         // still render correctly without retaining them between requests.
-        if self.cache.len() >= 256 || self.cache.values().map(|v| v.svg.len()).sum::<usize>() > 16 * 1024 * 1024 {
+        if self.cache.len() >= 256
+            || self.cache.values().map(|v| v.svg.len()).sum::<usize>() > 16 * 1024 * 1024
+        {
             self.cache.clear();
         }
         if label.svg.len() <= 1024 * 1024 {

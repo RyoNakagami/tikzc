@@ -6,8 +6,8 @@ mod glyph_path;
 mod label_svg;
 mod nodes;
 mod paint;
-mod paths;
 mod path_editing;
+mod paths;
 
 pub use diagram::Diagram;
 use geometry::Bounds;
@@ -176,7 +176,9 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
                     if env != "tikzpicture" && env != "scope" && env != "pgfonlayer" {
                         return Err(format!("Unsupported environment '{env}'"));
                     }
-                    if env == "tikzpicture" { pictures += 1; }
+                    if env == "tikzpicture" {
+                        pictures += 1;
+                    }
                     stack.push((env.into(), e.state.clone()));
                     if env == "pgfonlayer" {
                         let layer = cur.group('{', '}')?.trim();
@@ -191,18 +193,34 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
                         let mut regular = Vec::new();
                         for option in crate::syntax::split_top(opts, ',') {
                             if let Some((key, value)) = option.split_once('=')
-                                && key.trim() == "transform canvas" {
-                                for shift in crate::syntax::split_top(crate::syntax::unbrace(value), ',') {
-                                    let (key, value) = shift.split_once('=').ok_or("canvas translation requires a value")?;
+                                && key.trim() == "transform canvas"
+                            {
+                                for shift in
+                                    crate::syntax::split_top(crate::syntax::unbrace(value), ',')
+                                {
+                                    let (key, value) = shift
+                                        .split_once('=')
+                                        .ok_or("canvas translation requires a value")?;
                                     if !["shift", "xshift", "yshift"].contains(&key.trim()) {
-                                        return Err("Unsupported canvas transform (translations only)".into());
+                                        return Err(
+                                            "Unsupported canvas transform (translations only)"
+                                                .into(),
+                                        );
                                     }
                                     let matrix = Matrix::option(key.trim(), value.trim())?.unwrap();
-                                    e.state.canvas_shift = e.state.canvas_shift.add(Point {x: matrix.0[4], y: matrix.0[5]});
+                                    e.state.canvas_shift = e.state.canvas_shift.add(Point {
+                                        x: matrix.0[4],
+                                        y: matrix.0[5],
+                                    });
                                 }
-                            } else { regular.push(option); }
+                            } else {
+                                regular.push(option);
+                            }
                         }
-                        e.state.options = e.state.styles.resolve(&regular.join(","), &e.state.options)?;
+                        e.state.options = e
+                            .state
+                            .styles
+                            .resolve(&regular.join(","), &e.state.options)?;
                     }
                 }
                 "end" => {
@@ -217,7 +235,8 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
                         // Only offer an insertion point in literal source, never
                         // inside a macro/loop expansion or a generated environment.
                         if source.get(start..end).map(crate::syntax::clean).as_deref()
-                            == Some(&expanded.text[at..cur.pos]) {
+                            == Some(&expanded.text[at..cur.pos])
+                        {
                             insertion = Some(start);
                         }
                     }
@@ -241,14 +260,25 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
                     e.declared_layers.insert(name.into());
                 }
                 "pgfsetlayers" => {
-                    let layers: Vec<String> = cur.group('{', '}')?.split(',').map(|s| s.trim().into()).collect();
-                    if !layers.iter().any(|s| s == "main") || layers.iter().any(|s| !e.declared_layers.contains(s))
-                        || layers.iter().collect::<BTreeSet<_>>().len() != layers.len() {
-                        return Err("layer order requires declared, unique layers including main".into());
+                    let layers: Vec<String> = cur
+                        .group('{', '}')?
+                        .split(',')
+                        .map(|s| s.trim().into())
+                        .collect();
+                    if !layers.iter().any(|s| s == "main")
+                        || layers.iter().any(|s| !e.declared_layers.contains(s))
+                        || layers.iter().collect::<BTreeSet<_>>().len() != layers.len()
+                    {
+                        return Err(
+                            "layer order requires declared, unique layers including main".into(),
+                        );
                     }
                     e.layers = layers;
                 }
-                "matrix" => { object_kind = Some("matrix"); e.matrix(&mut cur)?; }
+                "matrix" => {
+                    object_kind = Some("matrix");
+                    e.matrix(&mut cur)?;
+                }
                 "node" => {
                     object_kind = Some("node");
                     let pending = e.parse_node(&mut cur, false)?;
@@ -283,7 +313,9 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
                     );
                 }
                 "draw" | "path" | "fill" | "filldraw" | "clip" => {
-                    if cmd != "clip" { object_kind = Some("path"); }
+                    if cmd != "clip" {
+                        object_kind = Some("path");
+                    }
                     let saved = e.state.clone();
                     let result = e.path(&mut cur, cmd);
                     let clips = e.state.clips.clone();
@@ -305,16 +337,19 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
         let shift = e.state.canvas_shift;
         if object_kind.is_some() && (shift.x != 0. || shift.y != 0.) {
             for (_, element) in &mut e.elements[first_element..] {
-                *element = format!("<g transform=\"translate({:.5},{:.5})\">{element}</g>", shift.x, -shift.y);
+                *element = format!(
+                    "<g transform=\"translate({:.5},{:.5})\">{element}</g>",
+                    shift.x, -shift.y
+                );
             }
             e.bbox.min = e.bbox.min.add(shift);
             e.bbox.max = e.bbox.max.add(shift);
             for node in &mut e.editing[first_node..] {
-                for (key, delta) in [("x",shift.x),("y",shift.y)] {
-                    node[key] = (node[key].as_f64().unwrap()+delta).into();
+                for (key, delta) in [("x", shift.x), ("y", shift.y)] {
+                    node[key] = (node[key].as_f64().unwrap() + delta).into();
                 }
-                node["bounds"][0] = (node["bounds"][0].as_f64().unwrap()+shift.x).into();
-                node["bounds"][1] = (node["bounds"][1].as_f64().unwrap()-shift.y).into();
+                node["bounds"][0] = (node["bounds"][0].as_f64().unwrap() + shift.x).into();
+                node["bounds"][1] = (node["bounds"][1].as_f64().unwrap() - shift.y).into();
             }
         }
         for (id, bounds) in &e.state.clips {
@@ -327,15 +362,25 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
             e.bbox.max.y = e.bbox.max.y.min(bounds.max.y);
         }
         for (background, _) in &e.elements[first_element..] {
-            e.element_layers.push(e.state.layer.clone().unwrap_or_else(|| if *background { "background".into() } else { "main".into() }));
+            e.element_layers
+                .push(e.state.layer.clone().unwrap_or_else(|| {
+                    if *background {
+                        "background".into()
+                    } else {
+                        "main".into()
+                    }
+                }));
         }
         if let Some(kind) = object_kind.filter(|_| e.elements.len() > first_element) {
             let start = expanded.origin(at);
             let end = expanded.origin(cur.pos - 1) + 1;
-            let literal = source.get(start..end).map(crate::syntax::clean).as_deref() == Some(&expanded.text[at..cur.pos]);
+            let literal = source.get(start..end).map(crate::syntax::clean).as_deref()
+                == Some(&expanded.text[at..cur.pos]);
             let layers = &e.element_layers[first_element..];
             let layer = &layers[0];
-            for node in &mut e.editing[first_node..] { node["objectId"] = start.into(); }
+            for node in &mut e.editing[first_node..] {
+                node["objectId"] = start.into();
+            }
             e.objects.push(serde_json::json!({
                 "id": start, "start": start, "end": end, "kind": kind,
                 "editable": literal && layers.iter().all(|l| l == layer),
@@ -366,20 +411,29 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
         // An empty document is a usable canvas for the first GUI insertion.
         // Keep the same blank artifact for preview and CLI/export.
         e.bbox.point(Point::default());
-        e.bbox.point(Point { x: 10. * CM, y: 6. * CM });
+        e.bbox.point(Point {
+            x: 10. * CM,
+            y: 6. * CM,
+        });
     }
     let border = 2. * 72. / 72.27;
     let w = (e.bbox.max.x - e.bbox.min.x + 2. * border).max(1.);
     let h = (e.bbox.max.y - e.bbox.min.y + 2. * border).max(1.);
     let rank = |name: &str| e.layers.iter().position(|l| l == name);
-    let mut elements: Vec<_> = e.elements.into_iter().zip(&e.element_layers)
-        .filter_map(|((_, svg), layer)| rank(layer).map(|r| (r, svg))).collect();
+    let mut elements: Vec<_> = e
+        .elements
+        .into_iter()
+        .zip(&e.element_layers)
+        .filter_map(|((_, svg), layer)| rank(layer).map(|r| (r, svg)))
+        .collect();
     elements.sort_by_key(|(r, _)| *r);
     let mut order: Vec<usize> = (0..e.objects.len()).collect();
     order.sort_by_key(|i| rank(e.objects[*i]["layer"].as_str().unwrap()));
     for (position, i) in order.into_iter().enumerate() {
         e.objects[i]["order"] = position.into();
-        e.objects[i]["visible"] = rank(e.objects[i]["layer"].as_str().unwrap()).is_some().into();
+        e.objects[i]["visible"] = rank(e.objects[i]["layer"].as_str().unwrap())
+            .is_some()
+            .into();
     }
     let body = format!(
         "<defs>{}{}</defs>{}",
