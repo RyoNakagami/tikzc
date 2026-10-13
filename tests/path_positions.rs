@@ -70,7 +70,7 @@ fn sloped_label_at_orthogonal_corner_follows_second_leg() {
 
 #[test]
 fn reported_feedback_label_is_centered_over_horizontal_leg() {
-    let source = include_str!("../notebook/test-jp.tikz");
+    let source = include_str!("fixtures/test-jp.tikz");
     let named = source.replace(
         "node[pos=0.25, above, sig]",
         "node[pos=0.25, above, sig] (feedback)",

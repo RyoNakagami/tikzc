@@ -291,7 +291,7 @@ test("all path handles edit relative routes, implicit corners and curve controls
         assert.ok(!edited.includes("++("),"dependent relative coordinates are materialized in the same undo edit");
       }
     }
-    const source=await readFile(path.join(root,"notebook/test-jp.tikz"),"utf8");
+    const source=await readFile(path.join(root,"tests/fixtures/test-jp.tikz"),"utf8");
     const artifact=await renderer.render({binary,source,dpi:72});
     for(const object of artifact.editing!.objects!.filter(o=>o.kind==="path"&&source.slice(o.start,o.end).startsWith("\\draw[->"))) {
       assert.ok(object.pathPoints!.some(p=>p.kind==="start"));

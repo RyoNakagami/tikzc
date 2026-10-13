@@ -79,7 +79,10 @@ fn notebook_svgs_have_unique_ids_valid_references_and_deterministic_output() {
     ] {
         let path =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("notebook/{name}.tikz"));
-        let source = std::fs::read_to_string(path).unwrap();
+        // CI runners only have the bundled fonts.
+        let source = std::fs::read_to_string(path)
+            .unwrap()
+            .replace("mainfont: Noto Sans CJK JP", "mainfont: IPAexGothic");
         let d = compile(&source).unwrap();
         check_references(&d.svg);
         assert_eq!(d.svg, compile(&source).unwrap().svg, "{name}");
