@@ -31,6 +31,13 @@ pub fn length(value: &str, unit: f64) -> Result<f64, String> {
     }
     Ok(result)
 }
+/// Whether a coordinate component carries its own unit (and so ignores `x=`/`y=`).
+pub fn has_unit(value: &str) -> bool {
+    let v = unbrace(value).trim();
+    ["cm", "mm", "pt", "bp", "in", "em", "ex"]
+        .iter()
+        .any(|suffix| v.ends_with(suffix))
+}
 pub fn number(value: &str) -> Result<f64, String> {
     length(value, 1.0)
 }
@@ -100,6 +107,13 @@ impl Styles {
                 output.insert("draw color".into(), key.into());
                 output.insert("text".into(), key.into());
                 continue;
+            }
+            // A colour mix that fails is reported as such, not as an unknown key.
+            if value.is_empty()
+                && key.contains('!')
+                && self.rgb(key.split('!').next().unwrap().trim()).is_ok()
+            {
+                self.color(key)?;
             }
             if [
                 "rectangle",
@@ -230,9 +244,37 @@ impl Styles {
                 "radius",
                 "x radius",
                 "y radius",
+                "x",
+                "y",
+                "z",
+                "on grid",
+                "domain",
+                "samples",
+                "variable",
+                "mark",
+                "mark size",
+                "only marks",
+                "name path",
+                "name path global",
+                "name intersections",
+                "postaction",
+                "shade",
+                "shading",
+                "shading angle",
+                "left color",
+                "right color",
+                "top color",
+                "bottom color",
+                "middle color",
+                "inner color",
+                "outer color",
             ];
             if !KEYS.contains(&key) {
                 return Err(format!("Unsupported option '{key}'"));
+            }
+            // `shift` is read in cm; it does not follow redefined unit vectors.
+            if key == "shift" && (output.contains_key("x") || output.contains_key("y")) {
+                return Err("Unsupported shift together with x/y unit vectors".into());
             }
             if let Some(local) = crate::transform::Matrix::option(key, value)? {
                 crate::transform::Matrix::from_options(output)?

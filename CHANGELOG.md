@@ -7,8 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-14
+
+### Added
+
+- Function plots: `plot (\x,{f(\x)})` with `domain`, `samples`, `variable`
+  and `smooth`, and plot marks `*`, `o`, `x`, `+` with `only marks` and
+  `mark size`.
+- Math: `exp`, `ln`, `log10`, `log2`, `sign`, `frac`, `sinh`, `cosh`, `tanh`,
+  the radian suffix `r`, comparisons, `&&`, `||`, `!`, `c ? a : b`,
+  `ifthenelse`, and `rnd` / `rand` / `random` with `\pgfmathsetseed`.
+  Random output is deterministic per seed and is not TeX's sequence.
+- `\pgfmathprintnumber` in PGF's default format and with `fixed`,
+  `precision` and `zerofill`.
+- `\foreach` options `evaluate` and `remember`, lists held in a macro, and
+  `foreach` as an operation inside a path.
+- `on grid`, `x=` / `y=` / `z=` unit vectors and `(x,y,z)` coordinates,
+  `grid[step=...]`.
+- `name path` and `name intersections` (`of`, `by`, `name`, `total`).
+- `decorations.markings` with `mark=at position ... with {...}` for arrows,
+  nodes and `\fill` / `\draw` paths.
+- `\shade` / `\shadedraw` with left/right, top/bottom (and middle) and
+  inner/outer colours.
+- Math notation: `\mathbf`, `\operatorname`, `\partial`, `\sqrt`,
+  `\underset` / `\overset`, `\odot` / `\otimes` / `\oplus`, `\cap`,
+  `\langle` / `\rangle`, `pmatrix` / `bmatrix`, `\underbrace`.
+- `Diagram::labels` in the library API.
+- Test suites `tests/ds_*.rs` for data-science diagrams, with fixtures
+  `tests/fixtures/ds-*.tikz` and reference values taken from TeX.
+
+### Changed
+
+- A single distance on a diagonal placement (`above right=1cm of a`) now
+  moves 1/√2 of it on each axis, as PGF does; it used to move the full
+  distance on both.
+- A path that starts with an operation (`\draw circle (1);`) starts at the
+  origin of the current coordinate system instead of the canvas origin.
+- Path diagnostics point at the operation or option they are about instead
+  of the start of the command.
+- Renamed the supported clip, matrix, pattern, coordinate-plot and shading
+  fixtures to remove the `unsupported-` prefix. Updated test references and
+  documentation, and included all five in SVG determinism and PNG rendering
+  checks.
+- VSCode extension: source offset conversion and node/object ID checks now use
+  linear scans to reduce editing-metadata overhead on large diagrams.
+
 ### Fixed
 
+- Number formatting preserves large integers and rounds decimal ties without
+  a magnitude-dependent floating-point bias.
+- Removed unnecessary closure borrows in foreach error handling that caused
+  Clippy's `needless_borrows_for_generic_args` lint to fail CI with warnings
+  treated as errors.
+- Unit-bearing circle, ellipse and arc radius options ignore axis unit vectors,
+  consistently with the parenthesized radius syntax.
+- Marking paths no longer recurse through inherited decoration actions; errors
+  inside marks point to the enclosing decoration, and explicit nesting is refused.
+- Intersection limits count disjoint segment pairs as well as overlapping ones.
+- `log10` and `atan2` were listed as math functions but could not be parsed.
+- VSCode extension: closing the preview cancels its version check and queued
+  renders; late completions and idle timers cannot start or stop a worker after
+  the preview is reopened.
 - VSCode extension: the `tikzc` executable is now accepted or refused by its
   reported version. Every version from 1.0.0 on is accepted; a 0.x build gets
   a `tikzc … is older than 1.0.0` message instead of being misreported as
@@ -356,7 +415,8 @@ Initial release.
 - Docs: manual (EN / JP), branch strategy, commit rules, testing guide, and
   versioning policy.
 
-[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/RyoNakagami/tikzc/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/RyoNakagami/tikzc/compare/v0.3.3...v1.0.0
 [0.3.3]: https://github.com/RyoNakagami/tikzc/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/RyoNakagami/tikzc/compare/v0.3.1...v0.3.2

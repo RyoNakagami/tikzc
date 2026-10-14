@@ -16,20 +16,37 @@ impl Engine<'_> {
         if let Some(style) = self.state.styles.definitions.get("every path").cloned() {
             options = self.state.styles.resolve(&style, &options)?;
         }
+        if self.synthetic {
+            // Mark paths inherit paint, but must not recursively run the
+            // enclosing scope's or every path style's decoration actions.
+            options.remove("decorate");
+            options.remove("postaction");
+        }
         cur.ws();
         if cur.rest().starts_with('[') {
-            let s = cur.group('[', ']')?;
-            options = self.state.styles.resolve(s, &options)?;
+            options = self.options(cur, &options)?;
         }
         if command == "fill" || command == "filldraw" {
             options.entry("fill".into()).or_default();
         }
-        self.state.options = options.clone();
-        let draw = command == "draw" || command == "filldraw";
+        let shade = super::shading::requested(command, &options);
+        // Intersections are computed where the option is given, from the
+        // paths named so far.
+        let intersections = options
+            .get("name intersections")
+            .filter(|spec| self.state.options.get("name intersections") != Some(*spec))
+            .cloned();
+        if let Some(spec) = &intersections {
+            self.name_intersections(spec)?;
+        }
+        let outer = std::mem::replace(&mut self.state.options, options.clone());
+        let draw = command == "draw" || command == "filldraw" || command == "shadedraw";
+        let mut marks: Vec<String> = Vec::new();
         let mut points: Vec<Point> = Vec::new();
         let mut d = String::new();
-        let mut current = Point::default();
-        let mut relative_base = Point::default();
+        // A path that starts with an operation starts at the local origin.
+        let mut current = self.transform(Point::default(), &options)?;
+        let mut relative_base = current;
         let mut previous_name: Option<String> = None;
         let mut deferred: Vec<Pending> = Vec::new();
         let mut closed = false;
@@ -41,6 +58,10 @@ impl Engine<'_> {
         let mut normalizations = Vec::new();
         loop {
             cur.ws();
+            // Failures below are reported at the operation they occur in.
+            if !self.synthetic {
+                self.error_at.set(Some(cur.pos));
+            }
             if cur.eat(";") {
                 break;
             }
@@ -154,6 +175,14 @@ impl Engine<'_> {
             }
             match operation {
                 "grid" => {
+                    let mut options = options.clone();
+                    cur.ws();
+                    if cur.rest().starts_with('[') {
+                        options = self.options(cur, &options)?;
+                    }
+                    if self.uses_unit_vectors() {
+                        return Err("Unsupported grid with x/y unit vectors".into());
+                    }
                     let end = self.read_point(cur, current)?.0;
                     let matrix = Matrix::from_options(&self.state.options)?;
                     let [sx, sy] = matrix.inverse_point(current.x, current.y);
@@ -220,23 +249,55 @@ impl Engine<'_> {
                     let mut opts = options.clone();
                     cur.ws();
                     if cur.rest().starts_with('[') {
-                        opts = self.state.styles.resolve(cur.group('[', ']')?, &opts)?;
+                        opts = self.options(cur, &opts)?;
                     }
-                    if !cur.eat("coordinates") {
-                        return Err(
-                            "Unsupported plot (only explicit coordinates are supported)".into()
-                        );
+                    let only_marks =
+                        opts.contains_key("only marks") && get(&opts, "only marks", "") != "false";
+                    let marked = !["", "none"].contains(&get(&opts, "mark", "").trim());
+                    if only_marks && !marked {
+                        self.fail_at_option("only marks");
+                        return Err("only marks needs a mark (mark=*, o, x or +)".into());
                     }
-                    let mut coords = Cursor::new(cur.group('{', '}')?);
-                    let mut samples = Vec::new();
-                    while !coords.rest().trim().is_empty() {
-                        if samples.len() >= 10000 {
-                            return Err("plot exceeds 10000 coordinates".into());
+                    let samples = if cur.eat("coordinates") {
+                        let mut coords = Cursor::new(cur.group('{', '}')?);
+                        let mut samples = Vec::new();
+                        while !coords.rest().trim().is_empty() {
+                            if samples.len() >= super::plot::MAX_POINTS {
+                                return Err("plot exceeds 10000 coordinates".into());
+                            }
+                            samples.push(self.read_point(&mut coords, Point::default())?.0);
                         }
-                        samples.push(self.read_point(&mut coords, Point::default())?.0);
-                    }
-                    if samples.len() < 2 {
+                        samples
+                    } else if cur.eat("file") {
+                        // Diagram sources never read other files (ARCHITRECTURE.md, Article 3).
+                        return Err(
+                            "Unsupported plot file (a diagram cannot read other files; use plot coordinates {...})"
+                                .into(),
+                        );
+                    } else if cur.eat("function") {
+                        return Err(
+                            "Unsupported plot function (gnuplot is never run; use plot (\\x,{...}))"
+                                .into(),
+                        );
+                    } else if cur.rest().trim_start().starts_with('(') {
+                        self.plot_function(cur.group('(', ')')?, &opts)?
+                    } else {
+                        return Err(
+                            "Unsupported plot (expected coordinates or a (\\x,{f(\\x)}) expression)"
+                                .into(),
+                        );
+                    };
+                    if samples.len() < if only_marks { 1 } else { 2 } {
                         return Err("plot needs at least two coordinates".into());
+                    }
+                    if marked {
+                        marks.push(self.plot_marks(&samples, &opts)?);
+                    }
+                    if only_marks {
+                        current = *samples.last().unwrap();
+                        relative_base = current;
+                        previous_name = None;
+                        continue;
                     }
                     last_segment = points.len();
                     if operation == "plot line" && !points.is_empty() {
@@ -289,7 +350,7 @@ impl Engine<'_> {
                     if operation == "to" {
                         cur.ws();
                         if cur.rest().starts_with('[') {
-                            curve = self.state.styles.resolve(cur.group('[', ']')?, &curve)?;
+                            curve = self.options(cur, &curve)?;
                         }
                     }
                     if operation == "bezier" {
@@ -524,12 +585,11 @@ impl Engine<'_> {
                             .state
                             .styles
                             .resolve(cur.group('[', ']')?, &Values::new())?;
-                        let r = radius(&o, "radius", CM)?;
-                        (radius(&o, "x radius", r)?, radius(&o, "y radius", r)?)
+                        self.radii(&o)?
                     } else {
                         let radius = cur.group('(', ')')?;
                         let (r1, r2) = radius.split_once(" and ").unwrap_or((radius, radius));
-                        (length(r1, CM)?, length(r2, CM)?)
+                        (self.radius_length(r1, 0)?, self.radius_length(r2, 1)?)
                     };
                     if rx <= 0. || ry <= 0. {
                         return Err("radius must be positive".into());
@@ -553,12 +613,12 @@ impl Engine<'_> {
                             .state
                             .styles
                             .resolve(cur.group('[', ']')?, &Values::new())?;
-                        let r = radius(&o, "radius", CM)?;
+                        let (rx, ry) = self.radii(&o)?;
                         (
                             dim(&o, "start angle", 0.)?,
                             dim(&o, "end angle", 90.)?,
-                            radius(&o, "x radius", r)?,
-                            radius(&o, "y radius", r)?,
+                            rx,
+                            ry,
                         )
                     } else {
                         let s = cur.group('(', ')')?;
@@ -566,8 +626,12 @@ impl Engine<'_> {
                         if v.len() != 3 {
                             return Err("arc requires (start:end:radius)".into());
                         }
-                        let r = length(v[2], CM)?;
-                        (number(v[0])?, number(v[1])?, r, r)
+                        (
+                            number(v[0])?,
+                            number(v[1])?,
+                            self.radius_length(v[2], 0)?,
+                            self.radius_length(v[2], 1)?,
+                        )
                     };
                     let a = start.to_radians();
                     if rx <= 0. || ry <= 0. || (end - start).abs() >= 360. {
@@ -596,15 +660,40 @@ impl Engine<'_> {
                 }
             }
         }
+        if !self.synthetic {
+            self.error_at.set(None);
+        }
         if !deferred.is_empty() {
             return Err("path node has no segment".into());
         }
-        if points.is_empty() && self.elements.len() == element_start {
-            return Err("empty path".into());
+        if points.is_empty() && self.elements.len() == element_start && marks.is_empty() {
+            // `\path[name intersections=...];` only defines coordinates.
+            return if intersections.is_some() {
+                Ok(())
+            } else {
+                Err("empty path".into())
+            };
+        }
+        // The geometry as written, before shortening, rounding or decoration.
+        let outline = d.clone();
+        if command != "clip"
+            && let Some(name) = options
+                .get("name path")
+                .or_else(|| options.get("name path global"))
+        {
+            self.named_paths.insert(
+                name.trim().to_owned(),
+                super::intersections::flatten(&outline)?,
+            );
         }
         // Source ranges come from the parser, never from searching label text.
         // Materialize relative coordinates when editing so other vertices stay put.
-        if editable_endpoints && ends_with_coordinate && !closed && endpoint_ranges.len() >= 2 {
+        if editable_endpoints
+            && ends_with_coordinate
+            && !closed
+            && endpoint_ranges.len() >= 2
+            && !self.synthetic
+        {
             for (index, (&range, &point)) in endpoint_ranges.iter().zip(&vertices).enumerate() {
                 let kind = if index == 0 {
                     "start"
@@ -660,7 +749,27 @@ impl Engine<'_> {
             return Ok(());
         }
         let polyline = !closed && !d.contains(" C ") && d.matches(" M ").count() == 1;
-        if options.contains_key("decorate") && get(&options, "decorate", "") != "false" {
+        let decoration = get(&options, "decoration", "").to_owned();
+        let markings = split_top(&decoration, ',')
+            .first()
+            .is_some_and(|kind| kind.trim() == "markings");
+        let decorate = options.contains_key("decorate") && get(&options, "decorate", "") != "false";
+        let postaction = match options.get("postaction").map(|v| crate::syntax::unbrace(v)) {
+            None => false,
+            Some(action) if action.trim() == "decorate" && markings => true,
+            Some(_) => {
+                self.fail_at_option("postaction");
+                return Err(
+                    "Unsupported postaction (only decorate with a markings decoration)".into(),
+                );
+            }
+        };
+        // `decorate` replaces the path by its marks; a postaction adds them.
+        let hidden = decorate && markings;
+        if hidden {
+            d.clear();
+            points.clear();
+        } else if decorate {
             if !polyline
                 || points.len() != 2
                 || start_arrow.is_some()
@@ -673,9 +782,10 @@ impl Engine<'_> {
             d = self.brace(points[0], points[1], get(&options, "decoration", ""))?;
         }
         let mut tips = None;
-        if short_start != 0.
-            || short_end != 0.
-            || (!closed && (start_arrow.is_some() || end_arrow.is_some()))
+        if !hidden
+            && (short_start != 0.
+                || short_end != 0.
+                || (!closed && (start_arrow.is_some() || end_arrow.is_some())))
         {
             let mut geometry = crate::curve::Path::parse(&d)?;
             geometry.shorten(short_start, short_end)?;
@@ -709,6 +819,9 @@ impl Engine<'_> {
         }
         let background = options.contains_key("on background layer");
         let labels = self.elements.split_off(element_start);
+        if shade && let Some(paint) = self.shading(&outline, &options)? {
+            options.insert("_shade".into(), paint);
+        }
         let paint = self.paint(&options, draw)?;
         // Rounded corners for a polyline; curves already carry their own geometry.
         if options.contains_key("rounded corners")
@@ -742,7 +855,7 @@ impl Engine<'_> {
                 background,
                 format!("<path d=\"{d}\" {}/>", self.paint(&inside, true)?),
             ));
-        } else {
+        } else if !d.trim().is_empty() || (marks.is_empty() && !hidden) {
             self.elements
                 .push((background, format!("<path d=\"{d}\" {paint}/>")));
         }
@@ -754,6 +867,11 @@ impl Engine<'_> {
             if let Some(arrow) = start_arrow {
                 self.arrow(point(tips[0].0), point(tips[0].1), &options, &arrow)?;
             }
+        }
+        self.elements
+            .extend(marks.into_iter().map(|mark| (background, mark)));
+        if markings && (decorate || postaction) {
+            self.markings(&outline, &decoration, &options, &outer)?;
         }
         self.elements.extend(labels);
         Ok(())
@@ -964,10 +1082,6 @@ pub(super) fn ellipse_curve(
             )
         })
         .collect()
-}
-
-pub(super) fn radius(o: &Values, key: &str, default: f64) -> Result<f64, String> {
-    o.get(key).map(|v| length(v, CM)).unwrap_or(Ok(default))
 }
 
 #[derive(Clone, Copy)]

@@ -2,7 +2,7 @@
   "name": "tikzc-preview",
   "displayName": "TikZc Editor",
   "description": "Rust-native TikZ preview with canvas editing and identical SVG/PNG exports",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "RyoNak",
   "license": "MIT",
   "repository": {

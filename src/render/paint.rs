@@ -14,7 +14,9 @@ impl Engine<'_> {
         } else {
             "none".into()
         };
-        let fill = if let Some(pattern) = o.get("pattern") {
+        let fill = if let Some(shade) = o.get("_shade") {
+            shade.clone()
+        } else if let Some(pattern) = o.get("pattern") {
             let motif = match pattern.as_str() {
                 "north east lines" => "<path d=\"M -1,1 L 4,-4 M -1,4 L 4,-1 M -1,7 L 4,2\"/>",
                 "north west lines" => "<path d=\"M -1,2 L 4,7 M -1,-1 L 4,4 M -1,-4 L 4,1\"/>",

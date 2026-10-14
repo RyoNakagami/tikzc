@@ -1,0 +1,8 @@
+\begin{tikzpicture}
+  \pgfmathsetseed{42}
+  \foreach \i in {1,...,20} {
+    \pgfmathsetmacro{\x}{3*rnd}
+    \pgfmathsetmacro{\y}{rand}
+    \fill (\x,\y) circle (1pt);
+  }
+\end{tikzpicture}

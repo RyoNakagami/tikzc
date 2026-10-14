@@ -1,0 +1,14 @@
+\begin{tikzpicture}
+  \node at (0,0)    {$\hat{\beta} = (X^\top X)^{-1} X^\top y$};
+  \node at (0,-1)   {$\mathbb{E}[Y \mid X]$};
+  \node at (0,-2)   {$\varepsilon \sim \mathcal{N}(0, \sigma^2)$};
+  \node at (0,-3)   {$\boldsymbol{\theta}, \mathbf{W}^{(l)}$};
+  \node at (0,-4)   {$\mathcal{L}(\theta) = -\sum_{i=1}^{n} \log p(y_i \mid x_i)$};
+  \node at (0,-5)   {$\operatorname{softmax}(z)_k$};
+  \node at (0,-6)   {$\bar{y}, \tilde{x}, \hat{p}$};
+  \node at (0,-7)   {$\mathrm{do}(X = x)$};
+  \node at (0,-8)   {$Y \perp\!\!\!\perp X \mid Z$};
+  \node at (0,-9)   {$\arg\max_{\theta}$};
+  \node at (0,-10)  {$\|w\|_2^2$};
+  \node at (0,-11)  {$\frac{\partial \mathcal{L}}{\partial w}$};
+\end{tikzpicture}

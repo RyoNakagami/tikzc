@@ -125,8 +125,13 @@ export function deleteObject(source: string, metadata: EditingMetadata, id: numb
 
 export function canArrange(metadata: EditingMetadata): boolean {
   const objects = metadata.objects ?? [];
+  const ids = new Set<number>();
   return metadata.insertionOffset != null && objects.length > 1 &&
-    objects.every(o => o.editable && o.visible && objects.filter(other => other.id === o.id).length === 1);
+    objects.every(object => {
+      if (!object.editable || !object.visible || ids.has(object.id)) return false;
+      ids.add(object.id);
+      return true;
+    });
 }
 
 /** PGF layers change paint order without moving declarations or crossing scopes. */

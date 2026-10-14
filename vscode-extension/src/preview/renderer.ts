@@ -1,5 +1,6 @@
 import { NativeWorker } from "./worker";
 import type { EditingMetadata } from "./editing";
+import { sourceOffsets } from "./source-offsets";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -32,14 +33,26 @@ export class RustRenderer {
   private tail: Promise<unknown> = Promise.resolve();
   private idle?: ReturnType<typeof setTimeout>;
   private warned = new Set<string>();
+  private lifecycle = new AbortController();
   /** A binary whose major.minor differs from the extension still renders; `warn` reports it once per binary. */
   constructor(private extensionVersion?: string, private warn?: (message: string) => void) {}
-  dispose(): void { clearTimeout(this.idle); this.worker?.dispose(); this.worker = undefined; this.cache.clear(); }
+  dispose(): void {
+    this.lifecycle.abort(new Error("Native rendering cancelled."));
+    this.lifecycle = new AbortController();
+    clearTimeout(this.idle);
+    this.idle = undefined;
+    this.worker?.dispose();
+    this.worker = undefined;
+    this.cache.clear();
+    // Reopening must not wait for work belonging to the closed panel.
+    this.tail = Promise.resolve();
+  }
   render(request: RenderRequest): Promise<RenderArtifact> {
     const key = JSON.stringify(request);
     const cached = this.cache.get(key);
     if (cached) { this.cache.delete(key); this.cache.set(key, cached); return cached; }
-    const result = this.tail.then(() => this.renderFresh(request));
+    const signal = this.lifecycle.signal;
+    const result = this.tail.then(() => this.renderFresh(request, signal));
     this.tail = result.catch(() => {});
     this.cache.set(key, result);
     while (this.cache.size > 8) this.cache.delete(this.cache.keys().next().value!);
@@ -52,39 +65,54 @@ export class RustRenderer {
     this.warned.add(binary);
     this.warn?.(`tikzc ${found} (${binary}) does not match extension ${expected}. Reinstall it with ${INSTALL_COMMAND}.`);
   }
-  private async renderFresh(request: RenderRequest): Promise<RenderArtifact> {
+  private async renderFresh(request: RenderRequest, signal: AbortSignal): Promise<RenderArtifact> {
+    signal.throwIfAborted();
     const {source, prefix} = prepareSource(request);
     clearTimeout(this.idle);
     if (this.binary !== request.binary || !this.worker?.alive) {
       this.worker?.dispose();
       let version;
       try {
-        version = await run(request.binary, ["--version"], { timeout: 60_000, maxBuffer: 1024*1024, windowsHide: true });
+        version = await run(request.binary, ["--version"], { signal, timeout: 60_000, maxBuffer: 1024*1024, windowsHide: true });
       } catch (error) {
+        signal.throwIfAborted();
         throw new Error(cannotRun(request.binary, error));
       }
+      signal.throwIfAborted();
       const found = /^tikzc ((\d+)\.\S*)/.exec(version.stdout);
       if (!found) throw new Error(notTikzc(request.binary));
       // Every tikzc from 1.0.0 on is accepted; only pre-1.0 builds are refused.
       if (Number(found[2]) < 1) throw new Error(tooOld(request.binary, found[1]));
       this.checkVersion(request.binary, version.stdout);
+      signal.throwIfAborted();
       this.binary = request.binary; this.worker = new NativeWorker(request.binary);
     }
+    const worker = this.worker;
     try {
-      const result = await this.worker.request(source, request.dpi);
+      const result = await worker.request(source, request.dpi);
+      signal.throwIfAborted();
       const editing = result.editing as EditingMetadata | undefined;
       if (editing) {
-        const bytes = Buffer.from(source, "utf8");
-        const offset = (n: number) => bytes.subarray(0,n).toString("utf8").length-prefix.length;
+        const offset = sourceOffsets(source, prefix.length);
         editing.nodes = editing.nodes.filter(n => offset(n.start) >= 0).map(n => ({...n, id: offset(n.id), start: offset(n.start), labelStart: offset(n.labelStart), end: offset(n.end), objectId: n.objectId == null ? undefined : offset(n.objectId)}));
         if (editing.objects) editing.objects = editing.objects.map(o => ({...o,id:offset(o.id),start:offset(o.start),end:offset(o.end),endpoints:o.endpoints?.map(p=>({...p,start:offset(p.start),end:offset(p.end)})),pathPoints:o.pathPoints?.map(p=>({...p,start:offset(p.start),end:offset(p.end)})),pathNormalizations:o.pathNormalizations?.map(p=>({...p,start:offset(p.start),end:offset(p.end)}))}));
         if (editing.insertionOffset != null) editing.insertionOffset = offset(editing.insertionOffset);
       }
       return {svg: result.svg, png: Buffer.from(result.png), editing};
     } catch (error) {
+      signal.throwIfAborted();
       throw new Error(String(error).replace(/document\.tikz:(\d+):(\d+):/, (_, line: string, column: string) => `document.tikz:${Math.max(1, Number(line)-prefix.split("\n").length+1)}:${column}:`));
     } finally {
-      this.idle = setTimeout(() => { this.worker?.dispose(); this.worker = undefined; }, 60_000); this.idle.unref();
+      // Completion of an old request must not install a timer on a new worker.
+      if (!signal.aborted && this.worker === worker) {
+        this.idle = setTimeout(() => {
+          if (!signal.aborted && this.worker === worker) {
+            worker.dispose();
+            this.worker = undefined;
+          }
+        }, 60_000);
+        this.idle.unref();
+      }
     }
   }
 }

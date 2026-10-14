@@ -1,0 +1,7 @@
+\begin{tikzpicture}
+  \pgfmathsetmacro{\acc}{0.85669}
+  \node (a) at (0,0)  {\pgfmathprintnumber[fixed,precision=2]{\acc}};
+  \node (b) at (0,-1) {\pgfmathprintnumber[fixed,precision=3,zerofill]{0.5}};
+  \node (c) at (0,-2) {\pgfmathprintnumber{1234567}};
+  \node (d) at (0,-3) {\pgfmathprintnumber[fixed,precision=1]{-0.04}};
+\end{tikzpicture}

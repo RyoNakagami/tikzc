@@ -25,6 +25,11 @@
 | `shading` / `\shade` | 色のグラデーション．fixture は矩形の赤→青 | 図の意味より外観の改善が中心となる場合は後順位．単純な線形 gradient と汎用 shading を分ける．[仕様](https://tikz.dev/tikz-actions) |
 | `star` shape | 星形ノード．fixture は星形の中に文字を置く | 注目点・特殊な記号で必要になった時に追加．描画だけでなく文字の内包，アンカー，接続境界まで対象にする．[仕様](https://tikz.dev/library-shapes) |
 
+2026-10-14 追記: 上表のうち `intersections`（`name path` と `name intersections` による
+直線・折れ線・plot・曲線の交点）と `shading`（線形・放射 gradient）は限定対応済み．
+`shading=ball` や交点の `sort by` などは引き続き診断になる．範囲は
+[対応範囲](RUST_ENGINE.md#native-compatibility-contract)を参照．
+
 `graphs` と `graphdrawing` は別である．前者の構文を読むだけでは，後者の
 layered/force/tree 等の自動配置を実装したことにならない．Rust-only の契約では
 必要な配置処理を Rust 内に実装・導入する設計判断が必要になる．[Graph drawing の仕様](https://tikz.dev/gd-usage-tikz)

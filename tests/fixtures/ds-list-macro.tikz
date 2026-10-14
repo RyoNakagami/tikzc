@@ -1,0 +1,15 @@
+\begin{tikzpicture}
+  \def\layers{3,5,2}
+  \foreach \n [count=\l] in \layers {
+    \foreach \i in {1,...,\n} {
+      \pgfmathsetmacro{\y}{\i-(\n+1)/2}
+      \node[circle,draw,minimum size=6mm] (n-\l-\i) at (2*\l,\y) {};
+    }
+  }
+  \foreach \l/\a/\b in {1/3/5,2/5/2} {
+    \pgfmathtruncatemacro{\m}{\l+1}
+    \foreach \i in {1,...,\a}
+      \foreach \j in {1,...,\b}
+        \draw[gray] (n-\l-\i) -- (n-\m-\j);
+  }
+\end{tikzpicture}

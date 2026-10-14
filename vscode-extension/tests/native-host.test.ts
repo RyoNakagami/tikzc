@@ -39,7 +39,14 @@ test("native host preview and both export commands use identical dirty-buffer sn
       fs: { writeFile: async (_: unknown, bytes: Buffer) => { writes.push(bytes); } },
     },
   };
-  const artifact = { svg: '<svg xmlns="http://www.w3.org/2000/svg"><path d="M1 2"/></svg>', png: Buffer.from([1, 2, 3]) };
+  const nodes = Array.from({ length: 1000 }, (_, id) => ({
+    id, start: 0, labelStart: 0, end: source.length, font: "", fontSize: 10,
+    x: 0, y: 0, bounds: [0, 0, 10, 10], moveMatrix: [1, 0, 0, 1],
+  }));
+  const artifact = {
+    svg: '<svg xmlns="http://www.w3.org/2000/svg"><path d="M1 2"/></svg>', png: Buffer.from([1, 2, 3]),
+    editing: { viewBox: [0, 0, 100, 100], nodes: [...nodes, nodes[7], nodes[999]] },
+  };
   class RustRenderer { async render(request: unknown) { requests.push(request); return artifact; } }
   const module = { exports: {} as { activateNativePreview: (ctx: unknown) => void } };
   const require = createRequire(import.meta.url);
@@ -52,6 +59,9 @@ test("native host preview and both export commands use identical dirty-buffer sn
   const rendered = messages.find((message) => message.type === "render");
   assert.equal(rendered.svg, artifact.svg);
   assert.equal(rendered.png, artifact.png.toString("base64"));
+  assert.deepEqual(Array.from(rendered.editing.nodes, (node: { id: number }) => node.id),
+    nodes.filter(node => node.id !== 7 && node.id !== 999).map(node => node.id),
+    "all occurrences of ambiguous IDs are excluded without changing the order of unique nodes");
   assert.equal(requests[0].source, source);
   assert.equal(requests[0].mainfont, config.mainfont);
   assert.equal(requests[0].binary, config.nativePath);

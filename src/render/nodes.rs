@@ -230,8 +230,7 @@ impl Engine<'_> {
         loop {
             cur.ws();
             if cur.rest().starts_with('[') {
-                let opts = cur.group('[', ']')?;
-                options = self.state.styles.resolve(opts, &options)?;
+                options = self.options(cur, &options)?;
             } else if cur.eat("at") {
                 point = Some(self.read_point(cur, Point::default())?.0);
             } else if cur.rest().starts_with('(') {
@@ -254,13 +253,16 @@ impl Engine<'_> {
         let source_label = self.expanded.origin(label_start);
         let source_end = self.expanded.origin(cur.pos - 1) + 1;
         // Generated macro bodies/expanded labels cannot be edited unambiguously.
-        let edit_source = (self
-            .original
-            .get(source_start..source_end)
-            .map(crate::syntax::clean)
-            .as_deref()
-            == Some(&cur.source[edit_start..cur.pos]))
+        let edit_source = (!self.synthetic
+            && self
+                .original
+                .get(source_start..source_end)
+                .map(crate::syntax::clean)
+                .as_deref()
+                == Some(&cur.source[edit_start..cur.pos]))
         .then_some((source_start, source_label, source_end));
+        let label = self.late_text(label);
+        self.labels.push(label.trim().to_owned());
         if ["matrix of nodes", "nodes", "row sep", "column sep"]
             .iter()
             .any(|k| options.contains_key(*k))
@@ -287,7 +289,7 @@ impl Engine<'_> {
         options.insert("_node dy".into(), dy.to_string());
         let label = self
             .text
-            .layout(label, &options, &self.state.styles, &self.mainfont)?;
+            .layout(&label, &options, &self.state.styles, &self.mainfont)?;
         if name.is_none() {
             name = options.get("name").cloned();
         }
@@ -375,6 +377,8 @@ impl Engine<'_> {
         let mut center = p.point.or(path_point).unwrap_or_default();
         let mut anchor = get(o, "anchor", "center").to_owned();
         let mut placement = false;
+        // `on grid`: distances run between centers, whatever the node sizes.
+        let on_grid = o.contains_key("on grid") && get(o, "on grid", "") != "false";
         for (key, dx, dy) in [
             ("above", 0., 1.),
             ("below", 0., -1.),
@@ -395,12 +399,28 @@ impl Engine<'_> {
                         dist
                     };
                     let ds: Vec<_> = d.split(" and ").collect();
-                    let vertical = length(ds[0], CM)?;
-                    let horizontal = length(ds.get(1).unwrap_or(&ds[0]), CM)?;
+                    // One distance for a diagonal is measured along the
+                    // diagonal: PGF shifts each axis by 1/sqrt(2) of it.
+                    let factor = if ds.len() == 1 && dx != 0. && dy != 0. {
+                        std::f64::consts::FRAC_1_SQRT_2
+                    } else {
+                        1.
+                    };
+                    let vertical = length(ds[0], CM)? * factor;
+                    let horizontal = length(ds.get(1).unwrap_or(&ds[0]), CM)? * factor;
+                    if on_grid && o.contains_key("fit") {
+                        self.fail_at_option("fit");
+                        return Err(
+                            "Unsupported fit with 'of' placement on grid (use on grid=false)"
+                                .into(),
+                        );
+                    }
                     let (name, ref_anchor) =
                         target.trim().split_once('.').unwrap_or((target.trim(), ""));
                     center = if let Some(n) = self.nodes.get(name) {
-                        if ref_anchor.is_empty() {
+                        if ref_anchor.is_empty() && on_grid {
+                            n.center
+                        } else if ref_anchor.is_empty() {
                             let direction = match (dx as i32, dy as i32) {
                                 (0, 1) => "north",
                                 (0, -1) => "south",
@@ -428,7 +448,9 @@ impl Engine<'_> {
                     let distance = if v.is_empty() { 0. } else { length(v, CM)? };
                     center = center.add(direction.scale(distance));
                 }
-                if !o.contains_key("anchor") {
+                if !o.contains_key("anchor") && on_grid && v.contains("of ") {
+                    anchor = "center".into();
+                } else if !o.contains_key("anchor") {
                     anchor = match (dx as i32, dy as i32) {
                         (0, 1) => "south",
                         (0, -1) => "north",

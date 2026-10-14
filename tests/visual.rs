@@ -1,11 +1,20 @@
 //! Reviewed native image baselines detect regressions, NOT TeX compatibility.
-//! Update intentionally, then visually review the three PNGs before accepting.
+//! Update intentionally, then visually review every PNG before accepting.
 use std::path::Path;
 #[test]
 fn reviewed_native_raster_baselines() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/visual-native");
-    for name in ["typography", "curves-transforms", "clip-matrix-patterns"] {
-        let source = std::fs::read_to_string(root.join(format!("{name}.tikz"))).unwrap();
+    // (baseline name, source). The data-science baselines render the shared
+    // fixtures instead of keeping a second copy of their source.
+    for (name, input) in [
+        ("typography", "typography.tikz"),
+        ("curves-transforms", "curves-transforms.tikz"),
+        ("clip-matrix-patterns", "clip-matrix-patterns.tikz"),
+        ("ds-gaussian", "../fixtures/ds-gaussian.tikz"),
+        ("ds-confusion", "../fixtures/ds-confusion.tikz"),
+        ("ds-nn", "../fixtures/ds-list-macro.tikz"),
+    ] {
+        let source = std::fs::read_to_string(root.join(input)).unwrap();
         let png = tikzc::compile(&source).unwrap().png(150.).unwrap();
         let reference = root.join(format!("{name}.png"));
         if std::env::var("UPDATE_NATIVE_GOLDENS").as_deref() == Ok("1") {
@@ -22,8 +31,10 @@ fn reviewed_native_raster_baselines() {
         );
         let changed = expected
             .data()
-            .chunks_exact(4)
-            .zip(actual.data().chunks_exact(4))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .zip(actual.data().as_chunks::<4>().0)
             .filter(|(a, b)| a.iter().zip(b.iter()).any(|(x, y)| x.abs_diff(*y) > 8))
             .count();
         let fraction = changed as f64 / (actual.width() as f64 * actual.height() as f64);

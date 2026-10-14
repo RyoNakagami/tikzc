@@ -1,0 +1,4 @@
+\begin{tikzpicture}
+  \draw[blue] (0,0) foreach \x/\y in {1/0.5,2/1.8,3/1.2} { -- (\x,\y) };
+  \path foreach \i in {0,1,2,3} { node[below] at (\i,0) {\i} };
+\end{tikzpicture}

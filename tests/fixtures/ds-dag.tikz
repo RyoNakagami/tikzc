@@ -1,0 +1,10 @@
+\begin{tikzpicture}[node distance=2cm, on grid,
+                    var/.style={circle,draw,minimum size=8mm}]
+  \node[var] (X) {$X$};
+  \node[var, right=of X] (Y) {$Y$};
+  \node[var, below=of X] (Z) {$Z$};
+  \draw[->] (X) -- (Y);
+  \draw[->] (Z) -- (X);
+  \draw[->] (Z) -- (Y);
+  \draw[<->, dashed, bend left] (X) to (Y);
+\end{tikzpicture}

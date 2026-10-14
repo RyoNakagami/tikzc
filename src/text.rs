@@ -186,7 +186,7 @@ impl TextEngine {
             return Ok(label.clone());
         }
         let started = Instant::now();
-        let helpers = "#let negthinspace = h(-0.166667em)\n#let textmath(body) = box(body)\n#let texttt(body) = text(font: (\"Latin Modern Mono\", \"IPAexGothic\"), ligatures: false, body)\n#let mitexdisplay = math.display\n#let mitextext = math.inline\n#let big(body) = math.lr(body, size: 120%)\n#let Big(body) = math.lr(body, size: 180%)\n#let bigg(body) = math.lr(body, size: 240%)\n#let Bigg(body) = math.lr(body, size: 300%)\n";
+        let helpers = "#let negthinspace = h(-0.166667em)\n#let textmath(body) = box(body)\n#let texttt(body) = text(font: (\"Latin Modern Mono\", \"IPAexGothic\"), ligatures: false, body)\n#let mitexdisplay = math.display\n#let mitextext = math.inline\n#let big(body) = math.lr(body, size: 120%)\n#let Big(body) = math.lr(body, size: 180%)\n#let bigg(body) = math.lr(body, size: 240%)\n#let Bigg(body) = math.lr(body, size: 300%)\n#let mitexmathbf(body) = math.bold(math.upright(body))\n#let operatorname(body) = math.op(math.upright(body))\n#let diff = math.partial\n#let pmatrix(..cells) = math.mat(delim: \"(\", ..cells)\n#let bmatrix(..cells) = math.mat(delim: \"[\", ..cells)\n#let mitexunderbrace(body) = math.underbrace(body)\n#let mitexoverbrace(body) = math.overbrace(body)\n#let operatornamewithlimits(body) = math.op(limits: true, math.upright(body))\n#let underset(below, body) = math.attach(math.limits(body), b: below)\n#let overset(above, body) = math.attach(math.limits(body), t: above)\n#let mitexsqrt(..args) = if args.pos().len() == 1 { math.sqrt(args.pos().at(0)) } else { let index = args.pos().at(0); math.root(if index.has(\"children\") { index.children.filter(it => it != [\\[] and it != [\\]]).sum() } else { index }, args.pos().at(1)) }\n";
         // Typst exposes a single font as a string and fallback fonts as an
         // array; named weights are strings, while custom weights are numbers.
         // Normalize these values before matching synthetic font styles.
@@ -408,6 +408,58 @@ fn preset_size(cmd: &str) -> Option<(f64, f64)> {
         _ => return None,
     })
 }
+/// mitex emits symbol names of an older Typst; rename the ones the bundled
+/// Typst no longer accepts. Quoted text is left untouched.
+fn current_symbols(math: &str) -> String {
+    const RENAMED: &[(&str, &str)] = &[
+        ("dot.circle", "dot.o"),
+        ("times.circle", "times.o"),
+        ("plus.circle", "plus.o"),
+        ("minus.circle", "minus.o"),
+        ("dot.circle.big", "dot.o.big"),
+        ("times.circle.big", "times.o.big"),
+        ("plus.circle.big", "plus.o.big"),
+        ("sect", "inter"),
+        ("sect.big", "inter.big"),
+        ("dots.h.c", "dots.c"),
+        ("angle.l", "chevron.l"),
+        ("angle.r", "chevron.r"),
+    ];
+    let mut out = String::with_capacity(math.len());
+    let mut chars = math.char_indices().peekable();
+    let mut quoted = false;
+    while let Some((start, ch)) = chars.next() {
+        if ch == '\\' {
+            out.push(ch);
+            if let Some((_, next)) = chars.next() {
+                out.push(next);
+            }
+        } else if ch == '"' {
+            quoted = !quoted;
+            out.push(ch);
+        } else if !quoted && ch.is_ascii_alphabetic() {
+            let mut end = start + 1;
+            while let Some((i, c)) = chars.peek().copied() {
+                if c.is_ascii_alphanumeric() || c == '.' {
+                    end = i + 1;
+                    chars.next();
+                } else {
+                    break;
+                }
+            }
+            let word = &math[start..end];
+            out.push_str(
+                RENAMED
+                    .iter()
+                    .find(|(old, _)| *old == word)
+                    .map_or(word, |(_, new)| new),
+            );
+        } else {
+            out.push(ch);
+        }
+    }
+    out
+}
 struct Converter<'a> {
     styles: &'a Styles,
     strut: f64,
@@ -446,9 +498,7 @@ impl Converter<'_> {
                         escape = c == '\\' && !escape;
                     }
                     let end = end.ok_or("unclosed inline math")?;
-                    let math = mitex::convert_math(&input[start..end], None)
-                        .map_err(|e| format!("Unsupported math: {e}"))?;
-                    output.push_str(&format!("#math.equation(block: false, ${math}$)"));
+                    output.push_str(&Self::math(&input[start..end])?);
                     cursor.pos = end + 1;
                 }
                 '\\' => {
@@ -541,6 +591,11 @@ impl Converter<'_> {
                         "color" => {
                             let color = self.styles.color(cursor.group('{', '}')?)?;
                             output.push_str(&format!("#set text(fill: rgb(\"{color}\"))\n"));
+                        }
+                        // Math whether or not the surrounding text already is.
+                        "ensuremath" => {
+                            output.push_str(&Self::math(cursor.group('{', '}')?)?);
+                            continue;
                         }
                         "underline" => {
                             let content = self.convert(cursor.group('{', '}')?)?;
@@ -646,6 +701,16 @@ impl Converter<'_> {
         }
         flush(&mut plain, &mut output);
         Ok(output)
+    }
+
+    fn math(source: &str) -> Result<String, String> {
+        // Inside math `\ensuremath{x}` is just `{x}`.
+        let math = mitex::convert_math(&source.replace("\\ensuremath", ""), None)
+            .map_err(|e| format!("Unsupported math: {e}"))?;
+        Ok(format!(
+            "#math.equation(block: false, ${}$)",
+            current_symbols(&math)
+        ))
     }
 
     fn skip_line_indent(cursor: &mut Cursor<'_>) {

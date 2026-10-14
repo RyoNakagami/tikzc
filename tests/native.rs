@@ -35,7 +35,9 @@ fn corpus_svg_png_and_determinism() {
         assert_eq!(pix.height(), diagram.height.ceil() as u32);
         assert!(
             pix.data()
-                .chunks_exact(4)
+                .as_chunks::<4>()
+                .0
+                .iter()
                 .filter(|p| p[..3] != [255, 255, 255])
                 .count()
                 > 100,
@@ -46,14 +48,9 @@ fn corpus_svg_png_and_determinism() {
 
 #[test]
 fn unsupported_is_diagnostic() {
-    for name in [
-        "decorations",
-        "graphs",
-        "intersections",
-        "pic",
-        "shading",
-        "shape",
-    ] {
+    // intersections and shading are supported now; see tests/ds_plot.rs
+    // and tests/ds_paint.rs.
+    for name in ["decorations", "graphs", "pic", "shape"] {
         let error = tikzc::compile(&fixture(&format!("unsupported-{name}")))
             .err()
             .expect(name);

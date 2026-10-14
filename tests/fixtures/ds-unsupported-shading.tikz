@@ -1,0 +1,4 @@
+\begin{tikzpicture}
+  \shade[left color=blue, right color=white] (0,0) rectangle (4,1);
+  \shade[shading=ball, ball color=red] (2,-2) circle (1);
+\end{tikzpicture}

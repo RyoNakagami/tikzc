@@ -3,11 +3,15 @@ mod coordinates;
 mod diagram;
 mod geometry;
 mod glyph_path;
+mod intersections;
 mod label_svg;
+mod markings;
 mod nodes;
 mod paint;
 mod path_editing;
 mod paths;
+mod plot;
+mod shading;
 
 pub use diagram::Diagram;
 use geometry::Bounds;
@@ -53,6 +57,18 @@ struct Engine<'a> {
     scale: f64,
     definitions: std::cell::RefCell<Vec<String>>,
     glyphs: label_svg::GlyphDefinitions,
+    /// Offset (in the expanded text) a failure should be reported at, when it
+    /// is more precise than the start of the command.
+    error_at: std::cell::Cell<Option<usize>>,
+    /// Where each option key of the current command was written.
+    option_at: std::cell::RefCell<BTreeMap<String, usize>>,
+    /// `name path` geometry: each original segment as a polyline.
+    named_paths: BTreeMap<String, Vec<Vec<Point>>>,
+    /// Macros defined while rendering (`total=\t`), local to one path.
+    late: BTreeMap<String, String>,
+    labels: Vec<String>,
+    /// Rendering generated code (a marking), which has no editable source.
+    synthetic: bool,
 }
 
 pub fn compile(source: &str) -> Result<Diagram, Diagnostic> {
@@ -62,6 +78,8 @@ pub fn compile(source: &str) -> Result<Diagram, Diagnostic> {
 /// Reuse font and label caches across interactive renders. SVG output is unchanged.
 pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram, Diagnostic> {
     let expanded = crate::expand::expand(source)?;
+    // Math evaluated while rendering starts from the default seed as well.
+    crate::expr::seed(None).expect("default seed");
     text.timings = Default::default();
     let mut e = Engine {
         state: State::default(),
@@ -84,6 +102,12 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
         scale: 1.,
         definitions: Default::default(),
         glyphs: Default::default(),
+        error_at: Default::default(),
+        option_at: Default::default(),
+        named_paths: BTreeMap::new(),
+        late: BTreeMap::new(),
+        labels: Vec::new(),
+        synthetic: false,
     };
     let mut offset = 0;
     for line in source.split_inclusive('\n') {
@@ -110,6 +134,8 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
                         "backgrounds",
                         "fit",
                         "decorations.pathreplacing",
+                        "decorations.markings",
+                        "intersections",
                         "patterns",
                         "matrix",
                     ]
@@ -162,6 +188,9 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
         e.path_endpoints.clear();
         e.path_points.clear();
         e.path_normalizations.clear();
+        e.error_at.set(None);
+        e.option_at.borrow_mut().clear();
+        e.late.clear();
         let result = (|| -> Result<(), String> {
             if !cur.eat("\\") {
                 return Err(format!(
@@ -189,7 +218,9 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
                     }
                     cur.ws();
                     if cur.rest().starts_with('[') {
+                        let group_start = cur.pos + 1;
                         let opts = cur.group('[', ']')?;
+                        e.locate_options(group_start, opts);
                         let mut regular = Vec::new();
                         for option in crate::syntax::split_top(opts, ',') {
                             if let Some((key, value)) = option.split_once('=')
@@ -220,7 +251,9 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
                         e.state.options = e
                             .state
                             .styles
-                            .resolve(&regular.join(","), &e.state.options)?;
+                            .resolve(&regular.join(","), &e.state.options)
+                            .map_err(|m| e.option_error(m))?;
+                        e.basis(&e.state.options)?;
                     }
                 }
                 "end" => {
@@ -312,7 +345,10 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
                         },
                     );
                 }
-                "draw" | "path" | "fill" | "filldraw" | "clip" => {
+                "pgfmathsetseed" => {
+                    crate::expr::seed(Some(number(cur.group('{', '}')?)?))?;
+                }
+                "draw" | "path" | "fill" | "filldraw" | "clip" | "shade" | "shadedraw" => {
                     if cmd != "clip" {
                         object_kind = Some("path");
                     }
@@ -330,7 +366,8 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
             Ok(())
         })();
         if let Err(message) = result {
-            return Err(Diagnostic::at(source, expanded.origin(at), message));
+            let offset = e.error_at.take().unwrap_or(at);
+            return Err(Diagnostic::at(source, expanded.origin(offset), message));
         }
         // Canvas translations move a whole path, including references to named
         // anchors and its labels, without rewriting its coordinate expressions.
@@ -467,6 +504,7 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
         width,
         height,
         nodes: e.nodes,
+        labels: e.labels,
         text_timings: e.text.timings,
         editing: serde_json::json!({
             "viewBox": [e.bbox.min.x - border, -e.bbox.max.y - border, w, h],
@@ -488,4 +526,59 @@ struct Pending {
     label: Arc<Label>,
     edit_source: Option<(usize, usize, usize)>,
     move_matrix: [f64; 4],
+}
+
+impl Engine<'_> {
+    /// Remember where each top-level key of an option group was written.
+    fn locate_options(&self, start: usize, raw: &str) {
+        // A marking's cursor is local to generated code, not expanded.text.
+        if self.synthetic {
+            return;
+        }
+        let mut positions = self.option_at.borrow_mut();
+        for part in crate::syntax::split_top(raw, ',') {
+            let key = part.split('=').next().unwrap_or(part).trim();
+            positions.insert(
+                key.to_owned(),
+                start + (part.as_ptr() as usize - raw.as_ptr() as usize),
+            );
+        }
+    }
+    /// Report a failure at the key it is about, when that key is in the source.
+    fn fail_at_option(&self, key: &str) {
+        if let Some(offset) = self.option_at.borrow().get(key) {
+            self.error_at.set(Some(*offset));
+        }
+    }
+    fn option_error(&self, message: String) -> String {
+        if let Some(key) = message
+            .strip_prefix("Unsupported option '")
+            .and_then(|m| m.strip_suffix('\''))
+        {
+            self.fail_at_option(key);
+        }
+        message
+    }
+    /// Read a `[...]` group and resolve it on top of `base`.
+    fn options(&mut self, cur: &mut Cursor<'_>, base: &Values) -> Result<Values, String> {
+        cur.ws();
+        let start = cur.pos + 1;
+        let raw = cur.group('[', ']')?;
+        self.locate_options(start, raw);
+        self.state
+            .styles
+            .resolve(raw, base)
+            .map_err(|m| self.option_error(m))
+    }
+    /// Replace macros defined while rendering; a no-op for most diagrams.
+    fn late_text<'t>(&self, text: &'t str) -> std::borrow::Cow<'t, str> {
+        if self.late.is_empty() || !text.contains('\\') {
+            return text.into();
+        }
+        let mut result = text.to_owned();
+        for (name, value) in &self.late {
+            result = plot::substitute(&result, name, value);
+        }
+        result.into()
+    }
 }

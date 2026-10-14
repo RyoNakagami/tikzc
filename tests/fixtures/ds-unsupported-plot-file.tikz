@@ -1,0 +1,3 @@
+\begin{tikzpicture}
+  \draw[only marks, mark=*] plot file {data.dat};
+\end{tikzpicture}

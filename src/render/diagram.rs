@@ -7,6 +7,8 @@ pub struct Diagram {
     pub width: f64,
     pub height: f64,
     pub nodes: BTreeMap<String, Node>,
+    /// Label source of every `node`, in document order (after expansion).
+    pub labels: Vec<String>,
     pub editing: serde_json::Value,
     pub text_timings: crate::text::TextTimings,
 }
