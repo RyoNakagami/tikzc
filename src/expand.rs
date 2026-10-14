@@ -1,10 +1,25 @@
 //! A bounded subset expander, not a TeX interpreter. Every output byte retains
 //! its source origin; generated macro bodies point at the invocation site.
+mod number;
+use number::print_number;
+
 use crate::syntax::{Cursor, Diagnostic, clean, split_top, split_top_empty, unbrace};
 use std::collections::BTreeMap;
 const MAX_BYTES: usize = 2 * 1024 * 1024;
 const MAX_STEPS: usize = 200_000;
 const MAX_ITERATIONS: usize = 10_000;
+/// Commands that start a path, inside which a bare `foreach` is an operation.
+const PATH_COMMANDS: &[&str] = &[
+    "draw",
+    "path",
+    "fill",
+    "filldraw",
+    "shade",
+    "shadedraw",
+    "clip",
+    "node",
+    "coordinate",
+];
 #[derive(Clone, Default)]
 pub struct Expanded {
     pub text: String,
@@ -54,6 +69,7 @@ struct Expander<'a> {
     iterations: usize,
 }
 pub fn expand(source: &str) -> Result<Expanded, Diagnostic> {
+    crate::expr::seed(None).expect("default seed");
     if source.len() > MAX_BYTES {
         return Err(Diagnostic::at(source, 0, "source exceeds 2 MiB"));
     }
@@ -66,7 +82,7 @@ pub fn expand(source: &str) -> Result<Expanded, Diagnostic> {
         steps: 0,
         iterations: 0,
     }
-    .run(&input, &mut Environment::default(), 0)
+    .run(&input, &mut Environment::default(), 0, false)
 }
 fn name(c: &mut Cursor<'_>) -> Result<String, String> {
     if !c.eat("\\") {
@@ -107,6 +123,10 @@ fn reserved(name: &str) -> bool {
         "pgfmathsetmacro",
         "pgfmathtruncatemacro",
         "pgfmathparse",
+        "pgfmathprintnumber",
+        "pgfmathsetseed",
+        "shade",
+        "shadedraw",
         "input",
         "include",
         "write",
@@ -129,6 +149,7 @@ impl Expander<'_> {
         input: &Expanded,
         env: &mut Environment,
         depth: usize,
+        mut in_path: bool,
     ) -> Result<Expanded, Diagnostic> {
         if depth > 64 {
             return Err(self.error(input, 0, "macro/group expansion exceeds 64 levels"));
@@ -146,8 +167,12 @@ impl Expander<'_> {
                 if c.rest().starts_with('{') {
                     let group = c.group('{', '}').map_err(|m| self.error(input, at, m))?;
                     let start = c.pos - group.len() - 1;
-                    let body =
-                        self.run(&input.slice(start, c.pos - 1), &mut env.clone(), depth + 1)?;
+                    let body = self.run(
+                        &input.slice(start, c.pos - 1),
+                        &mut env.clone(),
+                        depth + 1,
+                        false,
+                    )?;
                     let mut result = Expanded::literal("{", input.origin(at));
                     result.append(body).map_err(|m| self.error(input, at, m))?;
                     result
@@ -156,6 +181,17 @@ impl Expander<'_> {
                     return Ok(result);
                 }
                 if !c.rest().starts_with('\\') {
+                    // `foreach` as a path operation: the body is a path
+                    // fragment, repeated without a scope around each copy.
+                    if in_path
+                        && c.rest().starts_with("foreach")
+                        && !c.rest()["foreach".len()..]
+                            .starts_with(|ch: char| ch.is_ascii_alphabetic())
+                        && !input.text[..at].ends_with(|ch: char| ch.is_ascii_alphanumeric())
+                    {
+                        c.pos += "foreach".len();
+                        return self.foreach(input, &mut c, at, env, depth, true);
+                    }
                     let ch = c.rest().chars().next().unwrap();
                     c.pos += ch.len_utf8();
                     return Ok(input.slice(at, c.pos));
@@ -241,6 +277,7 @@ impl Expander<'_> {
                         &Expanded::literal(expression, input.origin(at)),
                         &mut env.clone(),
                         depth + 1,
+                        false,
                     )?;
                     let mut value =
                         crate::expr::eval(&expanded.text).map_err(|m| self.error(input, at, m))?;
@@ -256,110 +293,34 @@ impl Expander<'_> {
                     );
                     return Ok(Expanded::default());
                 }
-                if cmd == "foreach" {
-                    let mut names = vec![name(&mut c).map_err(|m| self.error(input, at, m))?];
-                    while c.eat("/") {
-                        names.push(name(&mut c).map_err(|m| self.error(input, at, m))?);
-                    }
-                    if names.iter().any(|n| reserved(n)) {
-                        return Err(self.error(input, at, "reserved foreach variable"));
-                    }
+                if cmd == "pgfmathprintnumber" || cmd == "pgfmathsetseed" {
                     c.ws();
-                    let mut counters = Vec::new();
-                    if c.rest().starts_with('[') {
-                        let opts = c.group('[', ']').map_err(|m| self.error(input, at, m))?;
-                        for opt in split_top(opts, ',') {
-                            let (key, value) = opt.split_once('=').ok_or_else(|| {
-                                self.error(
-                                    input,
-                                    at,
-                                    "Unsupported foreach option (only count is supported)",
-                                )
-                            })?;
-                            if key.trim() != "count" {
-                                return Err(self.error(
-                                    input,
-                                    at,
-                                    "Unsupported foreach option (only count is supported)",
-                                ));
-                            }
-                            let mut count = Cursor::new(value);
-                            let n = name(&mut count).map_err(|m| self.error(input, at, m))?;
-                            let initial = if count.eat("from") {
-                                crate::expr::eval(count.rest())
-                                    .map_err(|m| self.error(input, at, m))?
-                            } else if count.rest().trim().is_empty() {
-                                1.
-                            } else {
-                                return Err(self.error(input, at, "invalid foreach count"));
-                            };
-                            if reserved(&n) || names.contains(&n) || initial.fract() != 0. {
-                                return Err(self.error(input, at, "invalid foreach counter"));
-                            }
-                            counters.push((n, initial));
-                        }
-                    }
-                    if !c.eat("in") {
-                        return Err(self.error(input, at, "foreach requires 'in'"));
-                    }
-                    let list = c.group('{', '}').map_err(|m| self.error(input, at, m))?;
-                    let list = self.run(
-                        &Expanded::literal(list, input.origin(at)),
+                    let options = if cmd == "pgfmathprintnumber" && c.rest().starts_with('[') {
+                        c.group('[', ']').map_err(|m| self.error(input, at, m))?
+                    } else {
+                        ""
+                    };
+                    let expression = c.group('{', '}').map_err(|m| self.error(input, at, m))?;
+                    let expanded = self.run(
+                        &Expanded::literal(expression, input.origin(at)),
                         &mut env.clone(),
                         depth + 1,
+                        false,
                     )?;
-                    let entries = range_list(&list.text).map_err(|m| self.error(input, at, m))?;
-                    let (start, end) =
-                        loop_body(&mut c, 0).map_err(|m| self.error(input, at, m))?;
-                    let body = input.slice(start, end);
-                    let mut result = Expanded::default();
-                    for (index, entry) in entries.into_iter().enumerate() {
-                        self.iterations += 1;
-                        if self.iterations > MAX_ITERATIONS {
-                            return Err(self.error(
-                                input,
-                                at,
-                                "foreach exceeds 10000 total iterations",
-                            ));
-                        }
-                        let values = split_top_empty(&entry, '/');
-                        if values.len() != names.len() {
-                            return Err(self.error(
-                                input,
-                                at,
-                                "foreach tuple arity must match variable count",
-                            ));
-                        }
-                        let mut local = env.clone();
-                        for (n, initial) in &counters {
-                            local.macros.insert(
-                                n.clone(),
-                                Macro {
-                                    args: 0,
-                                    body: (initial + index as f64).to_string(),
-                                },
-                            );
-                        }
-                        for (n, v) in names.iter().zip(values) {
-                            local.macros.insert(
-                                n.clone(),
-                                Macro {
-                                    args: 0,
-                                    body: unbrace(v).into(),
-                                },
-                            );
-                        }
-                        result
-                            .append(Expanded::literal("\\begin{scope}", input.origin(at)))
-                            .map_err(|m| self.error(input, at, m))?;
-                        result
-                            .append(self.run(&body, &mut local, depth + 1)?)
-                            .map_err(|m| self.error(input, at, m))?;
-                        result
-                            .append(Expanded::literal("\\end{scope}", input.origin(at)))
-                            .map_err(|m| self.error(input, at, m))?;
-                    }
-                    return Ok(result);
+                    let value =
+                        crate::expr::eval(&expanded.text).map_err(|m| self.error(input, at, m))?;
+                    let text = if cmd == "pgfmathsetseed" {
+                        // Seed expansion-time math now; the renderer reseeds
+                        // at the same place for math it evaluates later.
+                        crate::expr::seed(Some(value)).map_err(|m| self.error(input, at, m))?;
+                        format!("\\pgfmathsetseed{{{value}}}")
+                    } else {
+                        print_number(value, options).map_err(|m| self.error(input, at, m))?
+                    };
+                    return Ok(Expanded::literal(&text, input.origin(at)));
+                }
+                if cmd == "foreach" {
+                    return self.foreach(input, &mut c, at, env, depth, false);
                 }
                 if let Some(mac) = env.macros.get(cmd).cloned() {
                     // Control-word delimiter whitespace is consumed before replacement.
@@ -374,8 +335,12 @@ impl Expander<'_> {
                     }
                     let body =
                         substitute(&mac.body, &args).map_err(|m| self.error(input, at, m))?;
-                    let mut result =
-                        self.run(&Expanded::literal(&body, input.origin(at)), env, depth + 1)?;
+                    let mut result = self.run(
+                        &Expanded::literal(&body, input.origin(at)),
+                        env,
+                        depth + 1,
+                        in_path,
+                    )?;
                     if ends_control_word(&result.text)
                         && c.rest().starts_with(|ch: char| ch.is_ascii_alphabetic())
                     {
@@ -395,6 +360,17 @@ impl Expander<'_> {
                 }
                 Ok(input.slice(at, c.pos))
             })()?;
+            // A path runs from its command to the terminating semicolon. Groups
+            // are consumed whole above, so label text never reaches this check.
+            let consumed = &input.text[at..c.pos];
+            if consumed == ";" {
+                in_path = false;
+            } else if consumed
+                .strip_prefix('\\')
+                .is_some_and(|word| PATH_COMMANDS.contains(&word))
+            {
+                in_path = true;
+            }
             out.append(result).map_err(|m| self.error(input, at, m))?;
         }
         if depth > 0 && !scopes.is_empty() {
@@ -405,6 +381,208 @@ impl Expander<'_> {
             ));
         }
         Ok(out)
+    }
+    /// `\foreach` as a command, or `foreach` inside a path (`inline`). The
+    /// cursor is positioned after the keyword.
+    fn foreach(
+        &mut self,
+        input: &Expanded,
+        c: &mut Cursor<'_>,
+        at: usize,
+        env: &mut Environment,
+        depth: usize,
+        inline: bool,
+    ) -> Result<Expanded, Diagnostic> {
+        let fail = |message: String| Diagnostic::at(self.source, input.origin(at), message);
+        let mut options = "";
+        c.ws();
+        if c.rest().starts_with('[') {
+            options = c.group('[', ']').map_err(fail)?;
+        }
+        let mut names = vec![name(c).map_err(fail)?];
+        while c.eat("/") {
+            names.push(name(c).map_err(fail)?);
+        }
+        if names.iter().any(|n| reserved(n)) {
+            return Err(fail("reserved foreach variable".into()));
+        }
+        c.ws();
+        if c.rest().starts_with('[') {
+            if !options.is_empty() {
+                return Err(fail("foreach options given twice".into()));
+            }
+            options = c.group('[', ']').map_err(fail)?;
+        }
+        let mut counters = Vec::new();
+        let mut evaluations = Vec::new();
+        let mut memories = Vec::new();
+        for opt in split_top(options, ',') {
+            let unsupported = || {
+                fail(format!(
+                    "Unsupported foreach option '{opt}' (count, evaluate and remember are supported)"
+                ))
+            };
+            let (key, value) = opt.split_once('=').ok_or_else(unsupported)?;
+            if !["count", "evaluate", "remember"].contains(&key.trim()) {
+                return Err(unsupported());
+            }
+            let mut v = Cursor::new(value);
+            let subject = name(&mut v).map_err(fail)?;
+            let mut target = None;
+            if key.trim() != "count" && v.eat("as") {
+                let n = name(&mut v).map_err(fail)?;
+                if reserved(&n) || names.contains(&n) {
+                    return Err(fail(format!("invalid foreach target \\{n}")));
+                }
+                target = Some(n);
+            }
+            match key.trim() {
+                "count" => {
+                    let initial = if v.eat("from") {
+                        crate::expr::eval(v.rest()).map_err(fail)?
+                    } else if v.rest().trim().is_empty() {
+                        1.
+                    } else {
+                        return Err(fail("invalid foreach count".into()));
+                    };
+                    if reserved(&subject) || names.contains(&subject) || initial.fract() != 0. {
+                        return Err(fail("invalid foreach counter".into()));
+                    }
+                    counters.push((subject, initial));
+                }
+                "evaluate" => {
+                    let using = if v.eat("using") {
+                        v.rest().trim().to_owned()
+                    } else if v.rest().trim().is_empty() {
+                        format!("\\{subject}")
+                    } else {
+                        return Err(fail("invalid foreach evaluate".into()));
+                    };
+                    if target.is_none() && !names.contains(&subject) {
+                        return Err(fail(format!(
+                            "foreach evaluate needs a loop variable or 'as', found \\{subject}"
+                        )));
+                    }
+                    evaluations.push((target.unwrap_or(subject), using));
+                }
+                "remember" => {
+                    let target =
+                        target.ok_or_else(|| fail("foreach remember requires 'as'".into()))?;
+                    v.ws();
+                    let initially = if v.rest().is_empty() {
+                        None
+                    } else {
+                        let group = v.group('(', ')').map_err(fail)?;
+                        let value = group.trim().strip_prefix("initially").ok_or_else(|| {
+                            fail("foreach remember accepts only (initially value)".into())
+                        })?;
+                        if !v.rest().trim().is_empty() {
+                            return Err(fail("invalid foreach remember".into()));
+                        }
+                        Some(value.trim().to_owned())
+                    };
+                    memories.push((subject, target, initially));
+                }
+                _ => return Err(unsupported()),
+            }
+        }
+        if !c.eat("in") {
+            return Err(fail("foreach requires 'in'".into()));
+        }
+        c.ws();
+        // The list is a braced group, or a macro that holds one.
+        let list = if c.rest().starts_with('\\') {
+            let list_name = name(c).map_err(fail)?;
+            match env.macros.get(&list_name) {
+                Some(mac) if mac.args == 0 => mac.body.clone(),
+                Some(_) => {
+                    return Err(fail(format!(
+                        "foreach list macro \\{list_name} takes arguments"
+                    )));
+                }
+                None => return Err(fail(format!("undefined foreach list macro \\{list_name}"))),
+            }
+        } else {
+            c.group('{', '}').map_err(fail)?.to_owned()
+        };
+        let list = self.run(
+            &Expanded::literal(&list, input.origin(at)),
+            &mut env.clone(),
+            depth + 1,
+            false,
+        )?;
+        let entries = range_list(&list.text).map_err(fail)?;
+        let (start, end) = if inline {
+            c.ws();
+            if !c.rest().starts_with('{') {
+                return Err(fail("foreach in a path requires a braced body".into()));
+            }
+            loop_body(c, 0).map_err(fail)?
+        } else {
+            loop_body(c, 0).map_err(fail)?
+        };
+        let body = input.slice(start, end);
+        let mut remembered: Vec<Option<String>> =
+            memories.iter().map(|(_, _, v)| v.clone()).collect();
+        let mut result = Expanded::default();
+        for (index, entry) in entries.into_iter().enumerate() {
+            self.iterations += 1;
+            if self.iterations > MAX_ITERATIONS {
+                return Err(fail("foreach exceeds 10000 total iterations".into()));
+            }
+            let values = split_top_empty(&entry, '/');
+            if values.len() != names.len() {
+                return Err(fail("foreach tuple arity must match variable count".into()));
+            }
+            let mut local = env.clone();
+            let define = |local: &mut Environment, n: &str, body: String| {
+                local.macros.insert(n.to_owned(), Macro { args: 0, body });
+            };
+            for (n, initial) in &counters {
+                define(&mut local, n, (initial + index as f64).to_string());
+            }
+            for (n, v) in names.iter().zip(values) {
+                define(&mut local, n, unbrace(v).into());
+            }
+            // Without `initially` the target is undefined in the first iteration.
+            for ((_, target, _), value) in memories.iter().zip(&remembered) {
+                if let Some(value) = value {
+                    define(&mut local, target, value.clone());
+                }
+            }
+            for (target, using) in &evaluations {
+                let expression = self.run(
+                    &Expanded::literal(using, input.origin(at)),
+                    &mut local.clone(),
+                    depth + 1,
+                    false,
+                )?;
+                let value = crate::expr::eval(&expression.text).map_err(fail)?;
+                define(&mut local, target, value.to_string());
+            }
+            let wrap = |result: &mut Expanded, text: &str| {
+                if inline {
+                    Ok(())
+                } else {
+                    result
+                        .append(Expanded::literal(text, input.origin(at)))
+                        .map_err(fail)
+                }
+            };
+            wrap(&mut result, "\\begin{scope}")?;
+            result
+                .append(self.run(&body, &mut local, depth + 1, inline)?)
+                .map_err(fail)?;
+            wrap(&mut result, "\\end{scope}")?;
+            for ((subject, _, _), slot) in memories.iter().zip(&mut remembered) {
+                let value = local
+                    .macros
+                    .get(subject)
+                    .ok_or_else(|| fail(format!("foreach remember: \\{subject} is undefined")))?;
+                *slot = Some(value.body.clone());
+            }
+        }
+        Ok(result)
     }
 }
 /// A loop body is either a group or one semicolon-terminated TikZ command.
@@ -420,6 +598,10 @@ fn loop_body(c: &mut Cursor<'_>, depth: usize) -> Result<(usize, usize), String>
         return Ok((c.pos - group.len() - 1, c.pos - 1));
     }
     if c.eat("\\foreach") {
+        c.ws();
+        if c.rest().starts_with('[') {
+            c.group('[', ']')?;
+        }
         name(c)?;
         while c.eat("/") {
             name(c)?;
@@ -431,7 +613,12 @@ fn loop_body(c: &mut Cursor<'_>, depth: usize) -> Result<(usize, usize), String>
         if !c.eat("in") {
             return Err("foreach requires 'in'".into());
         }
-        c.group('{', '}')?;
+        c.ws();
+        if c.rest().starts_with('\\') {
+            name(c)?;
+        } else {
+            c.group('{', '}')?;
+        }
         loop_body(c, depth + 1)?;
         return Ok((start, c.pos));
     }

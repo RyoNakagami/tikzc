@@ -60,6 +60,29 @@ test("arrow translation and deletion preserve named anchors, labels and scope tr
   } finally {renderer.dispose();}
 });
 
+test("data-science fixtures: preview artifact and CLI output are byte-identical", async () => {
+  const renderer = new RustRenderer();
+  const fixtures = path.join(root, "tests/fixtures");
+  const out = await mkdtemp(path.join(os.tmpdir(), "tikzc-ds-parity-"));
+  try {
+    for (const name of ["ds-gaussian", "ds-confusion"]) {
+      const input = path.join(fixtures, `${name}.tikz`);
+      const source = await readFile(input, "utf8");
+      const artifact = await renderer.render({ source, binary, dpi: 150 });
+      await run(binary, [input, "-f", "both", "-o", out, "--dpi", "150", "-q"]);
+      assert.equal(artifact.svg, await readFile(path.join(out, `${name}.svg`), "utf8"), name);
+      assert.deepEqual(artifact.png, await readFile(path.join(out, `${name}.png`)), name);
+      assert.doesNotMatch(artifact.svg, /<(?:text|foreignObject)\b/);
+    }
+    // Diagnostics keep their position; a diagram never reads other files.
+    await assert.rejects(renderer.render({ source: String.raw`\draw[samples=1] plot (\x,\x);`, binary, dpi: 150 }), /document\.tikz:1:7: plot samples/);
+    await assert.rejects(renderer.render({ source: String.raw`\draw plot file {data.dat};`, binary, dpi: 150 }), /document\.tikz:1:7: Unsupported plot file/);
+  } finally {
+    renderer.dispose();
+    await rm(out, { recursive: true, force: true });
+  }
+});
+
 test("preview artifact and CLI SVG/PNG are byte-identical for mixed-width labels", async () => {
   const renderer = new RustRenderer();
   const input = path.join(root, "vscode-extension/tests/fixtures/mixed-alignment.tikz");

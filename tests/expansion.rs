@@ -18,6 +18,11 @@ fn original_fixtures_now_render() {
         "arrow-meta",
         "arrow-shortening",
         "coord-anchor",
+        "clip",
+        "matrix",
+        "pattern",
+        "plot",
+        "shading",
     ] {
         let source = std::fs::read_to_string(format!(
             "{}/tests/fixtures/{name}.tikz",
@@ -105,7 +110,7 @@ fn invalid_expansion_is_bounded_and_has_original_location() {
         r"\newcommand{\a}{A}\newcommand{\a}{B}",
         r"\pgfmathparse{1/0}",
         r"\pgfmathparse{sqrt(-1)}",
-        r"\pgfmathparse{random()}",
+        r"\pgfmathparse{random(1.5)}",
         r"\input{secret}",
         r"\def\draw{bad}",
         r"\def\start{\begin{scope}}\start\node{A};\end{scope}",

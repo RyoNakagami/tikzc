@@ -48,14 +48,9 @@ fn corpus_svg_png_and_determinism() {
 
 #[test]
 fn unsupported_is_diagnostic() {
-    for name in [
-        "decorations",
-        "graphs",
-        "intersections",
-        "pic",
-        "shading",
-        "shape",
-    ] {
+    // intersections and shading are supported now; see tests/ds_plot.rs
+    // and tests/ds_paint.rs.
+    for name in ["decorations", "graphs", "pic", "shape"] {
         let error = tikzc::compile(&fixture(&format!("unsupported-{name}")))
             .err()
             .expect(name);

@@ -1,0 +1,5 @@
+\begin{tikzpicture}
+  \foreach \v in {1,2,3} {
+    \ifnum\v>1 \fill (\v,0) circle (2pt); \fi
+  }
+\end{tikzpicture}

@@ -1,0 +1,4 @@
+\begin{tikzpicture}
+  \draw[->] (0,0) -- (3,0);
+  \draw[blue] plot function{x**2};
+\end{tikzpicture}

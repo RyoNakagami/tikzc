@@ -1,0 +1,8 @@
+\begin{tikzpicture}
+  \foreach \v [count=\i] in {0.2,0.7,0.4,0.9} {
+    \pgfmathsetmacro{\hl}{ifthenelse(\v>0.5,1,0)}
+    \pgfmathsetmacro{\h}{\v>0.5 ? 60 : 20}
+    \fill[fill=blue!\h] (\i,0) rectangle +(0.8,\v);
+    \node at (\i+0.4,-0.3) {\hl};
+  }
+\end{tikzpicture}

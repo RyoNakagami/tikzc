@@ -8,7 +8,9 @@
 | Development tools | [`tests/devtools/`](../tests/devtools) | `npm test` (repository root) | Node.js; `rg` for the corpus comparison tests |
 | Extension preview, export and canvas editing | [`vscode-extension/tests/`](../vscode-extension/tests) | `npm test` (in `vscode-extension/`) | Built Rust binary |
 
-No suite needs a TeX installation.
+No suite needs a TeX installation. Where a test compares against TeX, the
+expected value was computed once on a developer machine and is written into
+the test together with the command that produced it.
 
 The full local sequence, from the repository root:
 
@@ -90,7 +92,7 @@ node/segment/arc geometry and diagnostics, and invokes the built CLI with an emp
 PATH. It also checks that invalid inputs do not replace an existing output.
 Japanese, math and icon rendering use only the embedded fonts.
 
-`tests/expansion.rs` additionally checks ten syntax fixtures plus
+`tests/expansion.rs` additionally checks fifteen syntax fixtures plus
 `notebook/native-subset.tikz`. It verifies loop tuples/decimal ranges/nesting,
 late-bound macro parameters and scope restoration, degree-based scalar math,
 ordered/nested transforms, rotated anchors, transformed ellipse/arc geometry,
@@ -103,6 +105,49 @@ orientation, fills, coordinate transforms, positioning, cylinder/diamond/grid,
 labels/bar tips, relative Bezier controls and Japanese punctuation. It also
 checks unsupported variants and nested-loop bounds. No private sources or
 optional installed fonts are needed by these tests.
+
+### Data-science features
+
+The `ds_*` suites fix the subset used for data-science diagrams (function
+plots, confusion matrices, neural networks, causal DAGs, tensor sketches).
+Their inputs are `tests/fixtures/ds-*.tikz`; helpers shared between them are
+in `tests/common/mod.rs` (fixture loading, drawn-path extraction from the SVG,
+pixel sampling, located-diagnostic assertions).
+
+| File | Covers |
+| --- | --- |
+| `tests/ds_plot.rs` | `plot (\x,{f(\x)})` (samples, domain ends, values, defaults, limits), `name path` / `name intersections` (positions, order, `total`, `by`), plot marks, `plot file` refused without reading the file |
+| `tests/ds_expansion.rs` | `\pgfmathprintnumber`, `\foreach` `evaluate` / `remember` / list macros, computed colour mixes, `foreach` inside a path, conditional math, seeded random numbers |
+| `tests/ds_layout.rs` | `on grid` and `node distance`, `x=` / `y=` / `z=` and 3D coordinates, `decorations.markings` |
+| `tests/ds_text.rs` | one test per formula of `ds-math.tikz` plus notation found during the audit, Japanese text with math, unsupported commands |
+| `tests/ds_paint.rs` | linear and radial shadings: gradient elements, ids, pixel colours |
+| `tests/ds_cli.rs` | every `ds-*` fixture through the CLI: `check`, byte-identical SVG on two runs, CLI/library agreement; every `ds-unsupported-*` fixture: exit code 3, `file:line:column`, existing output untouched; `ds-gaussian` with an empty PATH |
+
+Unit tests in `src/expr.rs` cover each math function, comparison and logical
+operator, the radian suffix and random-number ranges (10,000 draws);
+`src/expand/number.rs` covers decimal number formatting, including large
+integers, rounding boundaries and subnormal inputs; `src/render/intersections.rs` and
+`src/curve.rs` cover intersection order, degenerate cases and positions by
+arc length.
+
+Regression tests also cover unit-bearing radius options under axis scaling,
+marking paths under inherited decorations, and source locations for errors
+inside markings. Nested markings must return exit code 3 and preserve existing
+outputs. The intersection work limit includes disjoint segment pairs, not just
+pairs whose bounding boxes overlap.
+
+Reference values from TeX (PGF 3.1.10, lualatex) are marked `TeX:` in the
+tests. Positions were printed with `\pgfpointanchor{name}{center}` and
+`\typeout`, math with `\pgfmathparse{...}\pgfmathresult`, number formats
+with `\pgfmathprintnumberto`, colour mixes with xcolor's
+`\extractcolorspecs`, and shading colours by sampling pixels of
+`pdftoppm -r 720` output. Re-measure them the same way when changing a
+value; do not derive a new expected value from tikzc's own output.
+
+A `ds-unsupported-*.tikz` fixture is a negative test: when its feature is
+implemented, move it to a positive test and keep a diagnostic test for the
+variants that remain unsupported. `ds_cli.rs` lists these fixtures with their
+expected positions and fails when a fixture is added without being listed.
 
 ### Geometry and visual regression
 
@@ -123,7 +168,9 @@ spaces remain. `interactive.rs` covers the metadata behind canvas editing:
 reusable text caches and source ranges, insertion boundaries, `reset cm`
 placement, PGF-layer ordering, and path edit points.
 
-`tests/visual.rs` renders three synthetic fixtures at 150 DPI and
+`tests/visual.rs` renders three synthetic fixtures and three data-science
+fixtures (`ds-gaussian`, `ds-confusion`, and `ds-nn` from
+`tests/fixtures/ds-list-macro.tikz`) at 150 DPI and
 compares their **reviewed native** PNG baselines in `tests/visual-native/`.
 Canvas size must match; at most 0.1% of pixels may differ by more than 8 channel
 levels. This protects native behavior, not TeX image parity. Only embedded
@@ -133,7 +180,7 @@ To intentionally update after a reviewed layout change:
 
 ```sh
 UPDATE_NATIVE_GOLDENS=1 cargo test --locked --test visual
-# Visually inspect all three resulting PNGs.
+# Visually inspect all six resulting PNGs.
 cargo test --locked --test visual
 ```
 
@@ -174,7 +221,10 @@ Canvas-dimension errors are not pixel or element-level correctness measures.
 Single concurrent timings (and reused reference timings) are not benchmark claims.
 
 The benchmark reports median wall time across five fresh CLI processes for each
-output format (PNG at 150 DPI), plus a separate in-process breakdown. It does not
+output format (PNG at 150 DPI), plus a separate in-process breakdown. Besides
+the eight corpus fixtures it times two generated data-science inputs: a
+1,000-point scatter (1,000 loop iterations, one `circle` each) and a function
+plot with `samples=1000`. Times are recorded, never asserted. It does not
 flush OS caches and is not a universal performance guarantee. Fonts and Typst's
 World are reused among labels of a diagram, not across CLI process launches.
 
@@ -184,8 +234,11 @@ tests. See [native compatibility](RUST_ENGINE.md).
 ### Shared source fixtures
 
 `tests/fixtures/*.tikz` supplies inputs for the Rust tests, CLI smoke tests and
-benchmark. Some `unsupported-*.tikz` names are historical: clip, matrix and
-patterns are now partly supported. The unused Phase 0 lualatex reference images
+benchmark. The supported `clip.tikz`, `matrix.tikz`, `pattern.tikz`, `plot.tikz`
+and `shading.tikz` fixtures are covered by `tests/expansion.rs` (SVG determinism
+and PNG rendering). `unsupported-intersections.tikz` retains its historical
+name but is a positive test in `tests/ds_plot.rs`.
+The unused Phase 0 lualatex reference images
 and geometry JSON were removed with the TeX toolchain; visual regression uses
 the reviewed, reproducible native baselines in `tests/visual-native/`.
 
@@ -225,7 +278,8 @@ npm test
 ```
 
 `rust-renderer.test.ts` compares preview artifact bytes with the actual CLI's
-SVG and PNG at 96, 150 and 300 DPI. The `mixed-alignment.tikz` fixture includes
+SVG and PNG at 96, 150 and 300 DPI, and for the `ds-gaussian` and
+`ds-confusion` fixtures at 150 DPI. The `mixed-alignment.tikz` fixture includes
 Japanese, ASCII, full-width characters, half-width kana, math, multiline text,
 and left/center/right alignment. It checks path-only text, font overrides,
 diagnostics and failed-request recovery. Missing Rust binaries fail the suite.
@@ -237,7 +291,12 @@ with a DOM adapter and checks the unmodified SVG/PNG image blobs.
 `native-editing.test.ts` checks the source edits behind canvas label editing
 and drawing insertion.
 `preview-queue.test.ts` covers edit coalescing, document-switch races, stale
-success/error suppression and panel disposal. These are automated wiring tests,
+success/error suppression and panel disposal. `renderer-lifecycle.test.ts`
+controls version checks, worker replies and timers to test cancellation and
+reopening without timing-dependent sleeps. `source-offsets.test.ts` checks
+UTF-8 to UTF-16 conversion with settings prefixes, Japanese, astral characters,
+and 1,000-node sources; host/editing tests check duplicate ID handling at the
+same scale. These are automated wiring tests,
 not an Electron screenshot comparison. The cross-platform Rust CI runs them and
 builds one platform-independent VSIX.
 

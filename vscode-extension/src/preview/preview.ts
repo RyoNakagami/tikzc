@@ -23,7 +23,9 @@ export function activateNativePreview(ctx: vscode.ExtensionContext): void {
   function publish(result: RenderArtifact & {source: string}, selection?: {nodeId?: number; objectId?: number}): void {
     rendered = {source: result.source, editing: result.editing};
     const all = result.editing?.nodes ?? [];
-    const nodes = all.filter(n => all.filter(other => other.id === n.id).length === 1);
+    const counts = new Map<number, number>();
+    for (const node of all) counts.set(node.id, (counts.get(node.id) ?? 0) + 1);
+    const nodes = all.filter(node => counts.get(node.id) === 1);
     void panel?.webview.postMessage({type:"render",token:renderToken,svg:result.svg,png:result.png.toString("base64"),
       preserveViewport: !!selection, selection,
       editing: result.editing && {...result.editing,canArrange:canArrange(result.editing),nodes:nodes.map(n=>({...n,...fontState(n,result.source),label:result.source.slice(n.labelStart+1,n.end-1)}))}});

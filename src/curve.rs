@@ -162,6 +162,42 @@ impl Path {
             (last.end(), last.end().sub(last.tangent(true))),
         ]
     }
+    pub fn length(&self) -> f64 {
+        self.segments.iter().map(Segment::length).sum()
+    }
+    /// Point and (unnormalized) tangent at an arc length from the start.
+    pub fn at(&self, distance: f64) -> (P, P) {
+        let mut remaining = distance.max(0.);
+        for (i, segment) in self.segments.iter().enumerate() {
+            let length = segment.length();
+            if remaining <= length || i + 1 == self.segments.len() {
+                let t = if length > 0. {
+                    segment.at_length(remaining.min(length))
+                } else {
+                    0.
+                };
+                let point = segment.split(t).0.end();
+                let tangent = match segment {
+                    Segment::Line(a, b) => b.sub(*a),
+                    Segment::Cubic([a, b, c, d]) => {
+                        let u = 1. - t;
+                        b.sub(*a)
+                            .mul(3. * u * u)
+                            .add(c.sub(*b).mul(6. * u * t))
+                            .add(d.sub(*c).mul(3. * t * t))
+                    }
+                };
+                let tangent = if tangent.norm() > 1e-10 {
+                    tangent
+                } else {
+                    segment.tangent(t > 0.5)
+                };
+                return (point, tangent);
+            }
+            remaining -= length;
+        }
+        unreachable!("a parsed path has at least one segment")
+    }
     pub fn vertices(&self) -> Vec<P> {
         std::iter::once(self.segments[0].start())
             .chain(self.segments.iter().map(Segment::end))
@@ -242,6 +278,19 @@ mod tests {
         assert!((p.segments[0].length() - 150.).abs() < 1e-4);
         assert!(p.svg().contains(" C "));
         assert!(p.endpoints()[0].0.1 > 0.);
+    }
+    #[test]
+    fn position_and_tangent_by_arc_length() {
+        let p = Path::parse("M 0,0 L 10,0 C 10,-10 20,-10 20,0").unwrap();
+        let (point, tangent) = p.at(4.);
+        assert!((point.0 - 4.).abs() < 1e-9 && point.1.abs() < 1e-9);
+        assert!(tangent.0 > 0. && tangent.1.abs() < 1e-9);
+        // The cubic is symmetric: half of its length is its apex.
+        let cubic = p.length() - 10.;
+        let (point, tangent) = p.at(10. + cubic / 2.);
+        assert!((point.0 - 15.).abs() < 1e-4 && (point.1 - 7.5).abs() < 1e-4);
+        assert!(tangent.0 > 0. && tangent.1.abs() < 1e-4);
+        assert!((p.at(1e9).0.0 - 20.).abs() < 1e-6);
     }
     #[test]
     fn trim_across_segments_and_extend() {

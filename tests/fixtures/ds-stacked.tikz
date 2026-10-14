@@ -1,0 +1,6 @@
+\begin{tikzpicture}
+  \foreach \v [remember=\s as \prev (initially 0),
+               evaluate=\v as \s using \prev+\v] in {2,1,3} {
+    \fill[blue!30] (0,\prev) rectangle (1,\s);
+  }
+\end{tikzpicture}

@@ -31,7 +31,7 @@ tikzc/
 | --- | --- |
 | `src/` | Rust CLI and renderer. The repository root is the single Cargo package (`Cargo.toml`) |
 | `tests/` | Rust integration tests (`*.rs`), the fixtures and image baselines they read, and the development tool tests (`devtools/`) |
-| `examples/` | `benchmark.rs`: benchmark over eight fixed fixtures |
+| `examples/` | `benchmark.rs`: benchmark over eight fixed fixtures and two generated data-science inputs |
 | `assets/fonts/` | Fonts embedded in the Rust binary (IPAex, New Computer Modern Math, Latin Modern Mono, FontAwesome) and their license documents. About 15 MiB |
 | `vscode-extension/` | VSCode extension (`RyoNak.tikzc-preview`, display name TikZc Editor). Has its own `package.json` |
 | `devtools/` | Development tools. Not part of any product build |
@@ -47,9 +47,10 @@ tikzc/
 | `main.rs` | CLI argument handling, diagnostic output, file writes, and `--preview-server` for the extension |
 | `lib.rs` | Library entry point. Exposes `tikzc::compile`, `tikzc::Diagram` and `tikzc::render::*` |
 | `syntax.rs`, `expand.rs`, `expr.rs` | Parsing, `\foreach` and macro expansion, math evaluation |
+| `expand/number.rs` | Decimal rounding and number formatting for `\pgfmathprintnumber` |
 | `options.rs` | Validation of styles, keys and values |
 | `render.rs` | Orchestrates rendering. The work is split across `render/` |
-| `render/` | `coordinates.rs` (coordinates), `geometry.rs` (shapes and borders), `nodes.rs` (nodes), `paths.rs` (paths), `paint.rs` (color, stroke, fill), `diagram.rs` (SVG and PNG output), `label_svg.rs` and `glyph_path.rs` (label SVG and glyph sharing), `path_editing.rs` (metadata for canvas editing) |
+| `render/` | `coordinates.rs` (coordinates and unit vectors), `geometry.rs` (shapes and borders), `nodes.rs` (nodes), `paths.rs` (paths), `plot.rs` (function plots, plot marks), `intersections.rs` (named paths and their intersections), `markings.rs` (marks along a path), `shading.rs` (gradients), `paint.rs` (color, stroke, fill), `diagram.rs` (SVG and PNG output), `label_svg.rs` and `glyph_path.rs` (label SVG and glyph sharing), `path_editing.rs` (metadata for canvas editing) |
 | `transform.rs`, `curve.rs`, `arrows.rs` | Geometry of transforms, curves and arrows |
 | `text.rs` | Fonts, glyphs, baselines, and typesetting through Typst |
 
@@ -70,8 +71,9 @@ tikzc/
 | Path | Description |
 | --- | --- |
 | `*.rs` | Rust integration tests, run by `cargo test`. See [TESTING.md](TESTING.md) |
+| `common/mod.rs` | Helpers shared by the `ds_*` suites; not a test target of its own |
 | `devtools/*.test.ts` | Tests for the scripts in `devtools/` (version bump, corpus comparison), run by the root `npm test` |
-| `fixtures/*.tikz` | Per-feature inputs, read by Rust tests and the benchmark. The `unsupported-*` names are historical; some of those features are now supported |
+| `fixtures/*.tikz` | Per-feature inputs, read by Rust tests and the benchmark. The `unsupported-*` names are historical; some of those features are now supported. `ds-*.tikz` are the data-science fixtures; `ds-unsupported-*.tikz` must fail with a diagnostic |
 | `visual-native/` | Reviewed native output PNGs and their inputs. Regression baselines for `tests/visual.rs` |
 
 ## `devtools/`: development tools

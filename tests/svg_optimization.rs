@@ -22,6 +22,32 @@ fn check_references(svg: &str) {
 }
 
 #[test]
+fn gradient_ids_follow_the_definition_numbering() {
+    // Shadings share the counter of patterns and clip paths, so their ids
+    // cannot collide with them or with shared glyph symbols.
+    let source = r"\begin{scope}\clip(0,0)rectangle(6,2);
+      \shade[left color=blue,right color=white](0,0)rectangle(2,1)node{ABC};
+      \fill[pattern=dots](2,0)rectangle(4,1);
+      \shade[inner color=white,outer color=black](5,0.5)circle(0.5)node{ABC};
+      \end{scope}";
+    let d = compile(source).unwrap();
+    check_references(&d.svg);
+    let doc = Document::parse(&d.svg).unwrap();
+    let ids: Vec<_> = doc
+        .descendants()
+        .filter(|n| {
+            ["clipPath", "linearGradient", "pattern", "radialGradient"]
+                .iter()
+                .any(|tag| n.has_tag_name(*tag))
+        })
+        .filter_map(|n| n.attribute("id"))
+        .collect();
+    assert_eq!(ids, ["clip-0", "shade-1", "pattern-2", "shade-3"]);
+    assert_eq!(d.svg, compile(source).unwrap().svg);
+    d.png(150.).unwrap();
+}
+
+#[test]
 fn repeated_glyphs_are_shared_across_labels() {
     let source = r"\node at(0,0){ABC日本語};\node at(2,0){ABC日本語};";
     let d = compile(source).unwrap();

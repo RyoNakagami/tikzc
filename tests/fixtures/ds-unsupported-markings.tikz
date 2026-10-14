@@ -1,0 +1,6 @@
+\begin{tikzpicture}
+  \draw[postaction={decorate},
+        decoration={markings,
+          mark=between positions 0 and 1 step 5mm with {\arrow{Stealth}}}]
+    (0,0) -- (4,0);
+\end{tikzpicture}

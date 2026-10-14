@@ -58,6 +58,21 @@ pub struct Node {
     pub transform: Matrix,
 }
 impl Node {
+    /// A sizeless named point.
+    pub(super) fn coordinate(center: Point) -> Self {
+        Self {
+            center,
+            width: 0.,
+            height: 0.,
+            shape: "coordinate".into(),
+            rotation: 0.,
+            cylinder_cap: 0.,
+            baseline: 0.,
+            outer_xsep: 0.,
+            outer_ysep: 0.,
+            transform: Matrix::default(),
+        }
+    }
     pub(super) fn vector(&self, p: Point) -> Point {
         let [x, y] = self.transform.vector(p.x, p.y);
         Point { x, y }.rotated(self.rotation)

@@ -1,0 +1,8 @@
+\begin{tikzpicture}
+  \draw[postaction={decorate},
+        decoration={markings, mark=at position 0.5 with {\arrow{Stealth}}}]
+    (0,0) -- (4,0);
+  \draw[postaction={decorate},
+        decoration={markings, mark=at position 1cm with {\fill circle (1pt);}}]
+    (0,1) .. controls (1,2) and (3,0) .. (4,1);
+\end{tikzpicture}

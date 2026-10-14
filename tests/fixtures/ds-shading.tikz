@@ -1,0 +1,5 @@
+\begin{tikzpicture}
+  \shade[left color=blue, right color=white] (0,0) rectangle (4,1);
+  \shade[top color=red, bottom color=yellow] (0,-2) rectangle (4,-1);
+  \shade[inner color=white, outer color=black] (2,-4) circle (1);
+\end{tikzpicture}

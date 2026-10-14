@@ -1,0 +1,3 @@
+\begin{tikzpicture}
+  \node at (0,0) {\pgfmathprintnumber[sci,precision=2]{1234567}};
+\end{tikzpicture}

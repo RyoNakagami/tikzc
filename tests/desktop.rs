@@ -98,7 +98,7 @@ fn diamond_cylinder_grid_labels_and_bar_tips() {
     assert!(d.nodes["lab"].center.y > d.nodes["n"].center.y);
     assert!(d.svg.contains("#ff0000"));
     assert!(d.png(100.).unwrap().len() > 1000);
-    for name in ["grid", "node-label", "unsupported-plot"] {
+    for name in ["grid", "node-label", "plot"] {
         let source = std::fs::read_to_string(format!(
             "{}/tests/fixtures/{name}.tikz",
             env!("CARGO_MANIFEST_DIR")
@@ -128,12 +128,12 @@ fn unsupported_variants_remain_explicit_and_bounded() {
     let nested = format!("{}\\node{{A}};", r"\foreach\x in{1}".repeat(100));
     assert!(compile(&nested).err().unwrap().message.contains("64"));
     for raw in [
-        r"\foreach\x[evaluate=\x]in{1}\node{\x};",
+        r"\foreach\x[parse=true]in{1}\node{\x};",
         r"\foreach\x[count=\node]in{1}\node{\x};",
         r"\foreach\x in{1,2}\node{A}",
         r"\node{\begin{tabular}{p{2cm}}A\end{tabular}};",
         r"\node{\begin{tabular}{c|r}A\end{tabular}};",
-        r"\draw plot[domain=0:1](\x,\x);",
+        r"\draw plot function{x};",
         r"\draw[decorate,decoration={snake}](0,0)--(1,0);",
         r"\draw[decorate,decoration={brace}](0,0)to[bend left](1,0);",
         r"\draw[step=0](0,0)grid(1,1);",

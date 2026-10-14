@@ -1,0 +1,9 @@
+\begin{tikzpicture}
+  \draw[name path=A] (0,0) -- (4,2);
+  \draw[name path=B] (0,2) -- (4,0);
+  \fill[red, name intersections={of=A and B, total=\t}]
+    (intersection-1) circle (2pt);
+  \draw[name path=C, domain=0:3, samples=200] plot (\x,{\x*\x/3});
+  \draw[name path=D] (0,2) -- (3,0);
+  \fill[blue, name intersections={of=C and D, by={p}}] (p) circle (2pt);
+\end{tikzpicture}

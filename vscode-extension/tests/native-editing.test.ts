@@ -1,9 +1,24 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { editNode, insertDrawing, type EditableNode, type DrawingTool } from "../src/preview/editing";
+import { canArrange, editNode, insertDrawing, type EditableNode, type DrawingTool, type EditingMetadata, type EditableObject } from "../src/preview/editing";
 
 const source = String.raw`\node[draw, font=\bfseries] (a) at (1,2) {日本語 {ABC}}; % keep`;
 const node: EditableNode = {id:5,start:5,labelStart:source.indexOf("{日本"),end:source.indexOf(";"),bounds:[0,0,10,10],x:0,y:0,moveMatrix:[1,0,0,1],font:"\\bfseries",fontSize:10};
+
+test("arrangement requires unique, visible, editable objects and an insertion point", () => {
+  const objects: EditableObject[] = Array.from({ length: 1000 }, (_, id) => ({
+    id, start: id, end: id + 1, kind: "node", bounds: [0, 0, 1, 1],
+    layer: "main", order: id, editable: true, visible: true,
+  }));
+  const metadata: EditingMetadata = { viewBox: [0, 0, 100, 100], nodes: [], objects, insertionOffset: 1000 };
+  assert.equal(canArrange(metadata), true);
+  assert.equal(canArrange({ ...metadata, objects: [...objects, objects[0]] }), false);
+  assert.equal(canArrange({ ...metadata, insertionOffset: null }), false);
+  assert.equal(canArrange({ ...metadata, objects: objects.slice(0, 1) }), false);
+  for (const change of [{ visible: false }, { editable: false }]) {
+    assert.equal(canArrange({ ...metadata, objects: [...objects.slice(0, -1), { ...objects[999], ...change }] }), false);
+  }
+});
 
 test("label editing preserves the complete node header and supports TeX, Unicode, empty and long labels", () => {
   for (const text of ["", "あいうえお".repeat(60), String.raw`$x^2$ \\ \textbf{次の行} \{escaped\}`, "% comment\n本文"]) {
