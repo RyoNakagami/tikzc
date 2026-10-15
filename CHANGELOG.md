@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-15
+
+### Changed
+
+- VSCode extension: the separate SVG / PNG export commands and preview buttons
+  are merged into one **TikZc Editor: Export (SVG / PNG)** command
+  (`tikzc.export`) and one **Export…** button. The format is chosen from a
+  quick pick; the preview's current view (SVG / PNG) is offered first.
+- VSCode extension: the export save dialog now opens at the workspace root
+  (the folder that contains the `.tikz` file, else the first one) instead of
+  the `.tikz` file's folder. Without a workspace it still uses the file's
+  folder.
+
+### Removed
+
+- VSCode extension: command IDs `tikzc.exportSvg` and `tikzc.exportPng`.
+  Rebind custom keybindings to `tikzc.export`.
+
 ## [1.1.0] - 2026-10-14
 
 ### Added
@@ -415,7 +433,8 @@ Initial release.
 - Docs: manual (EN / JP), branch strategy, commit rules, testing guide, and
   versioning policy.
 
-[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/RyoNakagami/tikzc/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/RyoNakagami/tikzc/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/RyoNakagami/tikzc/compare/v0.3.3...v1.0.0
 [0.3.3]: https://github.com/RyoNakagami/tikzc/compare/v0.3.2...v0.3.3

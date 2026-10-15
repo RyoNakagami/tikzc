@@ -34,7 +34,7 @@ img { display:block; background:white; margin:auto; } img.fit { max-width:100%; 
 </style></head><body><header><strong>TikZc Editor</strong>
 <label>${t("View")} <select id="format"><option value="svg">SVG</option><option value="png">PNG</option></select></label>
 <label>${t("Language")} <select id="language"><option value="en"${selected("en")}>English</option><option value="ja"${selected("ja")}>日本語</option></select></label>
-<button id="fit">Fit / 100%</button><button id="svg" disabled>Export SVG</button><button id="png" disabled>Export PNG</button>
+<button id="fit">Fit / 100%</button><button id="export" disabled>${t("Export…")}</button>
 <label>${t("Tool")} <select id="tool" disabled><option value="select">${t("Select / move")}</option><option value="text">${t("Add text")}</option><option value="rectangle">${t("Rectangle")}</option><option value="ellipse">${t("Ellipse")}</option><option value="circle">${t("Circle")}</option><option value="line">${t("Line")}</option><option value="arrow">${t("Arrow")}</option></select></label>
 <button id="edit-label" disabled>${t("Edit text")}</button>
 <label>${t("Object")} <select id="objects" aria-label="${t("Select object")}" disabled><option value="">${t("Choose…")}</option></select></label>

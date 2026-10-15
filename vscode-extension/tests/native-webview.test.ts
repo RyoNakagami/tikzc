@@ -41,7 +41,7 @@ test("webview displays exact SVG/PNG payloads and clears stale images on externa
   const img=h.el("diagram");assert.equal(await h.blobs.get(img.src)!.text(),data.svg);
   h.el("format").value="png";h.el("format").fire("change");
   assert.deepEqual(Buffer.from(await h.blobs.get(img.src)!.arrayBuffer()),Buffer.from(data.png,"base64"));
-  h.el("png").fire("click");assert.equal(h.sent.at(-1).format,"png");
+  h.el("export").fire("click");assert.equal(h.sent.at(-1).type,"export");assert.equal(h.sent.at(-1).format,"png");
   h.message({type:"pending"});assert.equal(img.hidden,true);assert.equal(img.src,undefined);assert.equal(h.blobs.size,0);
   h.message({type:"error",message:"Unsupported syntax"});assert.equal(h.el("status").textContent,"Unsupported syntax");
 });

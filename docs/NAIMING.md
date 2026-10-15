@@ -24,7 +24,7 @@ VSCode 拡張機能の名称を変更する開発者向けに，表示箇所と�
 | 表示箇所 | ファイル | 変更する項目・文字列 |
 |---|---|---|
 | 拡張機能一覧 | [`vscode-extension/package.json`](../vscode-extension/package.json) | `displayName`：`TikZc Editor` |
-| コマンドパレット | 同上 | `contributes.commands[].title`：`TikZc Editor: Open to the Side`，`TikZc Editor: Export as SVG` など |
+| コマンドパレット | 同上 | `contributes.commands[].title`：`TikZc Editor: Open to the Side`，`TikZc Editor: Export (SVG / PNG)` など |
 | 設定画面のグループ名 | 同上 | `contributes.configuration.title`：`TikZc Editor (tikzc)` |
 | プレビューのタブ名 | [`vscode-extension/src/preview/preview.ts`](../vscode-extension/src/preview/preview.ts) | `createWebviewPanel` のタイトル引数と，`refresh()` 内の `panel.title`：`TikZc Editor: <ファイル名>` |
 | プレビュー上部の見出し | [`vscode-extension/src/preview/preview-html.ts`](../vscode-extension/src/preview/preview-html.ts) | `buildPreviewHtml()` の `<header><strong>TikZc Editor</strong>` |
@@ -49,7 +49,7 @@ VSCode 拡張機能の名称を変更する開発者向けに，表示箇所と�
 | 拡張のパッケージ名 | `tikzc-preview` | 同ファイルの `name` |
 | Publisher | `RyoNak` | 同ファイルの `publisher` |
 | 拡張 ID | `RyoNak.tikzc-preview` | `publisher` と `name` の組み合わせ |
-| コマンド ID | `tikzc.showPreview`，`tikzc.exportSvg`，`tikzc.exportPng` | `contributes.commands[].command` |
+| コマンド ID | `tikzc.showPreview`，`tikzc.export` | `contributes.commands[].command` |
 | 設定キー | `tikzc.*` | `contributes.configuration.properties` |
 | プレビューの webview 識別子 | `tikzcNativePreview` | `preview.ts` の `createWebviewPanel` 第1引数 |
 | CLI コマンド | `tikzc` | Rust CLI |

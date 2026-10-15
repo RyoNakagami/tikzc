@@ -4,7 +4,7 @@ Open a `.tikz` file and press **Ctrl+K V** (**Cmd+K V** on macOS), or run
 **TikZc Editor: Open to the Side**. Edit in VSCode; unsaved buffer changes are
 compiled after the configured debounce interval.
 
-The standard preview and **TikZc Editor: Export as SVG / PNG** commands share one Rust
+The standard preview and **TikZc Editor: Export (SVG / PNG)** command share one Rust
 compilation artifact. The SVG is displayed as an isolated image without CSS or
 MathJax text layout. Japanese, ASCII, full-width and half-width labels are paths,
 so the browser does not remeasure them. PNG is produced from that same SVG.

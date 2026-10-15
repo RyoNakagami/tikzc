@@ -89,8 +89,8 @@ export function activateNativePreview(ctx: vscode.ExtensionContext): void {
       if (message?.type === "language" && (message.value === "en" || message.value === "ja")) {
         void vscode.workspace.getConfiguration("tikzc").update("language", message.value, vscode.ConfigurationTarget.Global);
       }
-      if (message?.type === "export" && (message.format === "svg" || message.format === "png")) {
-        void exportAs(message.format, document);
+      if (message?.type === "export") {
+        void exportAs(message.format === "png" ? "png" : "svg", document);
       }
     });
     current.webview.html = buildPreviewHtml(current.webview, ctx.extensionUri);
@@ -149,7 +149,15 @@ export function activateNativePreview(ctx: vscode.ExtensionContext): void {
     } finally { guiEdit = false; }
   }
 
-  async function exportAs(format: "svg" | "png", doc?: vscode.TextDocument): Promise<void> {
+  /** Default save location: the workspace root that owns the file (or the first one), else the file's own folder. */
+  function exportUri(doc: vscode.TextDocument, format: "svg" | "png"): vscode.Uri {
+    const name = path.basename(doc.fileName).replace(/\.[^.]+$/, "") + `.${format}`;
+    const root = vscode.workspace.getWorkspaceFolder?.(doc.uri) ?? vscode.workspace.workspaceFolders?.[0];
+    return root ? vscode.Uri.joinPath(root.uri, name) : vscode.Uri.file(path.join(path.dirname(doc.fileName), name));
+  }
+
+  /** One export entry point: pick the format (preferred one first), then the destination. */
+  async function exportAs(preferred: "svg" | "png" = "svg", doc?: vscode.TextDocument): Promise<void> {
     if (!doc) {
       const active = vscode.window.activeTextEditor?.document;
       doc = active && isTikz(active) ? active : document;
@@ -157,8 +165,15 @@ export function activateNativePreview(ctx: vscode.ExtensionContext): void {
     if (!doc) { void vscode.window.showWarningMessage("tikzc: open a .tikz file first."); return; }
     // Snapshot before the dialog: edits during export cannot mix revisions.
     const snapshot = request(doc);
+    const formats = (preferred === "png" ? ["png", "svg"] : ["svg", "png"]) as Array<"svg" | "png">;
+    const picked = await vscode.window.showQuickPick(
+      formats.map(value => ({ label: value.toUpperCase(), description: t(value === "svg" ? "Vector image" : "Raster image"), format: value })),
+      { placeHolder: t("Export format") },
+    );
+    if (!picked) return;
+    const format = picked.format;
     const target = await vscode.window.showSaveDialog({
-      defaultUri: vscode.Uri.file(doc.fileName.replace(/\.[^.]+$/, `.${format}`)),
+      defaultUri: exportUri(doc, format),
       filters: { [format.toUpperCase()]: [format] },
     });
     if (!target) return;
@@ -175,8 +190,7 @@ export function activateNativePreview(ctx: vscode.ExtensionContext): void {
 
   ctx.subscriptions.push(
     vscode.commands.registerCommand("tikzc.showPreview", open),
-    vscode.commands.registerCommand("tikzc.exportSvg", () => exportAs("svg")),
-    vscode.commands.registerCommand("tikzc.exportPng", () => exportAs("png")),
+    vscode.commands.registerCommand("tikzc.export", () => exportAs()),
     vscode.workspace.onDidChangeTextDocument((event) => {
       if (event.document !== document || event.contentChanges?.length === 0) return;
       if (applied?.doc === document && applied.source === document.getText()) return;

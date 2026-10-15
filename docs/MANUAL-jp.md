@@ -164,8 +164,7 @@ major.minor バージョンが異なる場合は警告を表示します．
 | コマンドパレット表示 | ID | 利用条件 |
 | --- | --- | --- |
 | **TikZc Editor: Open to the Side** | `tikzc.showPreview` | アクティブエディタが `.tikz`．エディタタイトルバーのアイコンからも起動可 |
-| **TikZc Editor: Export as SVG** | `tikzc.exportSvg` | アクティブエディタが `.tikz` |
-| **TikZc Editor: Export as PNG** | `tikzc.exportPng` | アクティブエディタが `.tikz` |
+| **TikZc Editor: Export (SVG / PNG)** | `tikzc.export` | アクティブエディタが `.tikz` |
 
 デフォルトキーバインド：`Ctrl+K V`（macOS は `Cmd+K V`）で現在のエディタの
 横にプレビューを開きます．
@@ -181,7 +180,7 @@ major.minor バージョンが異なる場合は警告を表示します．
      変更をコンパイルして検証したうえで，バッファへ1回の Undo 可能な編集として
      適用される
 4. **保存は通常どおり `Ctrl+S`**．キャンバスでの編集はバッファを変更するだけです
-5. **TikZc Editor: Export as SVG / PNG** を実行し，保存先を選択する
+5. **TikZc Editor: Export (SVG / PNG)**（またはプレビューの **エクスポート…** ボタン）を実行し，SVG / PNG を選んで保存先を選択する（既定はワークスペースルート）
 
 プレビューはアクティブな `.tikz` エディタに追従します．エラーはソース位置つきで
 表示されます．

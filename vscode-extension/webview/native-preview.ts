@@ -9,8 +9,7 @@ setLanguage(document.documentElement?.lang);
 const diagram = document.getElementById("diagram") as HTMLImageElement;
 const status = document.getElementById("status")!;
 const format = document.getElementById("format") as HTMLSelectElement;
-const svgButton = document.getElementById("svg") as HTMLButtonElement;
-const pngButton = document.getElementById("png") as HTMLButtonElement;
+const exportButton = document.getElementById("export") as HTMLButtonElement;
 let svgUrl = "";
 let pngUrl = "";
 const overlay = document.getElementById("overlay")!;
@@ -288,7 +287,7 @@ function clear(): void {
   if (svgUrl) URL.revokeObjectURL(svgUrl);
   if (pngUrl) URL.revokeObjectURL(pngUrl);
   svgUrl = pngUrl = "";
-  svgButton.disabled = pngButton.disabled = true;
+  exportButton.disabled = true;
 }
 function display(): void {
   const url = format.value === "png" ? pngUrl : svgUrl;
@@ -338,7 +337,7 @@ async function present(data: any): Promise<void> {
     canInsert=Number.isInteger(data.editing?.insertionOffset); tool.disabled=!canInsert;
     if(!canInsert) tool.value="select";
     updateTool();
-    svgButton.disabled=pngButton.disabled=false;
+    exportButton.disabled=false;
     display(); positionOverlay();
     committed=true;
     // The replacement is already decoded before releasing the visible buffers.
@@ -448,8 +447,8 @@ document.getElementById("move")!.addEventListener("click",()=>{
     submit({type:"move-object",objectId:chosen.object.id,dx:x-left-width/2,dy:y+top+height/2});
   }
 });
-svgButton.addEventListener("click", () => host.postMessage({ type: "export", format: "svg" }));
-pngButton.addEventListener("click", () => host.postMessage({ type: "export", format: "png" }));
+// The host asks for the format; the current view is offered first.
+exportButton.addEventListener("click", () => host.postMessage({ type: "export", format: format.value }));
 window.addEventListener("unload", clear);
 host.postMessage({ type: "ready" });
 export {};
