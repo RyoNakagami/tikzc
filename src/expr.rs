@@ -1,6 +1,25 @@
 //! Bounded, deterministic PGF-style scalar expressions. Trigonometry is in degrees.
 //! This is intentionally not a TeX evaluator or the complete PGF math language.
 pub fn eval(source: &str) -> Result<f64, String> {
+    eval_value(source)?.number()
+}
+/// A PGF math result: a number, or a quoted string chosen by `?:` or
+/// `ifthenelse` (`1 ? "red" : "blue"`). Strings are not operands.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Value {
+    Number(f64),
+    Text(String),
+}
+impl Value {
+    pub fn number(self) -> Result<f64, String> {
+        match self {
+            Value::Number(v) => Ok(v),
+            Value::Text(t) => Err(format!("math string \"{t}\" used as a number")),
+        }
+    }
+}
+/// Like [`eval`], but a quoted string may be the result.
+pub fn eval_value(source: &str) -> Result<Value, String> {
     if source.len() > 4096 {
         return Err("math expression exceeds 4096 bytes".into());
     }
@@ -14,7 +33,10 @@ pub fn eval(source: &str) -> Result<f64, String> {
     if parser.pos != source.len() {
         return Err(format!("Unsupported math near '{}'", &source[parser.pos..]));
     }
-    finite(result)
+    match result {
+        Value::Number(v) => finite(v).map(Value::Number),
+        text => Ok(text),
+    }
 }
 fn finite(value: f64) -> Result<f64, String> {
     if value.is_finite() && value.abs() <= 1e12 {
@@ -80,21 +102,21 @@ impl Parser<'_> {
             false
         }
     }
-    fn expression(&mut self, min: u8) -> Result<f64, String> {
+    fn expression(&mut self, min: u8) -> Result<Value, String> {
         self.depth += 1;
         if self.depth > 64 {
             return Err("math nesting exceeds 64 levels".into());
         }
         self.ws();
         let mut left = if self.eat("+") {
-            self.expression(MULTIPLICATIVE + 1)?
+            Value::Number(self.expression(MULTIPLICATIVE + 1)?.number()?)
         } else if self.eat("-") {
-            -self.expression(MULTIPLICATIVE + 1)?
+            Value::Number(-self.expression(MULTIPLICATIVE + 1)?.number()?)
         } else if self.input[self.pos..].starts_with('!')
             && !self.input[self.pos..].starts_with("!=")
         {
             self.pos += 1;
-            truth(self.expression(POWER + 1)? == 0.)
+            Value::Number(truth(self.expression(POWER + 1)?.number()? == 0.))
         } else {
             self.atom()?
         };
@@ -109,7 +131,7 @@ impl Parser<'_> {
                     break;
                 }
                 self.pos += 1;
-                left = finite(left.to_degrees())?;
+                left = Value::Number(finite(left.number()?.to_degrees())?);
                 continue;
             }
             if rest.starts_with('?') {
@@ -122,7 +144,7 @@ impl Parser<'_> {
                     return Err("math expected ':' after '?'".into());
                 }
                 let no = self.expression(TERNARY + 1)?;
-                left = if left != 0. { yes } else { no };
+                left = if left.number()? != 0. { yes } else { no };
                 continue;
             }
             let Some((op, binding, right_binding)) = [
@@ -149,30 +171,42 @@ impl Parser<'_> {
                 break;
             }
             self.pos += op.len();
-            let right = self.expression(right_binding)?;
-            left = finite(match op {
-                "+" => left + right,
-                "-" => left - right,
-                "*" => left * right,
-                "/" => left / right,
-                "%" => left % right,
-                "^" => left.powf(right),
-                "==" => truth(left == right),
-                "!=" => truth(left != right),
-                "<=" => truth(left <= right),
-                ">=" => truth(left >= right),
-                "<" => truth(left < right),
-                ">" => truth(left > right),
-                "&&" => truth(left != 0. && right != 0.),
-                "||" => truth(left != 0. || right != 0.),
+            let right = self.expression(right_binding)?.number()?;
+            let l = left.number()?;
+            left = Value::Number(finite(match op {
+                "+" => l + right,
+                "-" => l - right,
+                "*" => l * right,
+                "/" => l / right,
+                "%" => l % right,
+                "^" => l.powf(right),
+                "==" => truth(l == right),
+                "!=" => truth(l != right),
+                "<=" => truth(l <= right),
+                ">=" => truth(l >= right),
+                "<" => truth(l < right),
+                ">" => truth(l > right),
+                "&&" => truth(l != 0. && right != 0.),
+                "||" => truth(l != 0. || right != 0.),
                 _ => unreachable!(),
-            })?;
+            })?);
         }
         self.depth -= 1;
-        finite(left)
+        match left {
+            Value::Number(v) => finite(v).map(Value::Number),
+            text => Ok(text),
+        }
     }
-    fn atom(&mut self) -> Result<f64, String> {
+    fn atom(&mut self) -> Result<Value, String> {
         self.ws();
+        if self.input[self.pos..].starts_with('"') {
+            let rest = &self.input[self.pos + 1..];
+            let Some(end) = rest.find('"') else {
+                return Err("math string is missing its closing '\"'".into());
+            };
+            self.pos += end + 2;
+            return Ok(Value::Text(rest[..end].into()));
+        }
         for (open, close) in [("(", ")"), ("{", "}")] {
             if self.eat(open) {
                 let value = self.expression(0)?;
@@ -211,6 +245,7 @@ impl Parser<'_> {
             }
             return self.input[start..self.pos]
                 .parse()
+                .map(Value::Number)
                 .map_err(|_| "invalid math number".into());
         }
         // Names may carry digits after the first letter (log10, atan2).
@@ -220,6 +255,12 @@ impl Parser<'_> {
             }
         }
         let name = &self.input[start..self.pos];
+        if name.is_empty() {
+            return Err(format!(
+                "Unsupported math near '{}'",
+                &self.input[self.pos..]
+            ));
+        }
         self.ws();
         if !self.input[self.pos..].starts_with('(') {
             return match name {
@@ -230,7 +271,8 @@ impl Parser<'_> {
                 "rnd" => Ok(random()),
                 "rand" => Ok(2. * random() - 1.),
                 _ => Err(format!("Unsupported math symbol '{name}'")),
-            };
+            }
+            .map(Value::Number);
         }
         self.pos += 1;
         let mut args = Vec::new();
@@ -246,6 +288,16 @@ impl Parser<'_> {
                 return Err("math expected ')'".into());
             }
         }
+        // Only `ifthenelse` passes a string branch through; every other
+        // function takes numbers.
+        if let ("ifthenelse", [c, a, b]) = (name, args.as_slice()) {
+            let pick = if c.clone().number()? != 0. { a } else { b };
+            return Ok(pick.clone());
+        }
+        let args = args
+            .into_iter()
+            .map(Value::number)
+            .collect::<Result<Vec<_>, _>>()?;
         let integer = |low: f64, high: f64| -> Result<f64, String> {
             if low.fract() != 0. || high.fract() != 0. {
                 return Err("random bounds must be integers".into());
@@ -288,13 +340,6 @@ impl Parser<'_> {
             ("mod", [a, b]) => a % b,
             ("min", v @ [_, ..]) => v.iter().copied().fold(f64::INFINITY, f64::min),
             ("max", v @ [_, ..]) => v.iter().copied().fold(f64::NEG_INFINITY, f64::max),
-            ("ifthenelse", [c, a, b]) => {
-                if *c != 0. {
-                    *a
-                } else {
-                    *b
-                }
-            }
             ("equal", [a, b]) => truth(a == b),
             ("notequal", [a, b]) => truth(a != b),
             ("greater", [a, b]) => truth(a > b),
@@ -312,7 +357,7 @@ impl Parser<'_> {
             ("random", [low, high]) => integer(*low, *high)?,
             _ => return Err(format!("Unsupported math function or arity '{name}'")),
         };
-        finite(value)
+        finite(value).map(Value::Number)
     }
 }
 #[cfg(test)]
@@ -432,6 +477,25 @@ mod tests {
                 eval(&format!("{v}>0.5 ? 2 : 1")).unwrap()
             );
         }
+    }
+    #[test]
+    fn strings_are_results_not_operands() {
+        let text = |s: &str| eval_value(s).unwrap_or_else(|e| panic!("{s}: {e}"));
+        assert_eq!(text(r#""red""#), Value::Text("red".into()));
+        assert_eq!(text(r#"1>0 ? "red" : "blue""#), Value::Text("red".into()));
+        assert_eq!(text(r#"0 ? "a" : 0 ? "b" : "c""#), Value::Text("c".into()));
+        assert_eq!(text(r#"ifthenelse(0,"a",{"b"})"#), Value::Text("b".into()));
+        assert_eq!(text(r#"1 ? 2 : "x""#), Value::Number(2.));
+        for s in [
+            r#""a"+1"#,
+            r#"-"a""#,
+            r#""a" ? 1 : 2"#,
+            r#"max("a",1)"#,
+            r#""a"=="a""#,
+        ] {
+            assert!(eval_value(s).is_err(), "{s}");
+        }
+        assert!(eval(r#"1 ? "a" : "b""#).is_err());
     }
     #[test]
     fn random_numbers_are_seeded_bounded_and_repeatable() {

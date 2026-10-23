@@ -19,7 +19,7 @@ fn fixtures_by_kind() -> (Vec<String>, Vec<String>) {
 }
 
 const UNSUPPORTED: &[(&str, usize, usize)] = &[
-    ("ds-unsupported-ifnum.tikz", 3, 5),
+    ("ds-unsupported-ifthenelse.tikz", 3, 5),
     ("ds-unsupported-markings.tikz", 3, 9),
     ("ds-unsupported-nested-markings.tikz", 3, 9),
     ("ds-unsupported-plot-file.tikz", 2, 29),
@@ -32,7 +32,7 @@ const UNSUPPORTED: &[(&str, usize, usize)] = &[
 #[test]
 fn every_supported_fixture_checks_and_renders_identically_twice() {
     let (supported, _) = fixtures_by_kind();
-    assert_eq!(supported.len(), 16, "{supported:?}");
+    assert_eq!(supported.len(), 17, "{supported:?}");
     let dir = scratch("determinism");
     for name in &supported {
         let result = check(&fixture_path(name));

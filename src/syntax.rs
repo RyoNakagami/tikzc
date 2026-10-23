@@ -175,6 +175,10 @@ impl<'a> Cursor<'a> {
     }
     pub fn word(&mut self) -> &'a str {
         self.ws();
+        self.word_here()
+    }
+    /// ASCII letters at the cursor, without skipping whitespace first.
+    pub fn word_here(&mut self) -> &'a str {
         let start = self.pos;
         while self
             .rest()

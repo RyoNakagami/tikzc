@@ -109,7 +109,14 @@ See [versioning policy](VERSIONING_POLICY.md) for the managed files and exclusio
   `rad`, the constants `pi` and `e`, and the radian suffix (`cos(\t r)`).
   Conditions: `<`, `>`, `<=`, `>=`, `==`, `!=`, `&&`, `||`, `!`, `c ? a : b`
   and `ifthenelse(c,a,b)`, with PGF's precedence. Coordinate expressions such
-  as `({2*\i},0)` work after expansion.
+  as `({2*\i},0)` work after expansion. A quoted string may be the result of
+  `?:` or `ifthenelse` (`\pgfmathsetmacro{\c}{\v>0 ? "red" : "blue"}`), not
+  an operand.
+- TeX conditionals: `\ifnum a<b`, `\ifodd n` and `\ifdim a<b` (`=`, `>`)
+  with an optional `\else`, ended by `\fi`, nested and inside macros or
+  loops. Operands are digits or one value macro (`\ifnum#1>0`, `\ifnum\i=\j`);
+  `\ifnum` needs integers and `\ifdim` a unit (`pt`, `bp`, `cm`, `mm`,
+  `in`). TeX's general number scanning is not reproduced.
 - Numbers: `\pgfmathprintnumber` in PGF's default format (fixed for
   10⁻¹ ≤ |x| < 10⁵, otherwise `m·10^e`) and with `fixed`, `precision` and
   `zerofill`; the result is math, with `{,}` thousands separators.
@@ -163,7 +170,8 @@ arbitrary matrix cells/spans, graphs, `plot function` (gnuplot), `plot file`,
 shapes, `outer sep=auto`, intersection `sort by`, and number formats other
 than the default and `fixed` (`sci`, `std=`, `int detect`) remain
 unsupported. Expansion is bounded and does not support arbitrary TeX,
-optional/delimited arguments, TeX conditionals (`\ifnum ... \fi`), other loop
+optional/delimited arguments, TeX conditionals other than `\ifnum`, `\ifodd`
+and `\ifdim` (`\ifx`, `\ifthenelse` of the ifthen package), other loop
 options (`parse`, `var`, `expand list`) or PGF's full math language.
 The old Phase 0 “supported” fixture
 classification is not a promise that all those features are implemented.
