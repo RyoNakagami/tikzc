@@ -30,6 +30,10 @@ const deleteButton = document.getElementById("delete-object") as HTMLButtonEleme
 let token = 0, viewBox: EditingMetadata["viewBox"] = [0,0,1,1];
 const input = (id: string) => document.getElementById(id) as HTMLInputElement;
 const canvas = document.getElementById("canvas")!;
+const viewport = document.getElementById("viewport")!;
+// Scale relative to the image's natural size; undefined keeps the Fit / 100% toggle.
+let zoom: number | undefined;
+let spaceHeld = false;
 const tool = document.getElementById("tool") as HTMLSelectElement;
 const draft = document.getElementById("draft")!;
 const labelEditor = document.getElementById("label-editor")!;
@@ -298,6 +302,22 @@ function display(): void {
 function resetViewport(): void {
   canvas.style.width = canvas.style.height = "";
   for (const key of ["position","left","top","width","height","maxWidth"] as const) diagram.style[key] = "";
+  // Zoom resizes the layout box (not a transform), so the viewport's own scrolling pans it.
+  canvas.style.maxWidth = zoom ? "none" : "";
+  if (zoom) Object.assign(diagram.style,{width:`${diagram.width*zoom}px`,height:`${diagram.height*zoom}px`,maxWidth:"none"});
+}
+function zoomAt(factor: number, clientX: number, clientY: number): void {
+  if (diagram.hidden || !diagram.width) return;
+  const before = diagram.getBoundingClientRect();
+  if (!before.width || !before.height) return;
+  cancelGesture?.();
+  const fx = (clientX-before.left)/before.width, fy = (clientY-before.top)/before.height;
+  zoom = Math.min(8,Math.max(0.1,(zoom ?? before.width/diagram.width)*factor));
+  resetViewport(); positionOverlay();
+  // Keep the image point under the cursor fixed.
+  const after = diagram.getBoundingClientRect();
+  viewport.scrollLeft += after.left+fx*after.width-clientX;
+  viewport.scrollTop += after.top+fy*after.height-clientY;
 }
 function preserveViewport(next: EditingMetadata["viewBox"]): void {
   const sx=diagram.clientWidth/viewBox[2], sy=diagram.clientHeight/viewBox[3];
@@ -317,11 +337,13 @@ async function present(data: any): Promise<void> {
     await Promise.all([svg.decode(),png.decode()]);
     if(revision!==presentationRevision) return;
     cancelGesture?.();
-    if(data.preserveViewport && !diagram.hidden && data.editing) preserveViewport(data.editing.viewBox);
-    else resetViewport();
+    const preserve=data.preserveViewport && !diagram.hidden && data.editing;
+    if(preserve) preserveViewport(data.editing.viewBox);
     const oldSvg=svgUrl, oldPng=pngUrl;
     svgUrl=nextSvg; pngUrl=nextPng;
     diagram.width=svg.naturalWidth; diagram.height=svg.naturalHeight;
+    // After the natural size is known, so zoomed images are sized from it.
+    if(!preserve) resetViewport();
     token=data.token;
     nodes=data.editing?.nodes ?? []; objects=data.editing?.objects ?? []; anchors=data.editing?.anchors ?? [];
     viewBox=data.editing?.viewBox ?? [0,0,1,1];
@@ -388,7 +410,38 @@ window.addEventListener("keydown", event => {
     canvas.focus({preventScroll:true});
   }
   if (event.key === "Escape" && !event.isComposing) { tool.value = "select"; updateTool(); }
+  // Space-drag pans; keep text fields and toolbar controls typing/activating normally.
+  if (event.key === " " && !event.isComposing && (target===canvas || target===document.body || target?.classList?.contains("node-hit") || target?.classList?.contains("endpoint"))) {
+    event.preventDefault(); spaceHeld = true; canvas.classList.toggle("pan-ready",true);
+  }
 });
+function releaseSpace(): void { spaceHeld = false; canvas.classList.toggle("pan-ready",false); }
+window.addEventListener("keyup", event => { if (event.key === " " && spaceHeld) { event.preventDefault(); releaseSpace(); } });
+window.addEventListener("blur", releaseSpace);
+viewport.addEventListener("wheel", event => {
+  if (!event.ctrlKey && !event.metaKey) return;
+  event.preventDefault();
+  zoomAt(Math.exp(-event.deltaY*(event.deltaMode === 1 ? 0.05 : 0.002)),event.clientX,event.clientY);
+}, {passive:false});
+// Capture phase, so panning wins over the selection, handle, and drawing gestures below.
+viewport.addEventListener("pointerdown", event => {
+  if (event.button !== 1 && !(event.button === 0 && spaceHeld)) return;
+  event.preventDefault(); event.stopPropagation();
+  cancelGesture?.();
+  viewport.setPointerCapture(event.pointerId);
+  canvas.classList.toggle("panning",true);
+  const x=event.clientX, y=event.clientY, left=viewport.scrollLeft, top=viewport.scrollTop;
+  const move = (e: PointerEvent) => { viewport.scrollLeft=left-(e.clientX-x); viewport.scrollTop=top-(e.clientY-y); };
+  const cancel = () => {
+    viewport.removeEventListener("pointermove",move); viewport.removeEventListener("pointerup",cancel); viewport.removeEventListener("pointercancel",cancel);
+    if (viewport.hasPointerCapture(event.pointerId)) viewport.releasePointerCapture(event.pointerId);
+    canvas.classList.toggle("panning",false); cancelGesture = undefined;
+  };
+  cancelGesture = cancel;
+  viewport.addEventListener("pointermove",move); viewport.addEventListener("pointerup",cancel); viewport.addEventListener("pointercancel",cancel);
+}, true);
+// Suppress the browser's middle-click autoscroll.
+viewport.addEventListener("mousedown", event => { if (event.button === 1) event.preventDefault(); });
 canvas.addEventListener("pointerdown", event => {
   if (event.button !== 0 || busy || !canInsert || tool.value === "select" || diagram.hidden || !labelEditor.hidden) return;
   event.preventDefault();
@@ -431,7 +484,11 @@ canvas.addEventListener("pointerdown", event => {
 format.addEventListener("change", display);
 const languagePicker = document.getElementById("language") as HTMLSelectElement;
 languagePicker.addEventListener("change", () => host.postMessage({ type: "language", value: languagePicker.value }));
-document.getElementById("fit")!.addEventListener("click", () => {resetViewport();diagram.classList.toggle("fit");});
+// From a Ctrl+wheel zoom, the button returns to Fit; otherwise it toggles Fit / 100%.
+document.getElementById("fit")!.addEventListener("click", () => {
+  if (zoom) {zoom=undefined;diagram.classList.toggle("fit",true);} else diagram.classList.toggle("fit");
+  resetViewport();
+});
 diagram.addEventListener("load", positionOverlay);
 window.addEventListener("resize", () => {resetViewport();positionOverlay();});
 document.getElementById("fit")!.addEventListener("click", positionOverlay);

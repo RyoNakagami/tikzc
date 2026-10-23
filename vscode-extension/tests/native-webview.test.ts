@@ -180,3 +180,31 @@ test("start, end and bend controls remain available when selecting an arrow labe
   h.el("endpoints").children[0].fire("keydown",{key:"ArrowRight",shiftKey:true});
   assert.equal(h.sent.at(-1).point,0);assert.equal(h.sent.at(-1).x,10);
 });
+
+test("Ctrl+wheel zooms by resizing the image and the Fit button leaves the zoom",async()=>{
+  const h=setup();h.message(h.payload(metadata));await tick(0);
+  const img=h.el("diagram"),viewport=h.el("viewport");let prevented=false;
+  viewport.fire("wheel",{deltaY:-100,clientX:150,clientY:100,preventDefault(){prevented=true;}});
+  assert.equal(prevented,false);assert.equal(img.style.width,"");
+  viewport.fire("wheel",{ctrlKey:true,deltaY:-100,deltaMode:0,clientX:150,clientY:100,preventDefault(){prevented=true;}});
+  assert.equal(prevented,true);assert.equal(img.style.width,`${200*Math.exp(0.2)}px`);assert.equal(h.el("canvas").style.maxWidth,"none");
+  h.window.fire("resize");assert.equal(img.style.width,`${200*Math.exp(0.2)}px`);
+  h.message(h.payload(metadata,{token:8}));await tick(0);assert.equal(img.style.width,`${200*Math.exp(0.2)}px`);
+  img.classes.delete("fit");h.el("fit").fire("click");
+  assert.equal(img.style.width,"");assert.equal(img.classList.contains("fit"),true);assert.equal(h.el("canvas").style.maxWidth,"");
+});
+
+test("Space-drag and middle-drag pan the viewport instead of editing",async()=>{
+  const h=setup();h.message(h.payload(metadata));await tick(0);
+  const viewport=Object.assign(h.el("viewport"),{scrollLeft:50,scrollTop:40}),before=h.sent.length;
+  viewport.fire("pointerdown",{clientX:100,clientY:100});assert.equal(h.el("canvas").classList.contains("panning"),false);
+  h.window.fire("keydown",{key:" ",target:h.el("canvas")});assert.equal(h.el("canvas").classList.contains("pan-ready"),true);
+  viewport.fire("pointerdown",{clientX:100,clientY:100});viewport.fire("pointermove",{clientX:70,clientY:90});
+  assert.deepEqual([viewport.scrollLeft,viewport.scrollTop],[80,50]);viewport.fire("pointerup",{});
+  h.window.fire("keyup",{key:" "});assert.equal(h.el("canvas").classList.contains("pan-ready"),false);
+  viewport.fire("pointerdown",{button:1,clientX:0,clientY:0});viewport.fire("pointermove",{clientX:10,clientY:10});
+  assert.deepEqual([viewport.scrollLeft,viewport.scrollTop],[70,40]);viewport.fire("pointerup",{});
+  viewport.fire("pointermove",{clientX:500,clientY:500});assert.equal(viewport.scrollLeft,70);
+  h.window.fire("keydown",{key:" ",target:h.el("font-size")});assert.equal(h.el("canvas").classList.contains("pan-ready"),false);
+  assert.equal(h.sent.length,before);
+});
