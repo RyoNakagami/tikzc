@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { setTimeout as tick } from "node:timers/promises";
 
-test("native host preview and both export commands use identical dirty-buffer snapshots and artifacts", async () => {
+test("native host preview and the export command use identical dirty-buffer snapshots and artifacts", async () => {
   const code = buildSync({ entryPoints: [fileURLToPath(new URL("../src/preview/preview.ts", import.meta.url))], bundle: true,
     platform: "node", format: "cjs", external: ["vscode", "./renderer"], write: false }).outputFiles[0].text;
   const commands = new Map<string, (...args: any[]) => any>();
@@ -14,8 +14,11 @@ test("native host preview and both export commands use identical dirty-buffer sn
   const messages: any[] = [];
   const requests: any[] = [];
   const writes: Buffer[] = [];
+  const picks: string[] = [];
+  const dialogs: string[] = [];
+  let nextFormat = "svg";
   let source = "unsaved 日本語ABC";
-  const document = { languageId: "tikz", fileName: "/diagram.tikz", uri: { fsPath: "/diagram.tikz" }, getText: () => source };
+  const document = { languageId: "tikz", fileName: "/project/figs/diagram.tikz", uri: { fsPath: "/project/figs/diagram.tikz" }, getText: () => source };
   const config: Record<string, unknown> = { nativePath: "/rust/tikzc", pngDpi: 150, debounceMs: 0, mainfont: "IPAexGothic", extraLibraries: ["calc"] };
   const subscription = {};
   const on = (name: string) => (handler: (...args: any[]) => any) => { events.set(name, handler); return subscription; };
@@ -25,16 +28,18 @@ test("native host preview and both export commands use identical dirty-buffer sn
   } };
   const vscode = {
     ViewColumn: { Beside: 2 }, ProgressLocation: { Notification: 1 },
-    Uri: { file: (fsPath: string) => ({ fsPath }), joinPath: () => ({ fsPath: "/extension/dist" }) },
+    Uri: { file: (fsPath: string) => ({ fsPath }), joinPath: (base: { fsPath: string }, ...parts: string[]) => ({ fsPath: [base.fsPath, ...parts].join("/") }) },
     commands: { registerCommand: (name: string, handler: (...args: any[]) => any) => { commands.set(name, handler); return subscription; } },
     window: { activeTextEditor: { document } as { document: typeof document } | undefined,
       createWebviewPanel: () => panel, onDidChangeActiveTextEditor: on("active"),
-      showSaveDialog: async () => ({ fsPath: "/out" }), withProgress: async (_: unknown, action: () => any) => action(),
+      showQuickPick: async (items: any[]) => { picks.push(JSON.stringify(items.map(item => item.format))); return items.find(item => item.format === nextFormat); },
+      showSaveDialog: async (options: any) => { dialogs.push(options.defaultUri.fsPath); return { fsPath: "/out" }; }, withProgress: async (_: unknown, action: () => any) => action(),
       showWarningMessage: (message: string) => assert.fail(message), showErrorMessage: (message: string) => assert.fail(message), showInformationMessage() {},
     },
     ConfigurationTarget: { Global: 1 },
     workspace: { getConfiguration: () => ({ get: (key: string, fallback: unknown) => config[key] ?? fallback,
         update: async (key: string, value: unknown) => { config[key] = value; events.get("configuration")!({ affectsConfiguration: () => true }); } }),
+      workspaceFolders: [{ uri: { fsPath: "/project" } }],
       onDidChangeTextDocument: on("change"), onDidChangeConfiguration: on("configuration"),
       fs: { writeFile: async (_: unknown, bytes: Buffer) => { writes.push(bytes); } },
     },
@@ -67,8 +72,11 @@ test("native host preview and both export commands use identical dirty-buffer sn
   assert.equal(requests[0].binary, config.nativePath);
   assert.equal(requests[0].dpi, 150);
   vscode.window.activeTextEditor = undefined; // panel has focus
-  await commands.get("tikzc.exportSvg")!();
-  await commands.get("tikzc.exportPng")!();
+  await commands.get("tikzc.export")!();
+  nextFormat = "png";
+  events.get("message")!({ type: "export", format: "png" }); await tick(20);
+  assert.deepEqual(picks, [`["svg","png"]`, `["png","svg"]`], "the preview's current view is offered first");
+  assert.deepEqual(dialogs, ["/project/diagram.svg", "/project/diagram.png"], "the save dialog starts at the workspace root");
   assert.equal(writes[0].toString(), rendered.svg);
   assert.equal(writes[1].toString("base64"), rendered.png);
   assert.equal(JSON.stringify(requests[0]), JSON.stringify(requests[1]));
@@ -164,7 +172,7 @@ test("an empty nativePath resolves tikzc on PATH and version warnings reach the 
   const code = buildSync({ entryPoints: [fileURLToPath(new URL("../src/preview/preview.ts", import.meta.url))], bundle: true,
     platform: "node", format: "cjs", external: ["vscode", "./renderer"], write: false }).outputFiles[0].text;
   const commands = new Map<string, Function>(), events = new Map<string, Function>(), messages: any[] = [], requests: any[] = [], warnings: string[] = [];
-  const document = { languageId: "tikz", fileName: "/diagram.tikz", uri: { fsPath: "/diagram.tikz" }, getText: () => "\\node {A};" };
+  const document = { languageId: "tikz", fileName: "/project/figs/diagram.tikz", uri: { fsPath: "/project/figs/diagram.tikz" }, getText: () => "\\node {A};" };
   const on = (name: string) => (fn: Function) => { events.set(name, fn); return {}; };
   const panel = { title: "", reveal() {}, dispose() {}, onDidDispose: on("dispose"), webview: { html: "", postMessage: (m: any) => messages.push(m),
     onDidReceiveMessage: on("message"), asWebviewUri: () => "https://webview.invalid/native-preview.js" } };
@@ -173,6 +181,7 @@ test("an empty nativePath resolves tikzc on PATH and version warnings reach the 
     window: { activeTextEditor: { document }, createWebviewPanel: () => panel, onDidChangeActiveTextEditor: on("active"),
       showWarningMessage: (message: string) => warnings.push(message) },
     workspace: { getConfiguration: () => ({ get: (key: string, fallback: unknown) => key === "debounceMs" ? 0 : fallback }),
+      workspaceFolders: [{ uri: { fsPath: "/project" } }],
       onDidChangeTextDocument: on("change"), onDidChangeConfiguration: on("config") },
   };
   let expected: string | undefined;

@@ -166,8 +166,7 @@ major.minor version differs from the extension's.
 | Command palette entry | ID | Availability |
 | --- | --- | --- |
 | **TikZc Editor: Open to the Side** | `tikzc.showPreview` | active editor is a `.tikz` file; also as an icon in the editor title bar |
-| **TikZc Editor: Export as SVG** | `tikzc.exportSvg` | active editor is a `.tikz` file |
-| **TikZc Editor: Export as PNG** | `tikzc.exportPng` | active editor is a `.tikz` file |
+| **TikZc Editor: Export (SVG / PNG)** | `tikzc.export` | active editor is a `.tikz` file |
 
 Default keybinding: `Ctrl+K V` (`Cmd+K V` on macOS) opens the preview beside
 the current editor.
@@ -183,7 +182,7 @@ the current editor.
      points) → the change is validated by compiling it, then applied to the
      buffer as one undoable edit.
 4. **Save with `Ctrl+S` as usual.** Canvas edits only change the buffer.
-5. Run **TikZc Editor: Export as SVG / PNG** and pick a save location.
+5. Run **TikZc Editor: Export (SVG / PNG)** (or the preview's **Export…** button), choose SVG or PNG, and pick a save location (defaults to the workspace root).
 
 The preview follows the active `.tikz` editor. Errors are shown with their
 source position.

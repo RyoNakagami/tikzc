@@ -1,0 +1,17 @@
+\begin{tikzpicture}
+  % A heat-map cell: TeX conditionals pick the shape, a pgfmath string the colour.
+  \newcommand{\cell}[3]{%
+    \pgfmathsetmacro{\c}{#3 > 50 ? "red" : "blue"}
+    \ifnum#3=0
+      \draw (#1,#2) rectangle +(0.9,0.9);
+    \else
+      \ifodd#1 \fill[\c!#3] (#1,#2) rectangle +(0.9,0.9);
+      \else \fill[\c!#3] (#1+0.45,#2+0.45) circle (0.45);
+      \fi
+    \fi
+  }
+  \foreach \x/\v [count=\i] in {0/0,1/30,2/80,3/100} {
+    \cell{\x}{0}{\v}
+    \node at (\x+0.45,-0.3) {\i};
+  }
+\end{tikzpicture}

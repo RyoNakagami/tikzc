@@ -10,11 +10,11 @@ export function buildPreviewHtml(webview: vscode.Webview, extensionUri: vscode.U
     return `<!doctype html><html lang="${getLanguage()}"><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: blob:; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
 <style nonce="${nonce}">
-body { margin:0; color:var(--vscode-foreground); background:var(--vscode-editor-background); font:13px var(--vscode-font-family); }
-header { position:sticky; top:0; z-index:3; padding:10px; background:var(--vscode-editor-background); display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+body { margin:0; height:100vh; display:flex; flex-direction:column; color:var(--vscode-foreground); background:var(--vscode-editor-background); font:13px var(--vscode-font-family); }
+header { flex:none; position:sticky; top:0; z-index:3; padding:10px; background:var(--vscode-editor-background); display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 button,select,input { color:var(--vscode-button-foreground); background:var(--vscode-button-background); border:0; padding:5px 10px; cursor:pointer; }
 input { width:70px; } button[aria-pressed="true"] { outline:2px solid var(--vscode-focusBorder); }
-button:disabled { opacity:.5; cursor:default; } #status { padding:12px; white-space:pre-wrap; } #viewport { padding:16px; overflow:auto; }
+button:disabled { opacity:.5; cursor:default; } #status { flex:none; padding:12px; white-space:pre-wrap; } #viewport { flex:1; min-height:0; padding:16px; overflow:auto; }
 #canvas { position:relative; box-sizing:border-box; width:max-content; min-width:300px; max-width:100%; padding:48px; margin:auto; touch-action:none; } #overlay { position:absolute; pointer-events:none; } .node-hit { position:absolute; pointer-events:auto; border:1px solid transparent; background:transparent; padding:0; touch-action:none; } .node-hit:hover,.node-hit.selected { border:2px solid var(--vscode-focusBorder); background:rgba(70,140,220,.12); }
 #endpoints { position:absolute; pointer-events:none; z-index:2; }
 .endpoint { box-sizing:border-box; position:absolute; width:18px; height:18px; padding:0; border:2px solid var(--vscode-focusBorder); border-radius:50%; background:var(--vscode-editor-background); pointer-events:auto; transform:translate(-50%,-50%); cursor:crosshair; touch-action:none; }
@@ -24,6 +24,7 @@ button:disabled { opacity:.5; cursor:default; } #status { padding:12px; white-sp
 #path-editor legend { font-weight:bold; } #path-anchor { max-width:180px; }
 #canvas.drawing .endpoint { box-sizing:border-box; pointer-events:none; }
 #canvas.drawing { cursor:crosshair; } #canvas.drawing .node-hit { pointer-events:none; }
+#canvas.pan-ready, #canvas.pan-ready * { cursor:grab; } #canvas.panning, #canvas.panning * { cursor:grabbing; }
 #objects { width:220px; max-width:100%; } #canvas:focus { outline:none; }
 #draft { position:absolute; pointer-events:none; box-sizing:border-box; border:2px dashed var(--vscode-focusBorder); background:rgba(70,140,220,.12); transform-origin:0 0; }
 #draft.round { border-radius:50%; } #draft.line { border-width:2px 0 0; background:none; }
@@ -34,7 +35,7 @@ img { display:block; background:white; margin:auto; } img.fit { max-width:100%; 
 </style></head><body><header><strong>TikZc Editor</strong>
 <label>${t("View")} <select id="format"><option value="svg">SVG</option><option value="png">PNG</option></select></label>
 <label>${t("Language")} <select id="language"><option value="en"${selected("en")}>English</option><option value="ja"${selected("ja")}>日本語</option></select></label>
-<button id="fit">Fit / 100%</button><button id="svg" disabled>Export SVG</button><button id="png" disabled>Export PNG</button>
+<button id="fit">Fit / 100%</button><button id="export" disabled>${t("Export…")}</button>
 <label>${t("Tool")} <select id="tool" disabled><option value="select">${t("Select / move")}</option><option value="text">${t("Add text")}</option><option value="rectangle">${t("Rectangle")}</option><option value="ellipse">${t("Ellipse")}</option><option value="circle">${t("Circle")}</option><option value="line">${t("Line")}</option><option value="arrow">${t("Arrow")}</option></select></label>
 <button id="edit-label" disabled>${t("Edit text")}</button>
 <label>${t("Object")} <select id="objects" aria-label="${t("Select object")}" disabled><option value="">${t("Choose…")}</option></select></label>

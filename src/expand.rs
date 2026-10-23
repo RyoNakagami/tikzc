@@ -8,6 +8,8 @@ use std::collections::BTreeMap;
 const MAX_BYTES: usize = 2 * 1024 * 1024;
 const MAX_STEPS: usize = 200_000;
 const MAX_ITERATIONS: usize = 10_000;
+/// TeX conditionals decided during expansion; see [`Expander::conditional`].
+const CONDITIONALS: &[&str] = &["ifnum", "ifodd", "ifdim"];
 /// Commands that start a path, inside which a bare `foreach` is an operation.
 const PATH_COMMANDS: &[&str] = &[
     "draw",
@@ -137,6 +139,11 @@ fn reserved(name: &str) -> bool {
         "edef",
         "gdef",
         "global",
+        "ifnum",
+        "ifodd",
+        "ifdim",
+        "else",
+        "fi",
     ]
     .contains(&name)
 }
@@ -279,18 +286,19 @@ impl Expander<'_> {
                         depth + 1,
                         false,
                     )?;
-                    let mut value =
-                        crate::expr::eval(&expanded.text).map_err(|m| self.error(input, at, m))?;
-                    if cmd == "pgfmathtruncatemacro" {
-                        value = value.trunc();
-                    }
-                    env.macros.insert(
-                        target,
-                        Macro {
-                            args: 0,
-                            body: value.to_string(),
-                        },
-                    );
+                    let value = crate::expr::eval_value(&expanded.text)
+                        .map_err(|m| self.error(input, at, m))?;
+                    let body = match value {
+                        crate::expr::Value::Text(text) if cmd != "pgfmathtruncatemacro" => text,
+                        value => {
+                            let mut value = value.number().map_err(|m| self.error(input, at, m))?;
+                            if cmd == "pgfmathtruncatemacro" {
+                                value = value.trunc();
+                            }
+                            value.to_string()
+                        }
+                    };
+                    env.macros.insert(target, Macro { args: 0, body });
                     return Ok(Expanded::default());
                 }
                 if cmd == "pgfmathprintnumber" || cmd == "pgfmathsetseed" {
@@ -322,6 +330,12 @@ impl Expander<'_> {
                 if cmd == "foreach" {
                     return self.foreach(input, &mut c, at, env, depth, false);
                 }
+                if CONDITIONALS.contains(&cmd) {
+                    return self.conditional(input, &mut c, at, cmd, env, depth, in_path);
+                }
+                if cmd == "else" || cmd == "fi" {
+                    return Err(self.error(input, at, format!("\\{cmd} without \\ifnum")));
+                }
                 if let Some(mac) = env.macros.get(cmd).cloned() {
                     // Control-word delimiter whitespace is consumed before replacement.
                     c.ws();
@@ -352,7 +366,7 @@ impl Expander<'_> {
                 }
                 if [
                     "edef", "gdef", "xdef", "let", "global", "catcode", "csname", "input",
-                    "include", "write", "openout", "loop", "ifnum",
+                    "include", "write", "openout", "loop",
                 ]
                 .contains(&cmd)
                 {
@@ -381,6 +395,114 @@ impl Expander<'_> {
             ));
         }
         Ok(out)
+    }
+    /// `\ifnum a<b`, `\ifodd n` and `\ifdim a<b` with an optional `\else`,
+    /// ended by `\fi`. Operands are integers (lengths for `\ifdim`) written as
+    /// digits or as one macro; TeX's general number scanning is not
+    /// reproduced. Only the chosen branch is expanded, in the current scope.
+    #[allow(clippy::too_many_arguments)]
+    fn conditional(
+        &mut self,
+        input: &Expanded,
+        c: &mut Cursor<'_>,
+        at: usize,
+        cmd: &str,
+        env: &mut Environment,
+        depth: usize,
+        in_path: bool,
+    ) -> Result<Expanded, Diagnostic> {
+        let truth = (|| -> Result<bool, String> {
+            let dimension = cmd == "ifdim";
+            let first = self.operand(c, env, depth, dimension)?;
+            if cmd == "ifodd" {
+                return Ok(first % 2. != 0.);
+            }
+            c.ws();
+            let relation = c.rest().chars().next().filter(|ch| "<=>".contains(*ch));
+            let Some(relation) = relation else {
+                return Err(format!("\\{cmd} expects '<', '=' or '>'"));
+            };
+            c.pos += 1;
+            let second = self.operand(c, env, depth, dimension)?;
+            Ok(match relation {
+                '<' => first < second,
+                '>' => first > second,
+                _ => first == second,
+            })
+        })()
+        .map_err(|m| self.error(input, at, m))?;
+        let (yes, no, end) = branches(&input.text, c.pos).map_err(|m| self.error(input, at, m))?;
+        let (start, stop) = if truth { yes } else { no };
+        c.pos = end;
+        self.run(&input.slice(start, stop), env, depth + 1, in_path)
+    }
+    /// One `\ifnum`/`\ifodd` integer or `\ifdim` length (in pt), followed by
+    /// at most one space.
+    fn operand(
+        &mut self,
+        c: &mut Cursor<'_>,
+        env: &mut Environment,
+        depth: usize,
+        dimension: bool,
+    ) -> Result<f64, String> {
+        c.ws();
+        let mut sign = 1.;
+        while let Some(ch) = c
+            .rest()
+            .chars()
+            .next()
+            .filter(|ch| *ch == '-' || *ch == '+')
+        {
+            c.pos += 1;
+            c.ws();
+            if ch == '-' {
+                sign = -sign;
+            }
+        }
+        let digits = |ch: char| ch.is_ascii_digit() || (dimension && ch == '.');
+        let text = if c.rest().starts_with('\\') {
+            let macro_name = name(c)?;
+            if env.macros.get(&macro_name).is_none_or(|m| m.args != 0) {
+                return Err(format!(
+                    "condition operand \\{macro_name} is not a defined value macro"
+                ));
+            }
+            let call = Expanded::literal(&format!("\\{macro_name}"), 0);
+            let value = self
+                .run(&call, env, depth + 1, false)
+                .map_err(|d| d.to_string())?;
+            value.text.trim().to_owned()
+        } else {
+            let start = c.pos;
+            while c.rest().starts_with(digits) {
+                c.pos += 1;
+            }
+            c.source[start..c.pos].to_owned()
+        };
+        let mut value: f64 = text
+            .parse()
+            .ok()
+            .filter(|_| !text.is_empty() && text.chars().all(|ch| digits(ch) || ch == '-'))
+            .ok_or_else(|| {
+                if dimension {
+                    format!("\\ifdim operand '{text}' is not a number")
+                } else {
+                    format!("\\ifnum operand '{text}' is not an integer (use \\pgfmathtruncatemacro or pgfmath comparisons)")
+                }
+            })?;
+        if dimension {
+            c.ws();
+            let unit = c.rest().get(..2).unwrap_or("");
+            value *= crate::options::length(&format!("1{unit}"), f64::NAN)
+                .ok()
+                .filter(|_| ["pt", "bp", "cm", "mm", "in"].contains(&unit))
+                .ok_or("\\ifdim operands need a unit (pt, bp, cm, mm, in)")?;
+            c.pos += 2;
+        }
+        if c.rest().starts_with(' ') {
+            c.pos += 1;
+        }
+        Ok(sign * value)
     }
     /// `\foreach` as a command, or `foreach` inside a path (`inline`). The
     /// cursor is positioned after the keyword.
@@ -753,4 +875,49 @@ fn range_list(list: &str) -> Result<Vec<String>, String> {
         }
     }
     Ok(out)
+}
+/// The byte ranges of the true and false branches of a conditional whose
+/// condition ends at `from`, and the offset just after its `\fi`. Nested
+/// conditionals are skipped; braces must balance within a branch.
+type Branches = ((usize, usize), (usize, usize), usize);
+fn branches(text: &str, from: usize) -> Result<Branches, String> {
+    let mut c = Cursor::new(text);
+    c.pos = from;
+    let mut level = 0;
+    let mut otherwise = None;
+    while !c.rest().is_empty() {
+        if c.rest().starts_with('{') {
+            c.group('{', '}')?;
+            continue;
+        }
+        if !c.rest().starts_with('\\') {
+            c.pos += c.rest().chars().next().unwrap().len_utf8();
+            continue;
+        }
+        let start = c.pos;
+        c.pos += 1;
+        let word = c.word_here();
+        if word.is_empty() {
+            c.pos += c.rest().chars().next().map_or(0, char::len_utf8);
+            continue;
+        }
+        match word {
+            w if CONDITIONALS.contains(&w) => level += 1,
+            "else" if level == 0 => {
+                if otherwise.is_some() {
+                    return Err("conditional has two \\else".into());
+                }
+                otherwise = Some((start, c.pos));
+            }
+            "fi" if level == 0 => {
+                return Ok(match otherwise {
+                    Some((else_start, else_end)) => ((from, else_start), (else_end, start), c.pos),
+                    None => ((from, start), (start, start), c.pos),
+                });
+            }
+            "fi" => level -= 1,
+            _ => {}
+        }
+    }
+    Err("conditional is missing its \\fi".into())
 }

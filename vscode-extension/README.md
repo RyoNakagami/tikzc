@@ -4,12 +4,14 @@ Open a `.tikz` file and press **Ctrl+K V** (**Cmd+K V** on macOS), or run
 **TikZc Editor: Open to the Side**. Edit in VSCode; unsaved buffer changes are
 compiled after the configured debounce interval.
 
-The standard preview and **TikZc Editor: Export as SVG / PNG** commands share one Rust
+The standard preview and **TikZc Editor: Export (SVG / PNG)** command share one Rust
 compilation artifact. The SVG is displayed as an isolated image without CSS or
 MathJax text layout. Japanese, ASCII, full-width and half-width labels are paths,
 so the browser does not remeasure them. PNG is produced from that same SVG.
 Use the **SVG / PNG** selector to inspect either exported artifact, and
-**Fit / 100%** to change display scale. The canvas background is white, as is
+**Fit / 100%** to change display scale. Ctrl+wheel (Cmd+wheel or pinch on macOS)
+zooms around the cursor, and Space-drag or middle-button drag pans; **Fit / 100%**
+returns from a zoom to Fit. The canvas background is white, as is
 Rust's PNG output.
 
 This guarantees the same diagram geometry for the same source/settings snapshot.

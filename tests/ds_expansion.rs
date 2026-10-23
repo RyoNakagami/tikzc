@@ -1,6 +1,6 @@
 //! Number printing (F2), loop options and list macros (F3), computed colour
-//! mixes (F4), `foreach` inside a path (F9), conditional math (F12) and
-//! seeded random numbers (F14). Reference values marked "TeX" were printed
+//! mixes (F4), `foreach` inside a path (F9), conditional math (F12),
+//! seeded random numbers (F14) and TeX conditionals with pgfmath strings. Reference values marked "TeX" were printed
 //! by lualatex with PGF 3.1.10 and xcolor; no test runs TeX.
 mod common;
 use common::*;
@@ -306,15 +306,126 @@ fn conditional_fixture_highlights_by_threshold() {
 }
 
 #[test]
-fn tex_conditionals_stay_unsupported() {
-    // \ifnum ... \fi is arbitrary TeX, not pgfmath.
+fn tex_conditional_fixture_picks_shape_and_colour() {
+    let d = compile_fixture("ds-tex-conditional.tikz");
+    assert_eq!(d.labels, ["1", "2", "3", "4"]);
+    // v=0 outline; odd x a square, even x a circle; "red" above 50 (TeX:
+    // blue!30 = #b3b3ff, red!80 = #ff3333, red!100 = #ff0000).
+    let fills: Vec<String> = filled(&d.svg).into_iter().map(|p| p.fill).collect();
+    assert_eq!(fills, ["#b3b3ff", "#ff3333", "#ff0000"]);
+}
+
+#[test]
+fn tex_conditionals_choose_a_branch() {
+    let labels = |source: &str| compile(source).unwrap().labels;
+    assert_eq!(
+        labels(
+            r"\foreach \v in {1,2,3}{\ifnum\v>1 \node at (\v,0) {y};\else\node at (\v,0) {n};\fi}"
+        ),
+        ["n", "y", "y"]
+    );
+    assert_eq!(
+        labels(r"\foreach \v in {1,...,4}{\ifodd\v \node at (\v,0) {o};\fi}"),
+        ["o", "o"]
+    );
+    // Nested, with the inner \else and \fi skipped while choosing the outer branch.
+    assert_eq!(
+        labels(
+            r"\foreach \i in {0,1}{\ifnum\i=0 \ifnum 1<2 \node at (\i,0) {a};\else\node{b};\fi\else\node at (\i,0) {c};\fi}"
+        ),
+        ["a", "c"]
+    );
+    assert_eq!(labels(r"\ifnum -2<-1 \node {neg};\fi"), ["neg"]);
+    assert_eq!(
+        labels(r"\newcommand{\at}[1]{\ifdim#1pt>1.5pt \node at (#1,0) {#1};\fi}\at{1}\at{2}"),
+        ["2"]
+    );
+    // A branch may be part of a path.
+    let d = compile(r"\draw (0,0) \ifnum 1=2 -- (0,1) \else -- (1,0) \fi;").unwrap();
+    assert!(d.svg.contains("L 28.34646,-0.00000"), "{}", d.svg);
+}
+
+#[test]
+fn tex_conditional_diagnostics() {
     assert_error_at(
-        "\\node {a};\n\\ifnum 1>0 \\node {b}; \\fi",
+        "\\node {a};\n\\ifnum 1>0 \\node {b};",
         2,
         1,
-        "Unsupported TeX command \\ifnum",
+        "missing its \\fi",
+    );
+    assert_error_at("\\node {a};\n\\fi", 2, 1, "\\fi without \\ifnum");
+    assert_error_at(
+        r"\pgfmathsetmacro{\x}{1.5}\ifnum\x>1 \fi",
+        1,
+        26,
+        "not an integer",
+    );
+    assert_error_at(r"\ifnum\nope>1 \fi", 1, 1, "not a defined value macro");
+    assert_error_at(r"\ifnum 1 ~ 0 \fi", 1, 1, "expects '<', '=' or '>'");
+    assert_error_at(r"\ifdim 1>0pt \fi", 1, 1, "need a unit");
+    assert_error_at(r"\ifnum 1=1 \else \else \fi", 1, 1, "two \\else");
+    assert_error_at(r"\def\fi{x}", 1, 1, "cannot redefine native command \\fi");
+    // Other TeX conditionals stay unsupported.
+    assert_error_at(
+        r"\ifthenelse{1>0}{\node{a};}{}",
+        1,
+        1,
+        "Unsupported command \\ifthenelse",
     );
     assert_error_at(r"\pgfmathsetmacro{\a}{1 > 0 ? 2}", 1, 1, "expected ':'");
+}
+
+#[test]
+fn pgfmath_strings_choose_colours() {
+    let fills = |source: &str| -> Vec<String> {
+        filled(&compile(source).unwrap().svg)
+            .into_iter()
+            .map(|p| p.fill)
+            .collect()
+    };
+    assert_eq!(
+        fills(
+            r#"\foreach \v in {0,1}{\pgfmathsetmacro{\c}{\v==1 ? "red" : "blue"}\fill[\c] (\v,0) circle (1);}"#
+        ),
+        ["#0000ff", "#ff0000"]
+    );
+    assert_eq!(
+        fills(
+            r#"\pgfmathparse{ifthenelse(0,"red","green!50!black")}\fill[\pgfmathresult] (0,0) circle (1);"#
+        ),
+        ["#008000"]
+    );
+    assert_error_at(
+        r#"\pgfmathsetmacro{\a}{1+"x"}"#,
+        1,
+        1,
+        "math string \"x\" used as a number",
+    );
+    assert_error_at(
+        r#"\pgfmathtruncatemacro{\a}{1 ? "x" : "y"}"#,
+        1,
+        1,
+        "used as a number",
+    );
+    assert_error_at(
+        r#"\draw ({1 ? "a" : "b"},0) -- (1,1);"#,
+        1,
+        7,
+        "used as a number",
+    );
+    assert_error_at(
+        r#"\pgfmathsetmacro{\a}{1 ? "x}"#,
+        1,
+        1,
+        "missing its closing",
+    );
+    // An unknown character is named instead of an empty symbol.
+    assert_error_at(
+        r"\pgfmathsetmacro{\a}{1 ? @ : 2}",
+        1,
+        1,
+        "Unsupported math near '@ : 2'",
+    );
 }
 
 #[test]
