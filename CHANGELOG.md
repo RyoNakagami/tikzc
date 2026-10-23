@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Math: a quoted string as the result of `?:` or `ifthenelse`
   (`\pgfmathsetmacro{\c}{\v>50 ? "red" : "blue"}`), for choosing a colour
   or style name.
+- VSCode extension: preview zoom and pan. Ctrl+wheel (Cmd+wheel or pinch on
+  macOS) zooms around the cursor, from 10% to 800%; Space-drag or
+  middle-button drag pans. **Fit / 100%** returns from a zoom to Fit.
 
 ### Fixed
 
