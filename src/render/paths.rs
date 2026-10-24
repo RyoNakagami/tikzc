@@ -1,7 +1,7 @@
 //! Path construction, curves, decorations and arrow placement.
 use super::geometry::Bounds;
 use super::nodes::node_pos;
-use super::paint::opacity_attribute;
+use super::paint::{double_strokes, opacity_attribute};
 use super::{CM, Engine, Node, Pending, Point};
 use crate::options::{Values, dim, get, length, number};
 use crate::syntax::{Cursor, split_top};
@@ -837,24 +837,12 @@ impl Engine<'_> {
             d = rounded_path(&points, radius);
         }
         if options.contains_key("double") || options.contains_key("double distance") {
-            let width = dim(&options, "line width", 0.4)?;
-            let gap = dim(&options, "double distance", 1.)?;
-            let mut outside = options.clone();
-            outside.insert("line width".into(), format!("{}bp", 2. * width + gap));
-            self.elements.push((
-                background,
-                format!("<path d=\"{d}\" {}/>", self.paint(&outside, true)?),
-            ));
-            let mut inside = options.clone();
-            inside.insert("line width".into(), format!("{gap}bp"));
-            inside.insert("draw".into(), get(&options, "double", "white").to_owned());
-            if get(&inside, "draw", "").is_empty() {
-                inside.insert("draw".into(), "white".into());
+            for stroke in double_strokes(&options)? {
+                self.elements.push((
+                    background,
+                    format!("<path d=\"{d}\" {}/>", self.paint(&stroke, true)?),
+                ));
             }
-            self.elements.push((
-                background,
-                format!("<path d=\"{d}\" {}/>", self.paint(&inside, true)?),
-            ));
         } else if !d.trim().is_empty() || (marks.is_empty() && !hidden) {
             self.elements
                 .push((background, format!("<path d=\"{d}\" {paint}/>")));

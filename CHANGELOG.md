@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-24
+
+### Added
+
+- Named dash styles `dash dot` and `dash dot dot`, their `densely` /
+  `loosely` variants, and the aliases `dashdotted` / `dashdotdotted`.
+- Arrow tips given directly as an option: `-Stealth`, `Stealth-`,
+  `Stealth-Stealth`, `Latex-{Stealth[open]}`.
+- `label` positions given as anchor names (`north east`, `south`, …).
+- `xshift` / `yshift` in label options move the label.
+- `\verb|…|` (and `\verb*`) in node text.
+
+### Fixed
+
+- `double` / `double distance` on a drawn node draw a double border instead
+  of being ignored (#13). The double line of a path now also follows
+  `thick` and similar line widths.
+- `--` and `---` inside `\texttt` and `\ttfamily` keep their hyphens
+  instead of becoming en / em dashes.
+
 ## [1.2.0] - 2026-10-20
 
 ### Added
@@ -453,7 +473,8 @@ Initial release.
 - Docs: manual (EN / JP), branch strategy, commit rules, testing guide, and
   versioning policy.
 
-[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/RyoNakagami/tikzc/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/RyoNakagami/tikzc/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/RyoNakagami/tikzc/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/RyoNakagami/tikzc/compare/v1.0.0...v1.1.0

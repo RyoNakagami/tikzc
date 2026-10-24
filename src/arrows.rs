@@ -54,6 +54,10 @@ impl Arrow {
         })
     }
 }
+/// A bare option key such as `-Stealth` or `Latex-{Stealth[open]}`.
+pub fn is_spec(key: &str) -> bool {
+    key.contains('-') && pair(key, "Latex", "Latex").is_ok_and(|(s, e)| s.is_some() || e.is_some())
+}
 pub fn pair(
     raw: &str,
     start_default: &str,
