@@ -128,10 +128,20 @@ impl Styles {
                 output.insert("shape".into(), key.into());
                 continue;
             }
-            let key = if key == "'" { "swap" } else { key };
+            let key = match key {
+                "'" => "swap",
+                "dashdotted" => "dash dot",
+                "densely dashdotted" => "densely dash dot",
+                "loosely dashdotted" => "loosely dash dot",
+                "dashdotdotted" => "dash dot dot",
+                "densely dashdotdotted" => "densely dash dot dot",
+                "loosely dashdotdotted" => "loosely dash dot dot",
+                key => key,
+            };
             if ["->", "<-", "<->", "-", "|<->|", "|-|", "|->", "<-|"].contains(&key)
                 || key.starts_with("-{")
                 || (key.starts_with('{') && key.contains("}-"))
+                || crate::arrows::is_spec(key)
             {
                 output.insert("arrows".into(), key.into());
                 continue;
@@ -162,6 +172,12 @@ impl Styles {
                 "loosely dashed",
                 "densely dotted",
                 "loosely dotted",
+                "dash dot",
+                "densely dash dot",
+                "loosely dash dot",
+                "dash dot dot",
+                "densely dash dot dot",
+                "loosely dash dot dot",
                 "solid",
                 "dash pattern",
                 "rounded corners",

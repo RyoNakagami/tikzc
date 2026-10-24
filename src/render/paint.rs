@@ -67,6 +67,12 @@ impl Engine<'_> {
             ("dotted", "0.5,2"),
             ("densely dotted", "0.5,1"),
             ("loosely dotted", "0.5,4"),
+            ("dash dot", "3,2,0.5,2"),
+            ("densely dash dot", "3,1,0.5,1"),
+            ("loosely dash dot", "3,4,0.5,4"),
+            ("dash dot dot", "3,2,0.5,2,0.5,2"),
+            ("densely dash dot dot", "3,1,0.5,1,0.5,1"),
+            ("loosely dash dot dot", "3,4,0.5,4,0.5,4"),
         ] {
             if o.contains_key(k) {
                 dash = format!(" stroke-dasharray=\"{v}\"");
@@ -144,4 +150,27 @@ pub(super) fn line_width(o: &Values) -> Result<f64, String> {
         }
     }
     dim(o, "line width", width * 72. / 72.27)
+}
+
+/// Stroke passes for a `double` line: a wide outer stroke, then the gap
+/// painted over it in the `double` colour. A single pass otherwise.
+pub(super) fn double_strokes(o: &Values) -> Result<Vec<Values>, String> {
+    if !o.contains_key("double") && !o.contains_key("double distance") {
+        return Ok(vec![o.clone()]);
+    }
+    let width = line_width(o)?;
+    let gap = dim(o, "double distance", 1.)?;
+    let mut outside = o.clone();
+    outside.insert("line width".into(), format!("{}bp", 2. * width + gap));
+    let mut inside = o.clone();
+    for fill in ["fill", "pattern", "_shade"] {
+        inside.remove(fill);
+    }
+    inside.insert("line width".into(), format!("{gap}bp"));
+    let color = get(o, "double", "");
+    inside.insert(
+        "draw".into(),
+        if color.is_empty() { "white" } else { color }.to_owned(),
+    );
+    Ok(vec![outside, inside])
 }

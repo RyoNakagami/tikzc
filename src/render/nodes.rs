@@ -1,6 +1,6 @@
 //! Node and matrix placement, including text anchors.
 use super::geometry::Bounds;
-use super::paint::{line_width, opacity_attribute};
+use super::paint::{double_strokes, line_width, opacity_attribute};
 use super::paths::PathTiming;
 use super::{CM, Engine, Node, Pending, Point, TRANSFORMS};
 use crate::options::{Values, dim, get, length, number};
@@ -568,83 +568,92 @@ impl Engine<'_> {
         let element_start = self.elements.len();
         let x = node.center.x - node.width / 2.;
         let y = -node.center.y - node.height / 2.;
-        let attributes = self.paint(o, false)?;
-        let shape = match node.shape.as_str() {
-            "cylinder" => {
-                let rx = width / 2.;
-                let ry = cylinder_cap;
-                let top = y + ry;
-                let bottom = y + height - ry;
-                let right = x + width;
-                format!(
-                    "<path d=\"M {x},{top} A {rx},{ry} 0 0 1 {right},{top} L {right},{bottom} A {rx},{ry} 0 0 1 {x},{bottom} Z\" {attributes}/><path d=\"M {x},{top} A {rx},{ry} 0 0 0 {right},{top}\" {}/>",
-                    self.paint(
-                        &{
-                            let mut rim = o.clone();
-                            rim.remove("fill");
-                            rim
-                        },
-                        false
-                    )?
-                )
-            }
-            "coordinate" => String::new(),
-            "circle" | "ellipse" => format!(
-                "<ellipse cx=\"{}\" cy=\"{}\" rx=\"{}\" ry=\"{}\" {attributes}/>",
-                node.center.x,
-                -node.center.y,
-                width / 2.,
-                height / 2.
-            ),
-            "diamond" => format!(
-                "<path d=\"M {} L {} L {} L {} Z\" {attributes}/>",
-                node.center
-                    .add(Point {
-                        x: 0.,
-                        y: height / 2.
-                    })
-                    .svg(),
-                node.center
-                    .add(Point {
-                        x: width / 2.,
-                        y: 0.
-                    })
-                    .svg(),
-                node.center
-                    .add(Point {
-                        x: 0.,
-                        y: -height / 2.
-                    })
-                    .svg(),
-                node.center
-                    .add(Point {
-                        x: -width / 2.,
-                        y: 0.
-                    })
-                    .svg()
-            ),
-            _ => {
-                let r = if o.contains_key("rounded corners") && !o.contains_key("sharp corners") {
-                    let v = get(o, "rounded corners", "4pt");
-                    if v.is_empty() {
-                        4. * 72. / 72.27
-                    } else {
-                        length(v, 1.)?
-                    }
-                } else {
-                    0.
-                };
-                // With no ry, omitting rx=0 preserves square corners.
-                let radius = if r == 0. {
-                    String::new()
-                } else {
-                    format!(" rx=\"{r:.5}\"")
-                };
-                format!(
-                    "<rect x=\"{x:.5}\" y=\"{y:.5}\" width=\"{width:.5}\" height=\"{height:.5}\"{radius} {attributes}/>"
-                )
-            }
+        // `double` only applies to a drawn border.
+        let strokes = if o.contains_key("draw") {
+            double_strokes(o)?
+        } else {
+            vec![o.clone()]
         };
+        let mut shape = String::new();
+        for o in &strokes {
+            let attributes = self.paint(o, false)?;
+            shape.push_str(&match node.shape.as_str() {
+                "cylinder" => {
+                    let rx = width / 2.;
+                    let ry = cylinder_cap;
+                    let top = y + ry;
+                    let bottom = y + height - ry;
+                    let right = x + width;
+                    format!(
+                        "<path d=\"M {x},{top} A {rx},{ry} 0 0 1 {right},{top} L {right},{bottom} A {rx},{ry} 0 0 1 {x},{bottom} Z\" {attributes}/><path d=\"M {x},{top} A {rx},{ry} 0 0 0 {right},{top}\" {}/>",
+                        self.paint(
+                            &{
+                                let mut rim = o.clone();
+                                rim.remove("fill");
+                                rim
+                            },
+                            false
+                        )?
+                    )
+                }
+                "coordinate" => String::new(),
+                "circle" | "ellipse" => format!(
+                    "<ellipse cx=\"{}\" cy=\"{}\" rx=\"{}\" ry=\"{}\" {attributes}/>",
+                    node.center.x,
+                    -node.center.y,
+                    width / 2.,
+                    height / 2.
+                ),
+                "diamond" => format!(
+                    "<path d=\"M {} L {} L {} L {} Z\" {attributes}/>",
+                    node.center
+                        .add(Point {
+                            x: 0.,
+                            y: height / 2.
+                        })
+                        .svg(),
+                    node.center
+                        .add(Point {
+                            x: width / 2.,
+                            y: 0.
+                        })
+                        .svg(),
+                    node.center
+                        .add(Point {
+                            x: 0.,
+                            y: -height / 2.
+                        })
+                        .svg(),
+                    node.center
+                        .add(Point {
+                            x: -width / 2.,
+                            y: 0.
+                        })
+                        .svg()
+                ),
+                _ => {
+                    let r = if o.contains_key("rounded corners") && !o.contains_key("sharp corners") {
+                        let v = get(o, "rounded corners", "4pt");
+                        if v.is_empty() {
+                            4. * 72. / 72.27
+                        } else {
+                            length(v, 1.)?
+                        }
+                    } else {
+                        0.
+                    };
+                    // With no ry, omitting rx=0 preserves square corners.
+                    let radius = if r == 0. {
+                        String::new()
+                    } else {
+                        format!(" rx=\"{r:.5}\"")
+                    };
+                    format!(
+                        "<rect x=\"{x:.5}\" y=\"{y:.5}\" width=\"{width:.5}\" height=\"{height:.5}\"{radius} {attributes}/>"
+                    )
+                }
+            });
+        }
         self.elements.push((background, shape));
         if !p.label.svg.is_empty() {
             let id = self.label_id;
@@ -713,20 +722,23 @@ impl Engine<'_> {
             if opts.keys().any(|k| k.starts_with("_label ")) {
                 return Err("Unsupported nested node labels".into());
             }
-            if opts.contains_key("_matrix") {
+            // `xshift`/`yshift` move the placed label; other transforms do not apply.
+            let shift = Matrix::from_options(&opts)?.0;
+            if shift[..4] != [1., 0., 0., 1.] {
                 return Err("Unsupported transformed label (use a standalone node)".into());
             }
+            opts.remove("_matrix");
             let pieces = split_top_empty_label(c.rest());
             let (position, text) = pieces.unwrap_or(("above", c.rest()));
             let angle = match position.trim() {
-                "above" => 90.,
-                "below" => 270.,
-                "left" => 180.,
-                "right" => 0.,
-                "above left" => 135.,
-                "above right" => 45.,
-                "below left" => 225.,
-                "below right" => 315.,
+                "above" | "north" => 90.,
+                "below" | "south" => 270.,
+                "left" | "west" => 180.,
+                "right" | "east" => 0.,
+                "above left" | "north west" => 135.,
+                "above right" | "north east" => 45.,
+                "below left" | "south west" => 225.,
+                "below right" | "south east" => 315.,
                 value => number(value)?,
             }
             .rem_euclid(360.);
@@ -736,7 +748,11 @@ impl Engine<'_> {
             };
             let point = node
                 .border(node.center.add(dir.scale(100.)))
-                .add(dir.scale(dim(&opts, "label distance", 0.)?));
+                .add(dir.scale(dim(&opts, "label distance", 0.)?))
+                .add(Point {
+                    x: shift[4],
+                    y: shift[5],
+                });
             let anchor = match ((angle / 45.).round() as i32).rem_euclid(8) {
                 0 => "west",
                 1 => "south west",

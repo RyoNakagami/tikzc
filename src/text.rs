@@ -162,6 +162,7 @@ impl TextEngine {
         let mut c = Converter {
             styles,
             strut: font_size,
+            typewriter: false,
         };
         let switches = c.convert(get(options, "font", ""))?;
         let content = c.convert(text)?;
@@ -463,9 +464,18 @@ fn current_symbols(math: &str) -> String {
 struct Converter<'a> {
     styles: &'a Styles,
     strut: f64,
+    /// Typewriter text has no `--`/`---` ligatures.
+    typewriter: bool,
 }
 impl Converter<'_> {
     fn convert(&mut self, input: &str) -> Result<String, String> {
+        // A `\ttfamily` switch ends with the enclosing group.
+        let typewriter = self.typewriter;
+        let result = self.convert_group(input);
+        self.typewriter = typewriter;
+        result
+    }
+    fn convert_group(&mut self, input: &str) -> Result<String, String> {
         let mut cursor = Cursor::new(input);
         let mut output = String::new();
         let mut plain = String::new();
@@ -580,12 +590,15 @@ impl Converter<'_> {
                         "fontsize" => {
                             let a = cursor.group('{', '}')?;
                             let b = cursor.group('{', '}')?;
-                            let size = length(a,72./72.27)?;
-                            let baseline = length(b,72./72.27)?;
-                            if size <= 0. || baseline <= 0. { return Err("font size and baseline skip must be positive".into()); }
+                            let size = length(a, 72. / 72.27)?;
+                            let baseline = length(b, 72. / 72.27)?;
+                            if size <= 0. || baseline <= 0. {
+                                return Err("font size and baseline skip must be positive".into());
+                            }
                             output.push_str(&format!(
                                 "#set text(size: {size}pt, top-edge: {}pt, bottom-edge: {}pt)\n",
-                                self.strut.max(size)*0.8,-self.strut.max(size)*0.2
+                                self.strut.max(size) * 0.8,
+                                -self.strut.max(size) * 0.2
                             ));
                         }
                         "color" => {
@@ -647,13 +660,36 @@ impl Converter<'_> {
                         "textasciitilde" => output.push_str("#text(\"~\")"),
                         "textless" => output.push_str("#text(\"<\")"),
                         "textgreater" => output.push_str("#text(\">\")"),
+                        "verb" => {
+                            if cursor.rest().starts_with('*') {
+                                cursor.pos += 1;
+                            }
+                            let delimiter =
+                                cursor.rest().chars().next().ok_or("incomplete \\verb")?;
+                            if delimiter.is_ascii_alphabetic() || delimiter.is_whitespace() {
+                                return Err(format!("invalid \\verb delimiter '{delimiter}'"));
+                            }
+                            cursor.pos += delimiter.len_utf8();
+                            let end = cursor.rest().find(delimiter).ok_or("unclosed \\verb")?;
+                            output.push_str(&format!(
+                                "#text(font: (\"Latin Modern Mono\", \"IPAexGothic\"), ligatures: false, {})",
+                                quote(&cursor.rest()[..end])
+                            ));
+                            cursor.pos += end + delimiter.len_utf8();
+                            continue;
+                        }
                         "textbf" | "textit" | "emph" | "texttt" | "textsf" | "textrm" | "mbox" => {
                             let group = cursor.group('{', '}')?;
+                            let typewriter = self.typewriter;
+                            self.typewriter |= cmd == "texttt";
                             let content = self.convert(group)?;
+                            self.typewriter = typewriter;
                             let style = match cmd {
                                 "textbf" => "weight: \"bold\"",
                                 "textit" | "emph" => "style: \"italic\"",
-                                "texttt" => "font: (\"Latin Modern Mono\", \"IPAexGothic\"), ligatures: false",
+                                "texttt" => {
+                                    "font: (\"Latin Modern Mono\", \"IPAexGothic\"), ligatures: false"
+                                }
                                 "textsf" => "font: \"IPAexGothic\"",
                                 _ => "font: \"IPAexMincho\"",
                             };
@@ -661,6 +697,7 @@ impl Converter<'_> {
                             continue;
                         }
                         "ttfamily" => {
+                            self.typewriter = true;
                             output.push_str("#set text(font: (\"Latin Modern Mono\", \"IPAexGothic\"), ligatures: false)\n")
                         }
                         "sffamily" => output.push_str("#set text(font: \"IPAexGothic\")\n"),
@@ -681,10 +718,10 @@ impl Converter<'_> {
                     cursor.pos += 1;
                 }
                 _ => {
-                    if cursor.rest().starts_with("---") {
+                    if !self.typewriter && cursor.rest().starts_with("---") {
                         plain.push('—');
                         cursor.pos += 3;
-                    } else if cursor.rest().starts_with("--") {
+                    } else if !self.typewriter && cursor.rest().starts_with("--") {
                         plain.push('–');
                         cursor.pos += 2;
                     } else if ch.is_whitespace() {

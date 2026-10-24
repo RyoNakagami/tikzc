@@ -4,21 +4,32 @@ Open a `.tikz` file and press **Ctrl+K V** (**Cmd+K V** on macOS), or run
 **TikZc Editor: Open to the Side**. Edit in VSCode; unsaved buffer changes are
 compiled after the configured debounce interval.
 
+![TikZc Editor: source editor on the left, Rust-rendered preview with the canvas editing toolbar on the right](images/preview.png)
+
 The standard preview and **TikZc Editor: Export (SVG / PNG)** command share one Rust
 compilation artifact. The SVG is displayed as an isolated image without CSS or
 MathJax text layout. Japanese, ASCII, full-width and half-width labels are paths,
 so the browser does not remeasure them. PNG is produced from that same SVG.
 Use the **SVG / PNG** selector to inspect either exported artifact, and
-**Fit / 100%** to change display scale. Ctrl+wheel (Cmd+wheel or pinch on macOS)
-zooms around the cursor, and Space-drag or middle-button drag pans; **Fit / 100%**
-returns from a zoom to Fit. The canvas background is white, as is
-Rust's PNG output.
+**Fit / 100%** to change display scale (see [Zoom and pan](#zoom-and-pan)).
+The canvas background is white, as is Rust's PNG output.
 
 This guarantees the same diagram geometry for the same source/settings snapshot.
 SVG and PNG edge antialiasing can differ with renderer, zoom, and DPI. PNG mode
 uses the exported PNG bytes. This does not promise LuaLaTeX pixel equivalence.
 Pending source-editor changes and errors hide the previous image; unsupported syntax is reported
 instead of falling back to a different renderer.
+
+## Zoom and pan
+
+| Action | Windows / Linux | macOS |
+| --- | --- | --- |
+| Zoom in / out around the cursor | **Ctrl** + mouse wheel | **Cmd** + mouse wheel, or trackpad pinch |
+| Pan | **Space** + drag, or middle-button drag | **Space** + drag, or middle-button drag |
+| Return to Fit | **Fit / 100%** button | **Fit / 100%** button |
+
+Zoom ranges from 10% to 800%. Plain wheel scrolling without Ctrl/Cmd scrolls
+the preview as usual.
 
 ## Canvas editing
 
