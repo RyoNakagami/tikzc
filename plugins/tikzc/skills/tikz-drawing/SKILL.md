@@ -26,8 +26,60 @@ TeX で通る記法でも対応外なら診断エラーで止まり，通って�
 - **ユーザー指定がない限り 1600×900（16:9）のスライドに貼る想定**で設計する．
   スライド側のタイトル領域を考慮し，図全体の縦横比は概ね **1.8〜2.5 : 1** に収める．
   3:1 を超えそうなら上下2段レイアウト（主経路＋フィードバック段）や凡例による空き埋めで調整する
+- **例外：横一列のプロセス図や，1枚のスライドに図を2つ以上縦に並べる場合**は
+  5〜6 : 1 の横長でよい．この場合は縦横比ではなく，
+  スライドに埋め込んだ状態で全体が本文領域（約 650px）に収まるかで判断する
 - 出力ファイルは既存図を上書きしない．内容が別物になる更新では，
   旧版を `<name>-backup.tikz` 等に退避するか新規ファイル名にする
+
+## Palette（使ってよい色）
+
+ユーザー・リポジトリから別の配色指定がない限り，**次の10色だけ**を使う．
+`\begin{tikzpicture}` / `\begin{algorithm}` より前で `\definecolor` し，色名で参照する:
+
+```latex
+\definecolor{navy}{HTML}{0E3666}        % indigodye：枠線・矢印・見出し
+\definecolor{aliceblue}{HTML}{E8F1FE}   % ブロックの塗り（既定）
+\definecolor{azureblue}{HTML}{428CE6}   % アクセント文字（Step ラベル・擬似コードとの対応付け）
+\definecolor{paleskyblue}{HTML}{B4D7FF} % 強調ブロックの塗り・ゾーン枠・擬似コードの強調行
+\definecolor{fontblack}{HTML}{1A1A1A}   % 本文テキスト
+\definecolor{darkgray}{HTML}{575757}    % 補足テキスト・信号ラベル・外部入力の破線
+\definecolor{lightgray}{HTML}{DEDEDE}   % 区切り線・非アクティブ要素
+\definecolor{crimsonred}{HTML}{D31804}  % NG・警告の枠と文字（それ以外では使わない）
+\definecolor{mistyrose}{HTML}{FBE7E6}   % NG・警告ブロックの塗り
+% white は xcolor 既定のまま使う
+```
+
+| 役割 | 色 |
+|---|---|
+| ブロック枠・矢印・ゾーンラベル | `navy` |
+| ブロックの塗り | `aliceblue`（既定），強調は `paleskyblue`，カード型は `white` |
+| 本文 | `fontblack` |
+| 補足・信号ラベル・外部入力 | `darkgray` |
+| アクセント（Step 番号・擬似コード行との対応付けの文字） | `azureblue` |
+| 区切り線 | `lightgray` |
+| NG・警告・アンチパターン | `crimsonred`（枠・文字）＋ `mistyrose`（塗り） |
+| 擬似コードの強調行 | `algo-focus color=paleskyblue`（既定の `orange!20` は使わない） |
+
+- `blue!12` や `navy!55!black` のような**混色は使わない**（パレット外の色になる）．
+  tikzc は混色を描けてしまうので，エラーにならない分だけ注意する
+- `\colorlet` は tikzc ではエラーになる．別名が欲しいときも `\definecolor` で書く
+- 色は**スタイル側に固定**し，`block=blue` のように `#1` で色を渡す書き方はしない
+- 擬似コード本体の文字色は tikzc が決める（黒 `#000000`）．図側で変えようとしない
+- 完成後に SVG を grep して，パレット外の色が混ざっていないことを確認する（Step 4）
+
+## 図の密度（busy にしない）
+
+情報を足すより，削って読みやすくすることを優先する:
+
+- **同時に使う色は主要3色＋アクセント1〜2色まで**．役割が同じ要素は同じ色にする
+- **意味の差がないブロックは全部同じ見た目**にする．ゾーン・行ごとに色相を変えない．
+  区別はゾーン枠とラベルで付ける
+- **補足は枠で囲まない**．ブロックの下に `darkgray` の文字で置くだけにする．
+  破線の補足ボックス＋接続線の組み合わせは使わない
+- 1ブロック（1カード）あたりの箇条書きは **2〜3行**まで．入りきらない内容はスライド本文に回す
+- バッジ・タグは塗りつぶさず**色付き文字**（`azureblue`）で示す
+- 影・グラデーション（`\shade`）・`thick` を超える線は使わない
 
 ## Instructions
 
@@ -47,13 +99,14 @@ TeX で通る記法でも対応外なら診断エラーで止まり，通って�
 - **フィードバックは下段**に配置（FK・観測器・視覚認識などは below= で下の行へ）
 - **ゾーンが周期・サブシステムに対応する場合は縦バンド**（左=上流，右=下流）にし，
   下段ブロックも同じバンドの x 位置に置く
-- 元となるスライド・図がある場合はその流儀に合わせる．色分けは2方式ある:
-  (a) ゾーン背景で塗る（周期＝空間的にまとまる場合），
+- 色分けは2方式ある:
+  (a) ゾーンで囲む（周期・サブシステムが空間的にまとまる場合．枠は `paleskyblue`，塗りなし），
   (b) **ブロック単位で塗り分け＋凡例チップ**（周期の異なるブロックが混在する場合）．
-  (b) ではセクション枠は無彩色（`draw=black!55, fill=none`）にし，
+  塗り分けはパレット内の `aliceblue` / `paleskyblue` / `white` の3段階まで．
+  (b) ではセクション枠は `draw=darkgray, fill=none` にし，
   凡例は `minimum height=0.55cm` の小ノードを図の上部に並べる
-- 特定の機構を強調したいとき（例: EKFデータ同化）は，該当ブロック群を
-  fit ノード（色付き太枠＋薄い fill）で囲み，タイトルを枠内上部に置く．
+- 特定の機構を強調したいとき（例: EKFデータ同化）は，該当ブロック群を fit ノード
+  （`draw=azureblue, line width=1.2pt` の枠＋`fill=aliceblue`）で囲み，タイトルを枠内上部に置く．
   枠の fill を活かすため，同じ background layer 内で枠より後に描く他の fit ノードに
   fill を付けない（後描きの fill が先描きの枠を覆う）
 - スライド用途では上部の空きスペースに**変数凡例ボックス**を置いて埋める
@@ -104,25 +157,43 @@ TeX で通る記法でも対応外なら診断エラーで止まり，通って�
 
 ```latex
 #| mainfont: Noto Sans CJK JP
+% ↓ Palette 節の \definecolor 一式をここに貼る
 \begin{tikzpicture}[
     auto, >={Latex[length=2.6mm]}, font=\small, line width=0.7pt,
-    block/.style={draw=#1!55!black, fill=#1!12, rounded corners=3pt,
+    every node/.style={text=fontblack},
+    block/.style={draw=navy, fill=aliceblue, rounded corners=3pt,
                   align=center, minimum height=1.1cm, inner sep=5pt},
-    block/.default=blue,
-    sum/.style={draw=#1!55!black, fill=#1!12, circle, inner sep=1.5pt},
-    sum/.default=blue,
-    ext/.style={draw=gray!70, dashed, fill=gray!8, rounded corners=3pt,
+    accent/.style={block, fill=paleskyblue},            % 強調ブロック
+    ng/.style={block, draw=crimsonred, fill=mistyrose}, % NG・警告
+    sum/.style={draw=navy, fill=white, circle, inner sep=1.5pt},
+    ext/.style={draw=darkgray, dashed, fill=white, rounded corners=3pt,
                 align=center, inner sep=5pt},
-    zone/.style={fill=#1!6, draw=#1!40, rounded corners=8pt, inner sep=10pt},
-    zlabel/.style={anchor=south, font=\bfseries, text=#1!45!black},
-    sig/.style={font=\footnotesize, inner sep=2pt},
-    dot/.style={circle, fill, inner sep=1.4pt},
+    zone/.style={draw=paleskyblue, fill=none, rounded corners=8pt, inner sep=10pt},
+    zlabel/.style={anchor=south, font=\bfseries, text=navy},
+    sig/.style={font=\footnotesize, text=darkgray, inner sep=2pt},
+    dot/.style={circle, fill=navy, inner sep=1.4pt},
+    wire/.style={->, draw=navy},
   ]
-  % block はゾーンごとに色を変える: block=blue / block=teal / block=orange
+  % ブロックの見た目は block / accent / ng の3種類だけ．ゾーンごとに色を変えない
+  % 擬似コード埋め込み: \node[algo=…, algo-focus={…}, algo-focus color=paleskyblue, …]
 ```
 
-- `#1` を取るスタイルは引数なしで使うと色名が空になりエラーになる．
-  `/.default` を付けるか，必ず `block=blue` のように色を渡す
+- **横一列のプロセス図**は，Step ラベル（`azureblue` 文字）／ブロック／補足文字（`darkgray`）を
+  縦に重ねた列を作り，`right=… of` で横に並べる．ブロック幅は `minimum width` で揃える:
+
+```latex
+  step/.style={font=\footnotesize\bfseries, text=azureblue},
+  note/.style={font=\footnotesize, text=darkgray, align=center},
+  % ↑ tikzpicture のオプションに追加
+  \node[block, minimum width=3.0cm] (b1) {データ準備};
+  \node[block, minimum width=3.0cm, right=1.2cm of b1] (b2) {学習};
+  \foreach \n/\s/\t in {b1/Step 1/日次→週次に集計, b2/Step 2/NUTS 500 draws} {
+    \node[step, above=2mm of \n] {\s};
+    \node[note, below=2mm of \n] {\t};
+  }
+  \draw[wire] (b1) -- (b2);
+```
+
 - 配置は `right=1.5cm of prev` / `below=1.5cm of node` / `at (a |- b)` を使う
 - 信号ラベルは `node[midway, above, sig] {$v_{\mathrm{target}}$}`
 - 加算点の符号は `node[pos=0.92, below, sig] {$+$}` のように矢印の端に置く
@@ -132,9 +203,9 @@ TeX で通る記法でも対応外なら診断エラーで止まり，通って�
 \coordinate (ztop) at ($(topnode.north)+(0,0.25)$);
 \coordinate (zbot) at ($(bottomline)+(0,-0.3)$);
 \begin{scope}[on background layer]
-  \node[zone=blue, fit=(a)(b)(a |- ztop)(a |- zbot)] (zlow) {};
+  \node[zone, fit=(a)(b)(a |- ztop)(a |- zbot)] (zlow) {};
 \end{scope}
-\node[zlabel=blue] at (zlow.north) {低速：$T_c=30$--$60\,$Hz（…）};
+\node[zlabel] at (zlow.north) {低速：$T_c=30$--$60\,$Hz（…）};
 ```
 
 #### Rust エンジンで書ける範囲
@@ -152,7 +223,7 @@ TeX で通る記法でも対応外なら診断エラーで止まり，通って�
 | ラベル位置 | `midway` `pos=0.92` `near start` `near end` `at start` `at end` `above=2pt` `sloped` `swap` `auto` | `very near start` `very near end` → `pos=0.1` / `pos=0.9` |
 | 矢印 | `->` `<-` `<->` `\|<->\|` `>=Latex` `>=Stealth` `>=latex` `>=stealth` `-Latex` `-Stealth` `-latex` `Stealth-Stealth` `Latex-{Stealth[open]}` `-{Latex[length=3mm,width=2mm]}` `-{Triangle[open]}` `shorten >=2pt` | `->>` `-{Circle}` `-o` `-{Latex[round]}` → `->` と `>=…`，または `-{Latex}` |
 | 線種 | `thin`〜`ultra thick` `dashed` `dotted` `densely dashed` `loosely dashed` `dash dot` `dash dot dot`（`densely`/`loosely` 付き，`dashdotted` `dashdotdotted` も可） `dash pattern=on 2pt off 1pt` `double` `double distance=`（パス・`draw` 付きノードの二重枠） `line width=` | `dash phase` → `dash pattern=` |
-| 色 | xcolor 基本色（`teal` `olive` `violet` `orange` …），`red!30` `blue!55!black`，`\definecolor{c}{HTML}{1F77B4}`（`rgb` `RGB` `gray` も可） | `\colorlet` dvips 色名（`ForestGreen` 等） → `\definecolor` |
+| 色 | `\definecolor{c}{HTML}{1F77B4}`（`rgb` `RGB` `gray` も可）．xcolor 基本色・`red!30` などの混色も描けるが，**Palette 節の10色以外は使わない** | `\colorlet` dvips 色名（`ForestGreen` 等） → `\definecolor` |
 | 塗り・透過 | `fill=` `opacity=` `fill opacity=` `draw opacity=` `pattern=north east lines` `blue!\p!white`（計算値での混色，0〜100） `\shade` / `\shadedraw` と `left color`/`right color` `top color`/`bottom color`（`middle color` 可） `inner color`/`outer color` | `shading=ball` `ball color` `shading angle` `drop shadow` `semitransparent` → `opacity=0.5`／混色の割合が 0〜100 の外（`blue!150!white`） |
 | スタイル | `/.style` `/.append style` `/.default` `#1`（引数1つ） `every node/.style` `\tikzset` | `/.style 2 args` `\tikzstyle` → 引数1つのスタイルを分ける |
 | レイヤ・枠 | `\begin{scope}[on background layer]` `fit=(a)(b)` `inner xsep`/`inner ysep` `label=above:…` `label=north east:…`（アンカー名） `label={[xshift=2mm]above:…}` | `show background rectangle` `pin=` `overlay` `baseline` |
@@ -228,6 +299,9 @@ TeX で通る記法でも対応外なら診断エラーで止まり，通って�
 
 ```latex
 #| line-number: true
+\definecolor{navy}{HTML}{0E3666}
+\definecolor{azureblue}{HTML}{428CE6}
+\definecolor{paleskyblue}{HTML}{B4D7FF}
 \begin{algorithm}[name=ista]
 \caption{ISTA for Lasso}
 \begin{algorithmic}
@@ -244,15 +318,16 @@ TeX で通る記法でも対応外なら診断エラーで止まり，通って�
 \end{algorithm}
 
 \begin{tikzpicture}
-  \fill[orange] (1.5,0) coordinate (corner) circle (2pt);
-  \node[algo=ista, algo-focus={sparse-corner}, font=\small, anchor=north west] (A) at (4.5,2.5) {};
-  \draw[->, orange, rounded corners] (A-sparse-corner.west) -| (corner);
+  \fill[navy] (1.5,0) coordinate (corner) circle (2pt);
+  \node[algo=ista, algo-focus={sparse-corner}, algo-focus color=paleskyblue,
+        font=\small, anchor=north west] (A) at (4.5,2.5) {};
+  \draw[->, azureblue, rounded corners] (A-sparse-corner.west) -| (corner);
 \end{tikzpicture}
 ```
 
 - **行と図をつなぐ**: 名前付き `algo=` ノード `(A)` の各行は `(A-<行番号>)` と `(A-<@ref ID>)` という
   ノードになり，`west` / `east` 等のアンカーと `-|` `to[bend left]` などの通常のパスで矢印を引ける．
-  `algo-focus={5,<id>}` で行を強調（`algo-focus color=` で色，既定 `orange!20`）
+  `algo-focus={5,<id>}` で行を強調（`algo-focus color=` で色．既定は `orange!20` なので必ず `algo-focus color=paleskyblue` を付ける）
 - **注記コメント**: `% @src paper=eq3.4 impl=est.py:131`（出典），`% @ref <id>`（図の `\node[ref=<id>]` に
   行番号を表示），`% @explain …`（擬似コード下に行番号付きで列挙）．行末に書けばその行，
   単独行なら直前の文に付く．`@ref` があると行番号は自動で付く．
@@ -301,7 +376,10 @@ tikzc のソースリポジトリ内で作業しているときは `tikzc` を `
 - [ ] 配線の交差にジャンプ弧があり，接続と誤読されない
 - [ ] +/− 符号が加算点の正しい側にある
 - [ ] 太字にしたつもりの見出しが実際に太い（太くなければ mainfont を確認）
-- [ ] 図全体の縦横比が 1.8〜2.5:1 程度（1600×900 スライド想定時）
+- [ ] 使っている色が Palette 節の10色だけ（下の grep で確認）
+- [ ] busy になっていない：色数・枠の数・箇条書きの行数が「図の密度」節の範囲内
+- [ ] 図全体の縦横比が 1.8〜2.5:1 程度（1600×900 スライド想定時．横一列プロセス図・縦に複数並べる図は
+  5〜6:1 でよく，本文領域（約 650px）に収まるかで判断する）
 - [ ] （擬似コード）擬似コードが図と重なっていない．行から引いた矢印が正しい行・図の要素を指している
 - [ ] （擬似コード）擬似コードの文字の大きさが周囲のラベルと釣り合っている
 
@@ -309,6 +387,15 @@ tikzc のソースリポジトリ内で作業しているときは `tikzc` を `
 
 ```sh
 head -c 300 <file>.svg | grep -o 'width="[^"]*pt" height="[^"]*pt"'
+```
+
+使っている色は次で一覧できる．Palette 節にない値が出たら直す:
+
+```sh
+grep -ohi '#[0-9a-f]\{6\}' <file>.svg | tr A-F a-f | sort -u
+# 許容: #0e3666 #e8f1fe #428ce6 #b4d7ff #1a1a1a #575757 #dedede #d31804 #fbe7e6 #ffffff
+# 例外: #000000 は擬似コード本体の文字・罫線（tikzc 側で固定）なので許容する．
+#       擬似コードの無い図で #000000 が出たら text=/draw= の指定漏れ
 ```
 
 ### Step 5: 完了報告
@@ -327,9 +414,6 @@ head -c 300 <file>.svg | grep -o 'width="[^"]*pt" height="[^"]*pt"'
 - 矢印間ラベル（例: `$q_{\mathrm{ref}},\dot q_{\mathrm{ref}}$`）を置く区間は
   ブロック間 gap を 1.5cm 以上取る．縦線と横線ラベルの干渉は，pos 調整より
   **明示座標の `\node[sig, anchor=west] at (x,y)`** のほうが制御しやすい
-- VSCode の TikZc Editor プレビュー（キャンバス編集）が同ファイルを開いていると Edit が競合・破損することがある．
-  競合を検知したら（Edit 失敗が続く／ファイル内容が意図せず変わる），部分 Edit をやめて
-  Write で全文を一括書き込みし，ユーザーにエディタのリロードを促す
 - 元の説明文にある情報（周波数・変数定義・特記事項「※〜」）は省略せず図中に反映する．
   入りきらない場合は凡例ボックスか脚注ノードに逃がす
-- 論文・外部資料ベースの図には出典ノード（`font=\scriptsize, text=gray`）を図の最下部に置く
+- 論文・外部資料ベースの図には出典ノード（`font=\scriptsize, text=darkgray`）を図の最下部に置く
