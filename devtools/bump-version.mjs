@@ -8,7 +8,8 @@ const usage = `Usage: devtools/bump-version.sh <version>
        devtools/bump-version.sh -h | --help
 
 Synchronize VERSION, root and vscode-extension package.json/package-lock.json,
-Cargo.toml, and the local tikzc package in Cargo.lock.
+the Claude Code / Codex plugin manifests, Cargo.toml, and the local tikzc
+package in Cargo.lock.
 Accepts SemVer (e.g. 1.0.1, 1.1.0-rc.1), with an optional leading v.
 --check checks the same files against VERSION without writing (exit 1 on errors).
 
@@ -108,6 +109,8 @@ const targets = [
   ["package-lock.json", packageLock],
   ["vscode-extension/package.json", packageJson],
   ["vscode-extension/package-lock.json", packageLock],
+  ["plugins/tikzc/.claude-plugin/plugin.json", packageJson],
+  ["plugins/tikzc/.codex-plugin/plugin.json", packageJson],
   ["Cargo.toml", cargoPackage],
   ["Cargo.lock", text => cargoPackage(text, true)],
 ];

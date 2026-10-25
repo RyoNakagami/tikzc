@@ -115,6 +115,7 @@ impl Engine<'_> {
                 let pending = Pending {
                     edit_source: None,
                     move_matrix: [1., 0., 0., 1.],
+                    lines: Vec::new(),
                     label: self.text.layout(
                         content.rest(),
                         &opts,
@@ -189,6 +190,7 @@ impl Engine<'_> {
             Pending {
                 edit_source: None,
                 move_matrix: [1., 0., 0., 1.],
+                lines: Vec::new(),
                 options: outer,
                 name: Some(outer_name.clone()),
                 point: at,
@@ -217,6 +219,10 @@ impl Engine<'_> {
             options.remove(*key);
         }
         options.remove("_matrix");
+        // Pseudocode and figure references belong to one node, never a scope.
+        for key in ["algo", "ref", "algo-focus", "algo-focus color"] {
+            options.remove(key);
+        }
         // Drawing attributes on the containing path do not imply a node border.
         if path {
             options.remove("draw");
@@ -287,14 +293,82 @@ impl Engine<'_> {
         shape_matrix.store(&mut options);
         options.insert("_node dx".into(), dx.to_string());
         options.insert("_node dy".into(), dy.to_string());
-        let label = self
-            .text
-            .layout(&label, &options, &self.state.styles, &self.mainfont)?;
+        let mut lines = Vec::new();
+        let label = if let Some(value) = options.get("algo") {
+            if !label.trim().is_empty() {
+                return Err(
+                    "a node with algo= draws the pseudocode; leave its text empty: {}".into(),
+                );
+            }
+            let algorithm = self.algo.resolve(value).ok_or_else(|| {
+                format!("[algo-name-missing] algo='{value}' is not an algorithm name or file")
+            })?;
+            // The node's `font=` sets the pseudocode size, as for node text.
+            let font_size = crate::text::font_metrics(get(&options, "font", ""))?.0;
+            let mut focus = crate::algo::layout::Focus {
+                fill: self
+                    .state
+                    .styles
+                    .color(get(&options, "algo-focus color", "orange!20"))?,
+                ..Default::default()
+            };
+            for reference in crate::syntax::split_top(get(&options, "algo-focus", ""), ',') {
+                let line = self.algo.line(algorithm, reference).ok_or_else(|| {
+                    self.fail_at_option("algo-focus");
+                    format!("algo-focus: no line '{reference}'; use a line number or an @ref ID")
+                })?;
+                focus.lines.insert(line);
+            }
+            let document = self.algo.focused(algorithm, &focus, font_size)?;
+            let names = self.algo.line_names(algorithm);
+            self.algo.placed.push((value.clone(), source_start));
+            let label = self.text.layout_markup(&document)?;
+            let mark = |key: String| label.marks.iter().find(|(k, _)| *k == key).map(|(_, y)| *y);
+            // The ruled body starts at the 1pt page margin of the markup.
+            let (left, right) =
+                mark("body-width".into()).map_or((0., label.width), |w| (1., 1. + w));
+            for (i, names) in names.into_iter().enumerate() {
+                if let (Some(top), Some(bottom)) = (
+                    mark(format!("line-{i}-top")),
+                    mark(format!("line-{i}-bottom")),
+                ) && !names.is_empty()
+                {
+                    lines.push((names, [top, bottom, left, right]));
+                }
+            }
+            label
+        } else {
+            let label = match options.get("ref") {
+                Some(id) => {
+                    if !crate::algo::valid_id(id) {
+                        return Err(format!(
+                            "invalid ref ID '{id}'; use letters, digits, '-', '_' or '.'"
+                        ));
+                    }
+                    self.algo.figure_refs.push((id.clone(), source_start));
+                    let mark = self
+                        .algo
+                        .refs
+                        .get(id)
+                        .map_or("\\tikzcref{?}", String::as_str);
+                    if label.trim().is_empty() {
+                        mark.to_owned()
+                    } else {
+                        format!("{mark}\\;{label}")
+                    }
+                    .into()
+                }
+                None => label,
+            };
+            self.text
+                .layout(&label, &options, &self.state.styles, &self.mainfont)?
+        };
         if name.is_none() {
             name = options.get("name").cloned();
         }
         let move_transform = parent.then(matrix)?.0;
         Ok(Pending {
+            lines,
             edit_source,
             move_matrix: [
                 move_transform[0],
@@ -545,6 +619,28 @@ impl Engine<'_> {
         }
         node.rotation = angle;
         if let Some(name) = p.name {
+            // Pseudocode lines become `<name>-<line number>` / `<name>-<@ref ID>`
+            // nodes spanning the pseudocode width, for arrows into the figure.
+            for (suffixes, [top, bottom, left, right]) in &p.lines {
+                let line = Node {
+                    center: Point {
+                        x: node.center.x - p.label.width / 2. + (left + right) / 2.,
+                        y: node.center.y + p.label.height / 2. - (top + bottom) / 2.,
+                    },
+                    width: right - left,
+                    height: bottom - top,
+                    shape: "rectangle".into(),
+                    rotation: 0.,
+                    cylinder_cap: 0.,
+                    baseline: 0.,
+                    outer_xsep: 0.,
+                    outer_ysep: 0.,
+                    transform: Matrix::default(),
+                };
+                for suffix in suffixes {
+                    self.nodes.insert(format!("{name}-{suffix}"), line.clone());
+                }
+            }
             self.nodes.insert(name, node.clone());
         }
         self.bbox.node(&node);
@@ -772,6 +868,7 @@ impl Engine<'_> {
                 Pending {
                     edit_source: None,
                     move_matrix: [1., 0., 0., 1.],
+                    lines: Vec::new(),
                     options: opts,
                     name,
                     point: Some(point),

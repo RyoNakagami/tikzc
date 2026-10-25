@@ -1,0 +1,7 @@
+#| impl: example/estimator@a1b2c3d
+\begin{tikzpicture}
+  \draw[draw=violet, fill=violet!15]
+    (1.5,0) -- (0,1.5) -- (-1.5,0) -- (0,-1.5) -- cycle;
+  \node[ref=sparse-corner, anchor=west] at (1.6,0) {corner};
+  \node[algo=algo-ista.tikz, anchor=north west] at (4,1.5) {};
+\end{tikzpicture}

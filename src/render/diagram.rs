@@ -9,6 +9,8 @@ pub struct Diagram {
     pub nodes: BTreeMap<String, Node>,
     /// Label source of every `node`, in document order (after expansion).
     pub labels: Vec<String>,
+    /// Pseudocode lint results (`tikzc check`), in source order.
+    pub lints: Vec<crate::algo::Lint>,
     pub editing: serde_json::Value,
     pub text_timings: crate::text::TextTimings,
 }

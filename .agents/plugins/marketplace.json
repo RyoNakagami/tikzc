@@ -1,0 +1,20 @@
+{
+  "name": "tikzc",
+  "interface": {
+    "displayName": "tikzc"
+  },
+  "plugins": [
+    {
+      "name": "tikzc",
+      "source": {
+        "source": "local",
+        "path": "./plugins/tikzc"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

@@ -9,6 +9,7 @@ const ROOT = path.join(__dirname, "..", "..");
 const MANAGED = [
   "VERSION", "package.json", "package-lock.json",
   "vscode-extension/package.json", "vscode-extension/package-lock.json",
+  "plugins/tikzc/.claude-plugin/plugin.json", "plugins/tikzc/.codex-plugin/plugin.json",
   "Cargo.toml", "Cargo.lock",
 ];
 

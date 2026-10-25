@@ -37,6 +37,7 @@ export function activateNativePreview(ctx: vscode.ExtensionContext): void {
       binary: cfg.get<string>("nativePath", "") || "tikzc",
       source: doc.getText(),
       dpi: cfg.get<number>("pngDpi", 300),
+      path: doc.uri.scheme === "file" ? doc.uri.fsPath : undefined,
       mainfont: cfg.get<string>("mainfont", ""),
       packages: cfg.get<string[]>("extraPackages", []),
       libraries: cfg.get<string[]>("extraLibraries", []),

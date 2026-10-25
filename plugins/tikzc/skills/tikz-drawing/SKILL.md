@@ -1,12 +1,12 @@
 ---
-name: tikz-block-diagram
-description: テキストのシステム説明（制御系・データフロー・アーキテクチャ等）やスライド画像を .tikz のブロック線図に変換し，tikzc（Rust ネイティブエンジン）でコンパイル・PNG目視検証して仕上げる．トリガー例「〜をブロック線図にして」「〜を.tikzに描いて」「tikzで図を作って」．出力はユーザー指定がない限り 1600×900 スライド想定．
+name: tikz-drawing
+description: テキストのシステム説明（制御系・データフロー・アーキテクチャ等）やスライド画像を .tikz のブロック線図に，アルゴリズムを擬似コード（algorithm 環境）に変換し，tikzc（Rust ネイティブエンジン）でコンパイル・PNG目視検証して仕上げる．トリガー例「〜をブロック線図にして」「〜を.tikzに描いて」「tikzで図を作って」「アルゴリズムを擬似コードにして」「擬似コードと図を対応させて」．出力はユーザー指定がない限り 1600×900 スライド想定．
 ---
 
-# tikz-block-diagram
+# tikz-drawing
 
-テキストで与えられたシステム説明（制御ループ・データフロー・アーキテクチャ等）を，
-tikzc でコンパイル可能な `.tikz` ブロック線図に変換し，PNG レンダリングを目視検証して仕上げる skill．
+テキストで与えられたシステム説明（制御ループ・データフロー・アーキテクチャ等）やアルゴリズムを，
+tikzc でコンパイル可能な `.tikz` のブロック線図・擬似コードに変換し，PNG レンダリングを目視検証して仕上げる skill．
 
 **tikzc は TeX を呼ばない Rust ネイティブエンジンで，TikZ の実用サブセットだけを解釈する．**
 TeX で通る記法でも対応外なら診断エラーで止まり，通っても見た目が TeX と違う箇所がある．
@@ -18,6 +18,8 @@ TeX で通る記法でも対応外なら診断エラーで止まり，通って�
 - 「この制御系／処理フローを TikZ で図にして」
 - 「スライド用にブロック線図を作って」
 - 論文・スライド画像をベースにした図の作成・更新
+- 「このアルゴリズムを擬似コードにして」「擬似コードの各行と図の該当箇所を対応させて」
+  （→ Step 3 の「擬似コード（algorithm 環境）」）
 
 ## Output 前提
 
@@ -80,6 +82,7 @@ TeX で通る記法でも対応外なら診断エラーで止まり，通って�
 1. 先頭の `#|` ヘッダ行
 2. `\begin{tikzpicture}` より前の `\tikzset{...}` / `\definecolor` / `\newcommand` / `\def`
 3. `\begin{tikzpicture}[...] ... \end{tikzpicture}`
+4. 擬似コードを描くときの `\begin{algorithm} ... \end{algorithm}`（下の「擬似コード」参照）
 
 `\documentclass` / `\usepackage` / `\usetikzlibrary` / `\begin{document}` は**書くとエラー**になる
 （ライブラリの読み込みは不要で，対応機能は最初から使える）．
@@ -94,8 +97,9 @@ TeX で通る記法でも対応外なら診断エラーで止まり，通って�
   | `IPAexMincho` | 明朝（文書向け．ヘッダ省略時もこれ） | 効かない（無視される） |
 
   同梱以外のフォント名は，そのマシンに導入されていなければエラーになる．
-  ヘッダのキーは `mainfont` / `scale` / `filename` / `width` / `height` /
-  `libraries` / `packages` のみ（`preamble` など他のキーはエラー）
+  図のヘッダのキーは `mainfont` / `scale` / `filename` / `width` / `height` /
+  `libraries` / `packages`．ほかに擬似コード用のキー（`layout` `canvas` `line-number` など，
+  下の「擬似コード」参照）がある．それ以外（`preamble` など）は `Unsupported header` エラー
 - スタイルテンプレート:
 
 ```latex
@@ -136,7 +140,7 @@ TeX で通る記法でも対応外なら診断エラーで止まり，通って�
 #### Rust エンジンで書ける範囲
 
 ここに無い機能は使わない．https://tikz.dev/ （PGF/TikZ 公式マニュアル）は記法の確認用で，
-**載っていても tikzc が対応しているとは限らない**．正式な対応範囲は `docs/RUST_ENGINE.md`．
+**載っていても tikzc が対応しているとは限らない**．正式な対応範囲は [RUST_ENGINE.md](https://github.com/RyoNakagami/tikzc/blob/main/docs/RUST_ENGINE.md)．
 
 | 用途 | 使える書き方 | 使えない書き方（エラー）→ 代替 |
 |---|---|---|
@@ -146,16 +150,16 @@ TeX で通る記法でも対応外なら診断エラーで止まり，通って�
 | パス | `--` `-\|` `\|-` `to[bend left=30]` `to[out=90,in=180]` `.. controls .. and ..` `arc[start angle=,end angle=,radius=]` `rectangle` `circle` `cycle` `rounded corners=4pt` `grid[step=1]` パス内 `foreach \x in {…} { -- (\x,0) }` | `edge` `to[loop above]` `arc[delta angle=]` → `\draw … to …` で書く |
 | パス上の名前 | `-- (b) coordinate[pos=0.3] (m)` `node[coordinate, midway] (m) {}` | `-- coordinate (m) (b)`（終点より前の coordinate） |
 | ラベル位置 | `midway` `pos=0.92` `near start` `near end` `at start` `at end` `above=2pt` `sloped` `swap` `auto` | `very near start` `very near end` → `pos=0.1` / `pos=0.9` |
-| 矢印 | `->` `<-` `<->` `\|<->\|` `>=Latex` `>=Stealth` `>=latex` `>=stealth` `-{Latex[length=3mm,width=2mm]}` `-{Triangle[open]}` `shorten >=2pt` | `-Latex` `-Stealth` `-latex` `-stealth` `->>` `-{Circle}` `-o` `-{Latex[round]}` → `->` と `>=…`，または `-{Latex}` |
-| 線種 | `thin`〜`ultra thick` `dashed` `dotted` `densely dashed` `loosely dashed` `dash pattern=on 2pt off 1pt` `double` `line width=` | `dash dot` `dash phase` → `dash pattern=` |
+| 矢印 | `->` `<-` `<->` `\|<->\|` `>=Latex` `>=Stealth` `>=latex` `>=stealth` `-Latex` `-Stealth` `-latex` `Stealth-Stealth` `Latex-{Stealth[open]}` `-{Latex[length=3mm,width=2mm]}` `-{Triangle[open]}` `shorten >=2pt` | `->>` `-{Circle}` `-o` `-{Latex[round]}` → `->` と `>=…`，または `-{Latex}` |
+| 線種 | `thin`〜`ultra thick` `dashed` `dotted` `densely dashed` `loosely dashed` `dash dot` `dash dot dot`（`densely`/`loosely` 付き，`dashdotted` `dashdotdotted` も可） `dash pattern=on 2pt off 1pt` `double` `double distance=`（パス・`draw` 付きノードの二重枠） `line width=` | `dash phase` → `dash pattern=` |
 | 色 | xcolor 基本色（`teal` `olive` `violet` `orange` …），`red!30` `blue!55!black`，`\definecolor{c}{HTML}{1F77B4}`（`rgb` `RGB` `gray` も可） | `\colorlet` dvips 色名（`ForestGreen` 等） → `\definecolor` |
 | 塗り・透過 | `fill=` `opacity=` `fill opacity=` `draw opacity=` `pattern=north east lines` `blue!\p!white`（計算値での混色，0〜100） `\shade` / `\shadedraw` と `left color`/`right color` `top color`/`bottom color`（`middle color` 可） `inner color`/`outer color` | `shading=ball` `ball color` `shading angle` `drop shadow` `semitransparent` → `opacity=0.5`／混色の割合が 0〜100 の外（`blue!150!white`） |
 | スタイル | `/.style` `/.append style` `/.default` `#1`（引数1つ） `every node/.style` `\tikzset` | `/.style 2 args` `\tikzstyle` → 引数1つのスタイルを分ける |
-| レイヤ・枠 | `\begin{scope}[on background layer]` `fit=(a)(b)` `inner xsep`/`inner ysep` `label=above:…` | `show background rectangle` `pin=` `overlay` `baseline` |
+| レイヤ・枠 | `\begin{scope}[on background layer]` `fit=(a)(b)` `inner xsep`/`inner ysep` `label=above:…` `label=north east:…`（アンカー名） `label={[xshift=2mm]above:…}` | `show background rectangle` `pin=` `overlay` `baseline` |
 | テキスト整形 | `text width=3cm` `align=center/left/right` `\\` `\\[2pt]` `minimum width/height/size` `inner sep` | `text centered` `align=flush left` `text height`/`text depth` `\centering` `\par` `\newline` `\parbox` `minipage` `itemize` → `align=` と `\\` |
-| 文字装飾 | `\textbf` `\bfseries`（Noto のみ有効） `\texttt` `\textsf` `\underline` `\textcolor{c}{…}` `{\color{c} …}` サイズ（`\tiny`〜`\Huge`） `\hspace` `\phantom` `\quad` `\,` `~` | `\textsuperscript` `\textsubscript` `\fbox` `\colorbox` `\rule` `\hfill` → 上付き・下付きは数式 `$^2$` で |
+| 文字装飾 | `\textbf` `\bfseries`（Noto のみ有効） `\texttt`（中の `--` はハイフンのまま） `\verb\|…\|` `\textsf` `\underline` `\textcolor{c}{…}` `{\color{c} …}` サイズ（`\tiny`〜`\Huge`） `\hspace` `\phantom` `\quad` `\,` `~` | `\textsuperscript` `\textsubscript` `\fbox` `\colorbox` `\rule` `\hfill` → 上付き・下付きは数式 `$^2$` で |
 | 記号 | Unicode 直書き（`→ ⇒ ① ※ ℃ ± × μ Ω ✓`）．`\%` `\&` `\#` `\_` `\dots` `--` `---` | `\textrightarrow` `\textbullet` `\textdegree` `\textmu` `\checkmark` `\copyright` `\LaTeX` アクセント（`\'e`） → Unicode 文字を直接書く |
-| 繰り返し・マクロ | `\foreach \i in {1,...,3}` `\foreach \i/\t in {1/a,2/b}` `[count=\j from 1]` `[evaluate=\v as \w using \v*2]` `[remember=\v as \p (initially 0)]` `\foreach \n in \list`（マクロに入れたリスト） `\def` `\newcommand`（必須引数のみ） `\pgfmathsetmacro` `\pgfmathtruncatemacro` | `\ifnum` 等の TeX 条件分岐 省略可能引数 `[parse=…]` `[var=…]` → 条件は pgfmath の `ifthenelse(c,a,b)` / `c ? a : b` |
+| 繰り返し・マクロ | `\foreach \i in {1,...,3}` `\foreach \i/\t in {1/a,2/b}` `[count=\j from 1]` `[evaluate=\v as \w using \v*2]` `[remember=\v as \p (initially 0)]` `\foreach \n in \list`（マクロに入れたリスト） `\def` `\newcommand`（必須引数のみ） `\pgfmathsetmacro` `\pgfmathtruncatemacro` `\ifnum` `\ifodd` `\ifdim` と `\else` `\fi`（入れ子・マクロ内・ループ内可．比較対象は数字か値マクロ1つ） `\pgfmathsetmacro{\c}{\v>50 ? "red" : "blue"}`（色・スタイル名の選択） | `\ifx` `\ifthenelse` 省略可能引数 `[parse=…]` `[var=…]` → `\ifnum` か pgfmath の `ifthenelse(c,a,b)` / `c ? a : b` |
 | 計算・数値 | 四則・`^`，`sqrt` `exp` `ln` `log10` `abs` `min` `max` `mod` `floor` `ceil` `round` `sin`/`cos`（度） `tanh` `atan2` `pi` `e`，ラジアン接尾辞 `cos(\t r)`，比較 `< > <= >= == !=` と `&& \|\| !`，`rnd` `rand` `random(a,b)` と `\pgfmathsetseed{n}`（シード固定で決定的．TeX と同じ乱数列ではない），`\pgfmathprintnumber[fixed,precision=2,zerofill]{…}` | `\pgfmathprintnumber[sci]` `[std]` `[int detect]` |
 | その他 | `\matrix[matrix of nodes]` 直線の `decoration={brace}` `tabular`（`l/c/r` と `\|`，`\hline`） `plot coordinates` 関数 plot `plot (\x,{f(\x)})`（`domain=` `samples=`2〜10000 `variable=` `smooth`） plot マーカー `mark=*`/`o`/`x`/`+` `only marks` `mark size=` `name path=A` と `name intersections={of=A and B, by={p}, total=\t}` 途中矢印 `postaction={decorate}, decoration={markings, mark=at position 0.5 with {\arrow{Stealth}}}`（中身は `\arrow{…}` `\node…;` `\fill`/`\draw` のみ） | `\pic` `snake`/`zigzag` 装飾 `mark=between positions` `plot file`（図から他ファイルは読まない） `plot function`（gnuplot） `pgfplots` の `axis` 交点の `sort by` `help lines` `samples=1` |
 
@@ -206,26 +210,85 @@ TeX で通る記法でも対応外なら診断エラーで止まり，通って�
   キャンバス原点ではなく**現在の座標系の原点**になる．`shift` / `rotate` / `scale` 付きの
   scope やパスの中でだけ結果が変わる．意図を明確にするため，始点は `(0,0)` と明示して書く
 
+#### 擬似コード（algorithm 環境）
+
+1.3.0 から pseudocode.js 構文の `algorithm` 環境を擬似コードとして描ける．
+詳細（対応コマンド・全ヘッダ・lint 一覧）は [PSEUDOCODE.md](https://github.com/RyoNakagami/tikzc/blob/main/docs/PSEUDOCODE.md)，実例は [tests/fixtures](https://github.com/RyoNakagami/tikzc/tree/main/tests/fixtures) の `algo-*.tikz`．
+
+- **描き方は3通り**（サブコマンドは無く，ファイルの中身で決まる）:
+  1. `algorithm` 環境だけのファイル → 擬似コード単体
+  2. 図の中に `\node[algo=<名前またはファイル>, anchor=north west] (A) at (x,y) {};` → 図に埋め込み
+     （`algo=ista.tikz` で別ファイルの最初の algorithm を参照．パスは .tikz からの相対）
+  3. `algo=` ノード無しで図と algorithm を同じファイルに書く → `#| layout: algo-left`
+     （`algo-right` / `algo-top` / `algo-bottom`）で図の横に配置
+- **対応構文**: `\PROCEDURE`/`\FUNCTION`，`\IF`/`\ELSIF`/`\ELSE`，`\FOR`/`\FORALL`，`\WHILE`，
+  `\REPEAT`/`\UNTIL`，`\LOOP`，`\STATE` `\RETURN` `\REQUIRE` `\ENSURE` `\INPUT` `\OUTPUT` `\COMMENT`，
+  文中の `\CALL{Name}{args}` `\TRUE` `\AND` `\TO` 等．文中にはノードラベルと同じ数式・日本語が書ける．
+  未知のコマンドは `[algo-unknown-cmd]`，開始と終了の対応ずれは `[algo-unbalanced]` で止まる
+
+```latex
+#| line-number: true
+\begin{algorithm}[name=ista]
+\caption{ISTA for Lasso}
+\begin{algorithmic}
+\PROCEDURE{ISTA}{$X, y, \lambda$}
+  \STATE $\beta \gets 0$
+  \REPEAT
+    \STATE $\beta \gets S_{\lambda}(\beta + X^{\top} r / n)$
+    % @ref sparse-corner
+    % @explain ソフト閾値で係数を0へ縮小
+  \UNTIL{$\|\Delta\beta\| < \mathrm{tol}$}
+  \RETURN $\beta$
+\ENDPROCEDURE
+\end{algorithmic}
+\end{algorithm}
+
+\begin{tikzpicture}
+  \fill[orange] (1.5,0) coordinate (corner) circle (2pt);
+  \node[algo=ista, algo-focus={sparse-corner}, font=\small, anchor=north west] (A) at (4.5,2.5) {};
+  \draw[->, orange, rounded corners] (A-sparse-corner.west) -| (corner);
+\end{tikzpicture}
+```
+
+- **行と図をつなぐ**: 名前付き `algo=` ノード `(A)` の各行は `(A-<行番号>)` と `(A-<@ref ID>)` という
+  ノードになり，`west` / `east` 等のアンカーと `-|` `to[bend left]` などの通常のパスで矢印を引ける．
+  `algo-focus={5,<id>}` で行を強調（`algo-focus color=` で色，既定 `orange!20`）
+- **注記コメント**: `% @src paper=eq3.4 impl=est.py:131`（出典），`% @ref <id>`（図の `\node[ref=<id>]` に
+  行番号を表示），`% @explain …`（擬似コード下に行番号付きで列挙）．行末に書けばその行，
+  単独行なら直前の文に付く．`@ref` があると行番号は自動で付く．
+  `impl` ヘッダは `owner/repo@rev` とリビジョン必須（無いと `[impl-no-rev]`）
+- **スライド用**: `#| canvas: 1600x900` で図・擬似コード・矢印全体をキャンバスに収めて中央に置く．
+  `algo=` ノードがあると `canvas` 以外の配置ヘッダは無視される（`layout-conflict` 警告）
+- **書体と大きさ**: 擬似コードは Computer Modern（日本語は IPAex 明朝）で組まれ，`mainfont` に従わない．
+  Noto ゴシックの図と並べると書体が揃わないことを織り込む．大きさは `algo=` ノードの `font=`
+  （既定 10pt）で決まるので，周囲のラベルに合わせて `font=\small` 等を付ける
+- 日本語の句読点 `，．` ・数式の書き方の規則は擬似コード内でも同じ
+
 ### Step 4: コンパイルと目視検証（必須ループ）
 
 ```sh
+tikzc --version                            # 擬似コードを使うなら 1.3.0 以上
 # 構文チェックのみ（出力なし，数十 ms）
-cargo run --release --locked -q -- check <path/to/file>.tikz
+tikzc check <path/to/file>.tikz
 # SVG と PNG を .tikz と同じディレクトリに出力
-cargo run --release --locked -q -- <path/to/file>.tikz --format both
+tikzc <path/to/file>.tikz --format both
 # スライド用に高解像度 PNG が要るとき
-cargo run --release --locked -q -- <path/to/file>.tikz --format both --dpi 300
+tikzc <path/to/file>.tikz --format both --dpi 300
 ```
 
-リポジトリ外で作業していて `tikzc` が PATH にある場合は `cargo run … --` を `tikzc` に置き換える
-（PATH 上の `tikzc` は古いことがある．挙動が食い違ったら `cargo install --path . --locked` で入れ直す）．
+`tikzc` が無いときは `cargo install --git https://github.com/RyoNakagami/tikzc tikzc --locked` で入れる
+（Rust 1.92 以上が必要．入れる前にユーザーに確認する）．古くて挙動が食い違うときも同じコマンドで更新する．
+tikzc のソースリポジトリ内で作業しているときは `tikzc` を `cargo run --release --locked -q --` に置き換える．
 
 未対応の構文は `file:line:column: Unsupported option 'xxx'` 形式の診断で失敗する（終了コード 3）．
 診断は**最初の1件だけ**で，位置は原因のオプションやパス操作（`plot` `grid` 座標など）を指す．
 特定できないときは該当する文（`\node` / `\draw`）の先頭を指す．
 メッセージ中の名前を上の表で引いて代替の書き方に直し，通るまで `check` を繰り返す．
 `unknown variable: mitex…` / `unknown symbol modifier` は数式内の未対応コマンドを意味する．
-表に無い機能がどうしても必要なら，回避せずユーザーに伝える（エンジン側の対応は `docs/FEATURE_WORKFLOW.md`）．
+擬似コードを含むファイルでは `check` が lint も出力し（修正案付き），error があれば終了コード 3 になる．
+`ref-dangling`（`@ref` に対応する `ref=` ノードが無い）・`algo-out-of-canvas` は error，
+`algo-overlap`（擬似コードと図が重なる）・`ref-unused`・`algo-unplaced` は warning．warning も残さず直す．
+表に無い機能がどうしても必要なら，回避せずユーザーに伝える（エンジン側の対応手順は [FEATURE_WORKFLOW.md](https://github.com/RyoNakagami/tikzc/blob/main/docs/FEATURE_WORKFLOW.md)）．
 
 生成された PNG を Read で開いて画像を確認し，問題があれば修正して再コンパイルする．
 **コンパイルが通っただけで完了としない．** チェック項目:
@@ -239,6 +302,8 @@ cargo run --release --locked -q -- <path/to/file>.tikz --format both --dpi 300
 - [ ] +/− 符号が加算点の正しい側にある
 - [ ] 太字にしたつもりの見出しが実際に太い（太くなければ mainfont を確認）
 - [ ] 図全体の縦横比が 1.8〜2.5:1 程度（1600×900 スライド想定時）
+- [ ] （擬似コード）擬似コードが図と重なっていない．行から引いた矢印が正しい行・図の要素を指している
+- [ ] （擬似コード）擬似コードの文字の大きさが周囲のラベルと釣り合っている
 
 縦横比は SVG の先頭にある `width="…pt" height="…pt"` で数値確認できる:
 

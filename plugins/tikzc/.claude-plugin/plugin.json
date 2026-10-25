@@ -1,0 +1,12 @@
+{
+  "name": "tikzc",
+  "version": "1.3.0",
+  "description": "Draw block diagrams and pseudocode as .tikz files, compiled and visually checked with the tikzc Rust engine",
+  "author": {
+    "name": "Ryo Nakagami"
+  },
+  "homepage": "https://github.com/RyoNakagami/tikzc",
+  "repository": "https://github.com/RyoNakagami/tikzc",
+  "license": "MIT",
+  "keywords": ["tikz", "tikzc", "diagram", "block-diagram", "pseudocode"]
+}

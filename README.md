@@ -39,10 +39,35 @@ Then render a diagram:
 tikzc diagram.tikz -o diagram.svg     # format follows the -o extension
 tikzc diagram.tikz -f both -o out/    # SVG and PNG into out/
 tikzc check diagram.tikz              # compile only, write nothing
+tikzc ista.tikz -o ista.png           # pseudocode (algorithm environment)
 ```
+
+Files may also contain `algorithm` environments (pseudocode.js syntax), drawn
+alone, inside a figure with `\node[algo=...]` or beside it; see
+[Pseudocode](docs/PSEUDOCODE.md).
 
 The preview extension is installed separately; see
 [VSCode extension](#vscode-extension).
+
+## Agent plugin
+
+The `tikzc` plugin gives Claude Code and Codex the `tikz-drawing` skill: it
+turns a system description or an algorithm into a `.tikz` block diagram or
+pseudocode, compiles it with the installed `tikzc` and checks the PNG.
+Install `tikzc` first ([Installation](#installation)).
+
+```sh
+# Claude Code (inside a session)
+/plugin marketplace add RyoNakagami/tikzc
+/plugin install tikzc@tikzc
+
+# Codex
+codex plugin marketplace add https://github.com/RyoNakagami/tikzc.git
+codex plugin add tikzc@tikzc
+```
+
+The skill is in [plugins/tikzc/skills/tikz-drawing/](plugins/tikzc/skills/tikz-drawing/SKILL.md);
+in a checkout, Claude Code also loads it as a project skill.
 
 ## Rust CLI
 
@@ -93,6 +118,7 @@ See [extension settings and usage](vscode-extension/README.md).
 | `devtools/` | Versioning and opt-in corpus comparison tools. |
 | `docs/` | Usage, compatibility, testing and project policies. |
 | `notebook/` | Working diagrams, including the runnable `native-subset.tikz` example; some are read by Rust tests. |
+| `plugins/tikzc/` | Claude Code / Codex plugin with the `tikz-drawing` skill; the marketplaces are `.claude-plugin/` and `.agents/plugins/`. |
 
 A per-directory breakdown is in [repository structure](docs/REPOSITORY_STRUCTURE.md).
 
@@ -145,6 +171,10 @@ cargo uninstall tikzc
 
 # VSCode extension
 code --uninstall-extension RyoNak.tikzc-preview
+
+# Agent plugin (Claude Code session / Codex)
+/plugin uninstall tikzc@tikzc
+codex plugin remove tikzc@tikzc
 
 # npm CLI from tikzc 0.x, if it is still linked
 npm unlink -g tikzc

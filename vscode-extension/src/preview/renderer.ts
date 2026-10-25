@@ -15,6 +15,8 @@ export interface RenderRequest {
   binary: string;
   source: string;
   dpi: number;
+  /** Document path; `algo=<file>` nodes are read relative to it. */
+  path?: string;
   mainfont?: string;
   packages?: string[];
   libraries?: string[];
@@ -89,7 +91,7 @@ export class RustRenderer {
     }
     const worker = this.worker;
     try {
-      const result = await worker.request(source, request.dpi);
+      const result = await worker.request(source, request.dpi, request.path);
       signal.throwIfAborted();
       const editing = result.editing as EditingMetadata | undefined;
       if (editing) {

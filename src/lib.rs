@@ -1,3 +1,4 @@
+pub mod algo;
 mod arrows;
 mod curve;
 mod expand;
@@ -8,5 +9,5 @@ pub mod syntax;
 pub mod text;
 mod transform;
 
-pub use render::{Diagram, compile};
+pub use render::{Diagram, compile, compile_at};
 pub use syntax::Diagnostic;
