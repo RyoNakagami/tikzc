@@ -18,6 +18,10 @@ pub struct Label {
     /// Baseline measured downwards from the top of the label box.
     pub baseline: f64,
     pub svg: String,
+    /// Typst labels `<tikzc-...>` in the markup: the vertical position (from
+    /// the top of the label box) of each, such as pseudocode line edges, or
+    /// the value of a labelled `metadata(<length>)`.
+    pub marks: Vec<(String, f64)>,
 }
 struct TextWorld {
     library: LazyHash<Library>,
@@ -151,6 +155,7 @@ impl TextEngine {
                 height: 0.,
                 baseline: 0.,
                 svg: String::new(),
+                marks: Vec::new(),
             }));
         }
         let width = font_dim(options, "text width", 0.)?;
@@ -182,6 +187,22 @@ impl TextEngine {
             10. * 72. / 72.27,
             get(options, "align", "") == "justify"
         );
+        let trim = !text.contains("phantom") && !text.contains("vspace");
+        let first_baseline = dim(options, "text width", 0.)? > 0.;
+        self.compile(source, trim, first_baseline)
+    }
+    /// Lay out a complete Typst body (page and text settings included), such
+    /// as a pseudocode block. The label keeps the page box: rules and padding
+    /// define its edges, not the ink.
+    pub fn layout_markup(&mut self, body: &str) -> Result<Arc<Label>, String> {
+        self.compile(body.into(), false, false)
+    }
+    fn compile(
+        &mut self,
+        source: String,
+        trim: bool,
+        first_baseline: bool,
+    ) -> Result<Arc<Label>, String> {
         if let Some(label) = self.cache.get(&source) {
             self.timings.cache_hits += 1;
             return Ok(label.clone());
@@ -230,17 +251,14 @@ impl TextEngine {
         }
         let page = &doc.pages()[0];
         let (top, bottom, baselines) = frame_metrics(&page.frame)?;
-        let trim = top.is_finite()
-            && bottom > top
-            && !text.contains("phantom")
-            && !text.contains("vspace");
+        let trim = trim && top.is_finite() && bottom > top;
         let top = if trim { top } else { 0. };
         let height = if trim {
             bottom - top
         } else {
             page.frame.height().to_pt()
         };
-        let baseline = if dim(options, "text width", 0.)? > 0. {
+        let baseline = if first_baseline {
             baselines.iter().copied().reduce(f64::min)
         } else {
             baselines.iter().copied().reduce(f64::max)
@@ -256,11 +274,31 @@ impl TextEngine {
             page.frame.width().to_pt()
         );
         svg.replace_range(..root_end, &root);
+        let mut marks = Vec::new();
+        if source.contains("<tikzc-") {
+            let introspector = doc.introspector();
+            for element in introspector.elements().query_labelled() {
+                let (Some(label), Some(location)) = (element.label(), element.location()) else {
+                    continue;
+                };
+                let name = label.resolve();
+                let Some(name) = name.strip_prefix("tikzc-") else {
+                    continue;
+                };
+                if let Ok(typst::foundations::Value::Length(length)) = element.get_by_name("value")
+                {
+                    marks.push((name.to_owned(), length.abs.to_pt()));
+                } else if let Some(position) = introspector.position(location) {
+                    marks.push((name.to_owned(), position.point.y.to_pt() - top));
+                }
+            }
+        }
         let label = Arc::new(Label {
             width: page.frame.width().to_pt(),
             height,
             baseline,
             svg,
+            marks,
         });
         self.timings.labels += 1;
         self.timings.layout_svg_ms += started.elapsed().as_secs_f64() * 1000.;
@@ -461,6 +499,19 @@ fn current_symbols(math: &str) -> String {
     }
     out
 }
+/// Typst markup for TeX text in the default style (used by pseudocode).
+pub(crate) fn markup(text: &str, styles: &Styles) -> Result<String, String> {
+    Converter {
+        styles,
+        strut: 10. * 72. / 72.27,
+        typewriter: false,
+    }
+    .convert(text)
+}
+/// Quote a string as a Typst string literal.
+pub(crate) fn typst_string(s: &str) -> String {
+    quote(s)
+}
 struct Converter<'a> {
     styles: &'a Styles,
     strut: f64,
@@ -647,6 +698,11 @@ impl Converter<'_> {
                             output.push_str(&format!("#box({sizing})[#hide[{content}]]"));
                             continue;
                         }
+                        // Figure-reference marker of `ref=` nodes (see `algo`).
+                        "tikzcref" => {
+                            output.push_str(&crate::algo::layout::marker(cursor.group('{', '}')?));
+                            continue;
+                        }
                         "textcircled" => {
                             let content = self.convert(cursor.group('{', '}')?)?;
                             output.push_str(&format!(
@@ -740,7 +796,7 @@ impl Converter<'_> {
         Ok(output)
     }
 
-    fn math(source: &str) -> Result<String, String> {
+    pub(crate) fn math(source: &str) -> Result<String, String> {
         // Inside math `\ensuremath{x}` is just `{x}`.
         let math = mitex::convert_math(&source.replace("\\ensuremath", ""), None)
             .map_err(|e| format!("Unsupported math: {e}"))?;

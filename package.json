@@ -1,6 +1,6 @@
 {
   "name": "tikzc",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Development tooling for tikzc, a Rust-native renderer for a practical subset of TikZ",
   "author": "Ryo Nakagami",
   "license": "MIT",

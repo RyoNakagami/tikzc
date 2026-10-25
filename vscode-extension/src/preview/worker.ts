@@ -34,12 +34,12 @@ export class NativeWorker {
     this.child.on("exit", (code) => this.fail(new Error(this.stderr || `Native worker exited (${code}).`)));
   }
   get alive(): boolean { return !this.stopped; }
-  request(source: string, dpi: number): Promise<any> {
+  request(source: string, dpi: number, path?: string): Promise<any> {
     if (this.stopped || this.pending) return Promise.reject(new Error("Native worker is unavailable."));
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => this.fail(new Error("Native rendering timed out.")), 60_000);
       this.pending = { resolve, reject, timer };
-      this.child.stdin.write(JSON.stringify({ source, dpi }) + "\n", (error) => { if (error) this.fail(error); });
+      this.child.stdin.write(JSON.stringify({ source, dpi, path }) + "\n", (error) => { if (error) this.fail(error); });
     });
   }
   private fail(error: Error): void {

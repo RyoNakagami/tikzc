@@ -18,7 +18,7 @@ fn run() -> Result<(), (i32, String)> {
     }
     if args.is_empty() || args.iter().any(|s| s == "--help" || s == "-h") {
         println!(
-            "tikzc — Rust-native renderer for a practical subset of TikZ\n\nUsage: tikzc <file.tikz> [-o output.svg|output.png] [-f svg|png|both]\n       tikzc check <file.tikz>\n\nOptions:\n  -o, --output <path>      output file or directory\n  -f, --format <format>    svg, png, both (default: infer from output, else svg)\n      --dpi <number>       PNG resolution (default: 150)\n  -q, --quiet              suppress progress\n  -V, --version            show version\n  -h, --help               show help\n\nUnsupported syntax produces a source-position diagnostic. No TeX subprocesses."
+            "tikzc — Rust-native renderer for a practical subset of TikZ\n\nUsage: tikzc <file.tikz> [-o output.svg|output.png] [-f svg|png|both]\n       tikzc check <file.tikz>\n\nOptions:\n  -o, --output <path>      output file or directory\n  -f, --format <format>    svg, png, both (default: infer from output, else svg)\n      --dpi <number>       PNG resolution (default: 150)\n  -q, --quiet              suppress progress\n  -V, --version            show version\n  -h, --help               show help\n\nA file with only algorithm environments renders pseudocode (pseudocode.js syntax).\n`check` also lints pseudocode notes (% @src, % @ref, % @explain).\nUnsupported syntax produces a source-position diagnostic. No TeX subprocesses."
         );
         return if args.is_empty() {
             Err((2, "input file required".into()))
@@ -78,13 +78,37 @@ fn run() -> Result<(), (i32, String)> {
     let source =
         std::fs::read_to_string(&input).map_err(|e| (2, format!("{}: {e}", input.display())))?;
     let start = Instant::now();
-    let diagram = tikzc::compile(&source).map_err(|e| {
-        (
-            3,
-            format!("{}:{}:{}: {}", input.display(), e.line, e.column, e.message),
-        )
-    })?;
+    let base = input.parent().filter(|p| *p != Path::new(""));
+    let diagram =
+        tikzc::compile_at(&source, &mut tikzc::text::TextEngine::new(), base).map_err(|e| {
+            (
+                3,
+                format!("{}:{}:{}: {}", input.display(), e.line, e.column, e.message),
+            )
+        })?;
+    // `check` reports every lint; rendering reports warnings and errors.
+    for lint in &diagram.lints {
+        if check || (!quiet && lint.severity > tikzc::algo::Severity::Info) {
+            let at = tikzc::Diagnostic::at(&source, lint.offset, "");
+            eprintln!(
+                "{}:{}:{}: {}[{}]: {}",
+                input.display(),
+                at.line,
+                at.column,
+                lint.severity,
+                lint.code,
+                lint.message
+            );
+        }
+    }
     if check {
+        if diagram
+            .lints
+            .iter()
+            .any(|l| l.severity == tikzc::algo::Severity::Error)
+        {
+            return Err((3, format!("{}: lint errors", input.display())));
+        }
         println!("{}: native supported", input.display());
         return Ok(());
     }
@@ -166,10 +190,26 @@ fn preview_server() -> Result<(), String> {
                 serde_json::from_str(&line).map_err(|e| e.to_string())?;
             let source = request["source"].as_str().ok_or("missing source")?;
             let dpi = request["dpi"].as_f64().unwrap_or(150.);
-            let diagram = tikzc::render::compile_with_text(source, &mut engine)
+            // Optional document path: `algo=<file>` is read relative to it.
+            let base = request["path"]
+                .as_str()
+                .and_then(|p| Path::new(p).parent())
+                .filter(|p| *p != Path::new(""));
+            let diagram = tikzc::render::compile_at(source, &mut engine, base)
                 .map_err(|e| format!("document.tikz:{}:{}: {}", e.line, e.column, e.message))?;
             let png = diagram.png(dpi)?;
-            Ok(serde_json::json!({"svg": diagram.svg, "png": png, "editing": diagram.editing}))
+            let lints: Vec<_> = diagram
+                .lints
+                .iter()
+                .map(|l| {
+                    let at = tikzc::Diagnostic::at(source, l.offset, "");
+                    serde_json::json!({"code": l.code, "severity": l.severity.to_string(),
+                        "line": at.line, "column": at.column, "message": l.message})
+                })
+                .collect();
+            Ok(
+                serde_json::json!({"svg": diagram.svg, "png": png, "editing": diagram.editing, "lints": lints}),
+            )
         })();
         let response = match result {
             Ok(v) => v,

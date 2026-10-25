@@ -1,0 +1,64 @@
+#| libraries: [positioning]
+#| line-number: true
+
+% Three algorithms run step by step: each box is a tikzpicture node whose
+% content is the pseudocode of that step.
+
+\begin{algorithm}[name=standardize]
+\caption{Standardize}
+\begin{algorithmic}
+\FUNCTION{Standardize}{$X$}
+  \FOR{$j = 1$ \TO $p$}
+    \STATE $\tilde{x}_j \gets (x_j - \bar{x}_j) / s_j$
+  \ENDFOR
+  \RETURN $\tilde{X}$ % @ref scaled
+  % @explain 標準化した計画行列を Step 2 に渡す
+\ENDFUNCTION
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[name=ista]
+\caption{ISTA for Lasso}
+\begin{algorithmic}
+\FUNCTION{ISTA}{$\tilde{X}, y, \lambda$}
+  \STATE $\beta \gets 0$
+  \REPEAT
+    \STATE $\beta \gets S_{\lambda}(\beta + \tilde{X}^{\top} (y - \tilde{X}\beta) / n)$
+  \UNTIL{$\|\Delta\beta\| < \mathrm{tol}$}
+  \RETURN $\beta$ % @ref support
+  % @explain 非ゼロ係数の位置（サポート）を Step 3 に渡す
+\ENDFUNCTION
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[name=refit]
+\caption{Refit on the support}
+\begin{algorithmic}
+\FUNCTION{Refit}{$\tilde{X}, y, \beta$}
+  \STATE $S \gets \{ j : \beta_j \neq 0 \}$
+  \STATE $\hat{\beta}_S \gets (\tilde{X}_S^{\top}\tilde{X}_S)^{-1}\tilde{X}_S^{\top} y$
+  \RETURN $\hat{\beta}$
+\ENDFUNCTION
+\end{algorithmic}
+\end{algorithm}
+
+\begin{tikzpicture}[
+    step/.style={draw=gray, rounded corners=4pt, inner sep=6pt, fill=white},
+    flow/.style={->, thick, gray}]
+  % Boxes aligned at the top, left to right.
+  \node[step, algo=standardize, anchor=north west, label={above:Step 1}] (S1) at (0,0) {};
+  \node[step, algo=ista, anchor=north west, label={above:Step 2}] (S2)
+    at ([xshift=1.6cm]S1.north east) {};
+  \node[step, algo=refit, anchor=north west, label={above:Step 3}] (S3)
+    at ([xshift=1.6cm]S2.north east) {};
+
+  % Box to box: the order of the steps.
+  \draw[flow] (S1.south) -- ++(0,-0.6) -| node[pos=0.25, below] {$\tilde{X}$}
+    ([xshift=-5mm]S2.south);
+  \draw[flow] ([xshift=5mm]S2.south) -- ++(0,-0.6) -| node[pos=0.25, below] {$\beta$}
+    (S3.south);
+
+  % Line to line: the result of a step is the input of the next one.
+  \draw[->, orange] (S1-scaled.east) to[out=0, in=180] (S2-1.west);
+  \draw[->, orange] (S2-support.east) to[out=0, in=180] (S3-1.west);
+\end{tikzpicture}

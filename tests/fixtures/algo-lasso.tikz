@@ -1,0 +1,31 @@
+#| mainfont: IPAexMincho
+#| line-number: true
+#| paper: doi:10.xxxx/xxxx
+#| impl: example/estimator@a1b2c3d
+
+\begin{algorithm}[name=ista]
+\caption{ISTA for Lasso}
+\begin{algorithmic}
+\PROCEDURE{ISTA}{$X, y, \lambda$}
+  \STATE $\beta \gets 0$                  % @src paper=eq3.1
+  \REPEAT
+    \STATE $r \gets y - X\beta$          % @src impl=est.py:120
+    \STATE $\beta \gets S_{\lambda}(\beta + X^{\top} r / n)$
+    % @src paper=eq3.4 impl=est.py:131
+    % @ref sparse-corner
+    % @explain ソフト閾値で係数を0へ縮小
+  \UNTIL{$\|\Delta\beta\| < \mathrm{tol}$} % @src impl=est.py:140
+  \RETURN $\beta$
+\ENDPROCEDURE
+\end{algorithmic}
+\end{algorithm}
+
+\begin{tikzpicture}
+  \draw[->] (-2,0) -- (3,0) node[right] {$\beta_1$};
+  \draw[->] (0,-2) -- (0,3) node[above] {$\beta_2$};
+  \draw[draw=violet, fill=violet!15]
+    (1.5,0) -- (0,1.5) -- (-1.5,0) -- (0,-1.5) -- cycle;
+  \fill[orange] (1.5,0) circle (2pt);
+  \node[ref=sparse-corner, anchor=north west] at (1.6,-0.1) {頂点で接する};
+  \node[algo=ista, anchor=north west] at (4.5,2.5) {};
+\end{tikzpicture}

@@ -1,0 +1,17 @@
+{
+  "name": "tikzc",
+  "owner": {
+    "name": "Ryo Nakagami"
+  },
+  "metadata": {
+    "description": "Agent skills for drawing with the tikzc Rust engine"
+  },
+  "plugins": [
+    {
+      "name": "tikzc",
+      "description": "Draw block diagrams and pseudocode as .tikz files, compiled and visually checked with the tikzc Rust engine",
+      "source": "./plugins/tikzc",
+      "category": "productivity"
+    }
+  ]
+}

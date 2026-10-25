@@ -47,7 +47,8 @@ target/release/tikzc --version
 ```
 
 The script synchronizes `VERSION`, `Cargo.toml`, the local `tikzc`
-entry in `Cargo.lock`, and the root/extension npm manifests and lockfiles.
+entry in `Cargo.lock`, the root/extension npm manifests and lockfiles, and the
+Claude Code / Codex plugin manifests.
 It requires Bash and Node.js, with no TeX, Cargo invocation or network access.
 `--check` checks source metadata; it does not check or rebuild existing binaries.
 The CLI embeds Cargo's package version at build time, so rebuild after a bump.

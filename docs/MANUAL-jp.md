@@ -90,6 +90,15 @@ VSCode 拡張機能は [5.1 節](#51-ビルドとインストール)を参照し
 `\begin{tikzpicture}…\end{tikzpicture}` 全体を書いても，描画コマンドだけを書いても
 構いません．描画コマンドだけの場合は1つの図として扱います．
 
+### 3.4 擬似コード
+
+pseudocode.js 構文の `algorithm` 環境を擬似コードとして描画します．
+`tikzpicture` のないファイル（`algorithm` 環境だけの `ista.tikz` など）では擬似コード単体，
+図の中では `\node[algo=<名前またはファイル>] {};`，図の横には
+`#| layout: algo-left` で配置します．`% @src`，`% @ref`，`% @explain` の
+コメントで出典・図の `ref=` ノードとの対応・解説を書き，`tikzc check` が
+検査します．詳細は [Pseudocode](PSEUDOCODE.md) を参照してください．
+
 ## 4. CLI リファレンス
 
 ### 4.1 書式

@@ -91,6 +91,15 @@ flags; use headers.
 A file may contain a complete `\begin{tikzpicture}…\end{tikzpicture}` or just
 the drawing commands; a bare fragment is treated as one picture.
 
+### 3.4 Pseudocode
+
+`algorithm` environments in the pseudocode.js syntax render as pseudocode:
+alone (a file without `tikzpicture`, such as an `ista.tikz` holding only `\begin{algorithm}`), inside a figure
+(`\node[algo=<name or file>] {};`) or beside it (`#| layout: algo-left`).
+`% @src`, `% @ref` and `% @explain` comments record sources, link lines to
+`ref=` nodes and explain them; `tikzc check` lints them. See
+[Pseudocode](PSEUDOCODE.md).
+
 ## 4. CLI reference
 
 ### 4.1 Synopsis

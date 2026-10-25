@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-25
+
+### Added
+
+- Pseudocode: `algorithm` / `algorithmic` environments in the pseudocode.js
+  syntax (`\PROCEDURE`, `\IF`/`\ELSIF`/`\ELSE`, `\FOR`/`\FORALL`,
+  `\WHILE`, `\REPEAT`/`\UNTIL`, `\LOOP`, `\STATE`, `\RETURN`, `\CALL`,
+  `\COMMENT`, ...), rendered in the look of pseudocode.js with MathJax
+  (Computer Modern, from the already bundled New Computer Modern Math; no
+  font is added). A `.tikz` file with only `algorithm` environments
+  renders the pseudocode alone.
+- `\node[algo=<name or file>] {};` embeds pseudocode in a figure; without such
+  a node the first algorithm is placed beside the figure with the headers
+  `layout`, `canvas`, `gap`, `align`, `algo-at`, `algo-anchor`, `algo-shift`
+  and `algo-scale`.
+- Notes as LaTeX comments: `% @src paper=... impl=path:line`, `% @ref <id>`
+  (`\node[ref=<id>]` shows the line number) and `% @explain <text>` (listed
+  under the pseudocode by line number). Line numbering is turned on
+  automatically for annotated lines.
+- Pseudocode lines of a named `\node[algo=...] (A)` are nodes `(A-<line>)` and
+  `(A-<@ref ID>)`, so arrows from a line into the figure use any TikZ path
+  (`-|`, `to[bend left]`, `rounded corners`, ...). `algo-focus={5,<id>}`
+  and `algo-focus color=` highlight lines. With `#| canvas:`, such a figure
+  is scaled as a whole to fit the canvas.
+- Headers `line-number`, `line-number-punc`, `no-end`, `scope-lines`,
+  `title-prefix`, `indent-size`, `comment-delimiter`, `explain`, `paper` and
+  `impl` (`owner/repo@rev`).
+- `tikzc check` lints pseudocode (`ref-dangling`, `ref-unused`,
+  `src-unsourced`, `explain-missing`, `algo-overlap`, `algo-out-of-canvas`,
+  `layout-conflict`, `algo-unplaced`) with `file:line:column` and a suggested
+  fix, and exits with 3 on lint errors. Malformed pseudocode fails with
+  `[algo-unbalanced]`, `[algo-unknown-cmd]`, `[src-bad-format]`,
+  `[impl-no-rev]` or `[algo-name-missing]`.
+- Preview server: an optional `path` request field for `algo=<file>`, and
+  `lints` in the response. The VS Code extension sends the document path.
+- Agent plugin `tikzc` for Claude Code and Codex (`plugins/tikzc/`), with
+  marketplaces in `.claude-plugin/` and `.agents/plugins/`. Its skill
+  `tikz-drawing` (formerly the project skill `tikz-block-diagram`) draws block
+  diagrams and pseudocode and covers the 1.2.0 – 1.3.0 syntax.
+  `devtools/bump-version.sh` keeps both plugin manifests at `VERSION`.
+
 ## [1.2.1] - 2026-10-24
 
 ### Added
@@ -473,7 +514,8 @@ Initial release.
 - Docs: manual (EN / JP), branch strategy, commit rules, testing guide, and
   versioning policy.
 
-[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/RyoNakagami/tikzc/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/RyoNakagami/tikzc/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/RyoNakagami/tikzc/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/RyoNakagami/tikzc/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/RyoNakagami/tikzc/compare/v1.1.0...v1.1.1

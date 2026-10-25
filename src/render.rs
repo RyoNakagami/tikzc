@@ -69,6 +69,8 @@ struct Engine<'a> {
     labels: Vec<String>,
     /// Rendering generated code (a marking), which has no editable source.
     synthetic: bool,
+    /// Pseudocode of this source and its figure references.
+    algo: crate::algo::Context,
 }
 
 pub fn compile(source: &str) -> Result<Diagram, Diagnostic> {
@@ -77,7 +79,20 @@ pub fn compile(source: &str) -> Result<Diagram, Diagnostic> {
 
 /// Reuse font and label caches across interactive renders. SVG output is unchanged.
 pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram, Diagnostic> {
-    let expanded = crate::expand::expand(source)?;
+    compile_at(source, text, None)
+}
+
+/// Like [`compile_with_text`]; `algo=<path>` files are read relative to `base`
+/// (the input file's directory), or to the working directory without one.
+pub fn compile_at(
+    source: &str,
+    text: &mut TextEngine,
+    base: Option<&std::path::Path>,
+) -> Result<Diagram, Diagnostic> {
+    // Pseudocode environments are blanked out; offsets stay those of `source`.
+    let (blanked, algorithms) = crate::algo::extract(source)?;
+    let mut algo_settings = crate::algo::Settings::default();
+    let expanded = crate::expand::expand(&blanked)?;
     // Math evaluated while rendering starts from the default seed as well.
     crate::expr::seed(None).expect("default seed");
     text.timings = Default::default();
@@ -108,6 +123,7 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
         late: BTreeMap::new(),
         labels: Vec::new(),
         synthetic: false,
+        algo: Default::default(),
     };
     let mut offset = 0;
     for line in source.split_inclusive('\n') {
@@ -157,18 +173,26 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
                     }
                 }
             }
-            _ => {
-                return Err(Diagnostic::at(
-                    source,
-                    offset,
-                    format!("Unsupported header '{key}'"),
-                ));
-            }
+            key => match algo_settings.header(key, value, offset) {
+                Some(result) => result.map_err(|m| Diagnostic::at(source, offset, m))?,
+                None => {
+                    return Err(Diagnostic::at(
+                        source,
+                        offset,
+                        format!("Unsupported header '{key}'"),
+                    ));
+                }
+            },
         }
         offset += line.len();
     }
     if e.scale <= 0. || e.scale > 100. {
         return Err(Diagnostic::at(source, 0, "scale must be in (0, 100]"));
+    }
+    e.algo = crate::algo::Context::new(source, &blanked, algo_settings, algorithms, base)?;
+    // A file of only `algorithm` environments is drawn as pseudocode alone.
+    if !e.algo.algorithms.is_empty() && crate::syntax::clean(&blanked).trim().is_empty() {
+        return pseudocode_only(source, e.algo, e.text, e.scale);
     }
     let mut cur = Cursor::new(&expanded.text);
     let mut stack: Vec<(String, State)> = Vec::new();
@@ -454,8 +478,59 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
         });
     }
     let border = 2. * 72. / 72.27;
-    let w = (e.bbox.max.x - e.bbox.min.x + 2. * border).max(1.);
-    let h = (e.bbox.max.y - e.bbox.min.y + 2. * border).max(1.);
+    let mut w = (e.bbox.max.x - e.bbox.min.x + 2. * border).max(1.);
+    let mut h = (e.bbox.max.y - e.bbox.min.y + 2. * border).max(1.);
+    let mut view = (e.bbox.min.x - border, -e.bbox.max.y - border);
+    // Without an `algo=` node, the first algorithm goes beside the figure.
+    let mut placement = None;
+    // Output size in pt when a canvas or placement fixes it.
+    let mut canvas = None;
+    let mut drawn: Vec<usize> = Vec::new();
+    let mut pseudocode = String::new();
+    if e.algo.placed.is_empty() && !e.algo.algorithms.is_empty() {
+        let algorithm = &e.algo.algorithms[0];
+        let fail = |m: String| Diagnostic::at(source, algorithm.offset, m);
+        let label = e
+            .text
+            .layout_markup(&e.algo.document(algorithm).map_err(fail)?)
+            .map_err(fail)?;
+        let p = crate::algo::render::place(&e.algo.settings, (label.width, label.height), (w, h))
+            .map_err(|m| {
+            let at = ["canvas", "algo-scale", "gap"]
+                .iter()
+                .find_map(|k| e.algo.settings.headers.get(k).copied())
+                .unwrap_or(algorithm.offset);
+            Diagnostic::at(source, at, m)
+        })?;
+        // Keep figure coordinates (the editor maps them through the viewBox):
+        // scale the canvas and the pseudocode by the inverse figure scale.
+        let s = p.figure_scale;
+        let to_figure =
+            |(x, y): (f64, f64)| (view.0 + (x - p.figure.0) / s, view.1 + (y - p.figure.1) / s);
+        let (ax, ay) = to_figure(p.algo);
+        let id = e.label_id;
+        e.label_id += 1;
+        let svg = e.glyphs.embed(&label.svg, id).map_err(fail)?;
+        pseudocode = format!(
+            "<g transform=\"translate({ax:.5},{ay:.5}) scale({:.6})\">{svg}</g>",
+            p.algo_scale / s
+        );
+        view = to_figure((0., 0.));
+        w = p.canvas.0 / s;
+        h = p.canvas.1 / s;
+        canvas = Some(p.canvas);
+        placement = Some(p);
+        drawn.push(0);
+    } else if let Some((cw, ch)) = e.algo.settings.canvas.filter(|_| !e.algo.placed.is_empty()) {
+        // With `algo=` nodes (and their arrows) the whole figure is scaled to
+        // fit the canvas and centred, again in figure coordinates.
+        let (cw, ch) = (cw * crate::algo::render::PX, ch * crate::algo::render::PX);
+        let s = (cw / w).min(ch / h);
+        view = (view.0 - (cw / s - w) / 2., view.1 - (ch / s - h) / 2.);
+        w = cw / s;
+        h = ch / s;
+        canvas = Some((cw, ch));
+    }
     let rank = |name: &str| e.layers.iter().position(|l| l == name);
     let mut elements: Vec<_> = e
         .elements
@@ -478,7 +553,7 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
         e.glyphs
             .svg()
             .map_err(|m| Diagnostic::at(source, source.len(), m))?,
-        elements.into_iter().map(|(_, s)| s).collect::<String>()
+        elements.into_iter().map(|(_, s)| s).collect::<String>() + &pseudocode
     );
     let width = w * e.scale;
     let height = h * e.scale;
@@ -489,31 +564,93 @@ pub fn compile_with_text(source: &str, text: &mut TextEngine) -> Result<Diagram,
             "diagram dimensions exceed native limits",
         ));
     }
-    let svg = format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"{width:.5}pt\" height=\"{height:.5}pt\" viewBox=\"{:.5} {:.5} {w:.5} {h:.5}\" fill-opacity=\"1\" stroke-opacity=\"1\" fill-rule=\"nonzero\" stroke-linecap=\"butt\">{body}</svg>\n",
-        e.bbox.min.x - border,
-        -e.bbox.max.y - border
-    );
+    let width = canvas.map_or(width, |c| c.0 * e.scale);
+    let height = canvas.map_or(height, |c| c.1 * e.scale);
+    let svg = svg_root(width, height, view, (w, h), &body);
     let anchors: Vec<_> = e.nodes.iter().flat_map(|(name, node)| {
         ["center", "north", "south", "east", "west", "north east", "north west", "south east", "south west"]
             .into_iter().filter_map(move |anchor| node.anchor(anchor).ok().map(|point|
                 serde_json::json!({"reference": format!("{name}.{anchor}"), "x": point.x, "y": point.y})))
     }).collect();
+    let lints = {
+        let mut algorithms: Vec<_> = drawn.iter().map(|i| &e.algo.algorithms[*i]).collect();
+        for (value, _) in &e.algo.placed {
+            if let Some(a) = e.algo.resolve(value)
+                && !algorithms.iter().any(|d| std::ptr::eq(*d, a))
+            {
+                algorithms.push(a);
+            }
+        }
+        crate::algo::lint::check(&e.algo, &algorithms, true, placement.as_ref())
+    };
     Ok(Diagram {
         svg,
         width,
         height,
         nodes: e.nodes,
         labels: e.labels,
+        lints,
         text_timings: e.text.timings,
         editing: serde_json::json!({
-            "viewBox": [e.bbox.min.x - border, -e.bbox.max.y - border, w, h],
+            "viewBox": [view.0, view.1, w, h],
             "nodes": e.editing,
             "objects": e.objects,
             "anchors": anchors,
             "layers": e.layers,
             "insertionOffset": if pictures == 0 { Some(source.len()) }
                 else if pictures == 1 { insertion } else { None },
+        }),
+    })
+}
+
+fn svg_root(width: f64, height: f64, view: (f64, f64), (w, h): (f64, f64), body: &str) -> String {
+    format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"{width:.5}pt\" height=\"{height:.5}pt\" viewBox=\"{:.5} {:.5} {w:.5} {h:.5}\" fill-opacity=\"1\" stroke-opacity=\"1\" fill-rule=\"nonzero\" stroke-linecap=\"butt\">{body}</svg>\n",
+        view.0, view.1
+    )
+}
+
+/// The first algorithm of a source without a figure, with the figure border.
+fn pseudocode_only(
+    source: &str,
+    algo: crate::algo::Context,
+    text: &mut TextEngine,
+    scale: f64,
+) -> Result<Diagram, Diagnostic> {
+    let algorithm = &algo.algorithms[0];
+    let fail = |m: String| Diagnostic::at(source, algorithm.offset, m);
+    let label = text
+        .layout_markup(&algo.document(algorithm).map_err(fail)?)
+        .map_err(fail)?;
+    let mut glyphs = label_svg::GlyphDefinitions::default();
+    let svg = glyphs.embed(&label.svg, 0).map_err(fail)?;
+    let k = algo.settings.scale;
+    let border = 2. * 72. / 72.27;
+    let (w, h) = (
+        label.width * k + 2. * border,
+        label.height * k + 2. * border,
+    );
+    let body = format!(
+        "<defs>{}</defs><g transform=\"translate({border:.5},{border:.5}) scale({k:.6})\">{svg}</g>",
+        glyphs.svg().map_err(fail)?
+    );
+    let (width, height) = (w * scale, h * scale);
+    let lints = crate::algo::lint::check(&algo, &[algorithm], false, None);
+    Ok(Diagram {
+        svg: svg_root(width, height, (0., 0.), (w, h), &body),
+        width,
+        height,
+        nodes: BTreeMap::new(),
+        labels: Vec::new(),
+        lints,
+        text_timings: text.timings,
+        editing: serde_json::json!({
+            "viewBox": [0., 0., w, h],
+            "nodes": [],
+            "objects": [],
+            "anchors": [],
+            "layers": ["background", "main"],
+            "insertionOffset": null,
         }),
     })
 }
@@ -526,6 +663,10 @@ struct Pending {
     label: Arc<Label>,
     edit_source: Option<(usize, usize, usize)>,
     move_matrix: [f64; 4],
+    /// Pseudocode line nodes (`algo=`): name suffixes, the top/bottom of the
+    /// line measured down from the top of the label, and the left/right of
+    /// the ruled body measured from the left of the label.
+    lines: Vec<(Vec<String>, [f64; 4])>,
 }
 
 impl Engine<'_> {

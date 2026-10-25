@@ -7,6 +7,8 @@ kind of change. tikzc consists of two parts.
 - **VSCode extension** (`vscode-extension/`): preview with canvas editing, and export, both
   running the installed `tikzc`.
 
+The agent plugin (`plugins/tikzc/`) packages a drawing skill for Claude Code and Codex.
+
 The root npm package holds development tooling only; it ships nothing.
 
 ## Overview
@@ -21,8 +23,11 @@ tikzc/
 ├── devtools/            version bump and comparison tools
 ├── docs/                documentation
 ├── notebook/            working diagrams and a runnable example
+├── plugins/tikzc/       Claude Code / Codex plugin (tikz-drawing skill)
 ├── .github/             CI, release and label configuration
-└── .claude/             Claude Code skill
+├── .claude-plugin/      Claude Code marketplace
+├── .agents/plugins/     Codex marketplace
+└── .claude/             project skill link
 ```
 
 ## Top-level directories
@@ -38,7 +43,10 @@ tikzc/
 | `docs/` | Usage, compatibility, testing and project policy documents |
 | `notebook/` | Working diagrams. Includes the runnable example `native-subset.tikz`; some files are read by Rust tests |
 | `.github/` | GitHub Actions workflows, label definitions and repository metadata |
-| `.claude/` | Claude Code skill (`skills/tikz-block-diagram/`). Everything else in it is untracked |
+| `plugins/tikzc/` | Agent plugin: `.claude-plugin/plugin.json` (Claude Code), `.codex-plugin/plugin.json` (Codex) and the skill `skills/tikz-drawing/SKILL.md`. Manifest versions follow `VERSION` |
+| `.claude-plugin/` | `marketplace.json`: Claude Code marketplace listing `plugins/tikzc` |
+| `.agents/plugins/` | `marketplace.json`: Codex marketplace listing `plugins/tikzc`. Everything else in `.agents/` is untracked |
+| `.claude/` | `skills/tikz-drawing`, a symlink to the plugin's skill so a checkout loads it as a project skill. Everything else in it is untracked |
 
 ## `src/`: Rust implementation
 

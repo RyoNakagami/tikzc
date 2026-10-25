@@ -1,0 +1,36 @@
+#| canvas: 1600x900
+\begin{algorithm}[name=ista]
+\caption{ISTA for Lasso}
+\begin{algorithmic}
+\PROCEDURE{ISTA}{$X, y, \lambda$}
+  \STATE $\beta \gets 0$
+  % @ref start
+  % @explain 係数を0から始める
+  \REPEAT
+    \STATE $r \gets y - X\beta$
+    \STATE $\beta \gets S_{\lambda}(\beta + X^{\top} r / n)$
+    % @ref sparse-corner
+    % @explain ソフト閾値で係数を0へ縮小
+  \UNTIL{$\|\Delta\beta\| < \mathrm{tol}$}
+  \RETURN $\beta$
+\ENDPROCEDURE
+\end{algorithmic}
+\end{algorithm}
+
+\begin{tikzpicture}
+  \draw[->] (-2,0) -- (3,0) node[right] {$\beta_1$};
+  \draw[->] (0,-2) -- (0,3) node[above] {$\beta_2$};
+  \draw[draw=violet, fill=violet!15]
+    (1.5,0) -- (0,1.5) -- (-1.5,0) -- (0,-1.5) -- cycle;
+  \fill[orange] (1.5,0) circle (2pt);
+  \coordinate (corner) at (1.5,0);
+  \coordinate (origin) at (0,0);
+
+  % Pseudocode lines are nodes: (A-<line number>) or (A-<@ref ID>).
+  \node[algo=ista, algo-focus={sparse-corner}, anchor=north west] (A) at (4.5,2.5) [font={}, xshift=-14.71955bp, yshift=25.93085bp]{};
+
+  % Bent arrows, as for any TikZ path.
+  \draw[->, thick, orange, rounded corners]
+    (A-sparse-corner.west) -| node[pos=0.25, below] {頂点で接する} (corner);
+  \draw[->, blue] (A-start.west) to[bend right=40] node[above, sloped] {初期値} (origin);
+\end{tikzpicture}

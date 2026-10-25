@@ -30,6 +30,7 @@ The update/check targets are shared in `devtools/bump-version.mjs`:
 | `Cargo.lock` | Local `tikzc` package version |
 | `package.json`, `vscode-extension/package.json` | Root `version` |
 | `package-lock.json`, `vscode-extension/package-lock.json` | Root `version` and `packages[""].version` |
+| `plugins/tikzc/.claude-plugin/plugin.json`, `plugins/tikzc/.codex-plugin/plugin.json` | Root `version` |
 
 The script accepts SemVer, including prerelease/build metadata and an optional
 leading `v`. All target version fields are read and validated before updates.
