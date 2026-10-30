@@ -144,9 +144,8 @@ impl Engine<'_> {
         self.editing.truncate(editing);
         let column_sep = dim(&options, "column sep", 0.)?;
         let row_sep = dim(&options, "row sep", 0.)?;
-        if column_sep < 0. || row_sep < 0. {
-            return Err("Unsupported negative matrix separation".into());
-        }
+        // Negative separations overlap neighbours, e.g. `row sep=-\pgflinewidth`
+        // so that adjacent cell borders coincide.
         let mut xs = vec![0.; cols];
         let mut ys = vec![0.; rows.len()];
         let mut width = 0.;

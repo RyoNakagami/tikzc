@@ -1,0 +1,99 @@
+% ER diagram: table-style entities + crow's foot cardinalities, written for tikzc
+% - each entity is a \matrix of nodes; cells are named <entity>-<row>-1
+% - FK lines are plain orthogonal paths between column cells
+% - each end symbol is drawn on its own short stub path that starts at the cell border
+%   and points away from the table:  \path[cf...] (cell.east) -- ++(1,0);
+%   (one marker style per path keeps it simple and avoids stacking decorations)
+\begin{tikzpicture}[
+  ent/.style={matrix of nodes, draw, thick, inner sep=0pt, row sep=-0.4pt,
+    nodes={rectangle, draw, minimum width=4.2cm, minimum height=0.6cm, text width=3.8cm, align=left, font=\small\ttfamily, inner sep=3pt}},
+  hdr/.style={fill=blue!15, font=\bfseries, align=center},
+  rel/.style={thick},
+  % exactly one: ||
+  cfoneone/.style={postaction={decorate}, decoration={markings,
+    mark=at position 0 with {
+      \draw[thick] (5pt,-5pt) -- (5pt,5pt);
+      \draw[thick] (9pt,-5pt) -- (9pt,5pt);
+    }}},
+  % zero or one: | o
+  cf0one/.style={postaction={decorate}, decoration={markings,
+    mark=at position 0 with {
+      \draw[thick] (5pt,-5pt) -- (5pt,5pt);
+      \fill[white] (11pt,0pt) circle (3pt);
+      \draw[thick] (11pt,0pt) circle (3pt);
+    }}},
+  % one or many: crow's foot + |
+  cf1many/.style={postaction={decorate}, decoration={markings,
+    mark=at position 0 with {
+      \draw[thick] (0pt,5pt) -- (9pt,0pt);
+      \draw[thick] (0pt,0pt) -- (9pt,0pt);
+      \draw[thick] (0pt,-5pt) -- (9pt,0pt);
+      \draw[thick] (12pt,-5pt) -- (12pt,5pt);
+    }}},
+  % zero or many: crow's foot + o
+  cf0many/.style={postaction={decorate}, decoration={markings,
+    mark=at position 0 with {
+      \draw[thick] (0pt,5pt) -- (9pt,0pt);
+      \draw[thick] (0pt,0pt) -- (9pt,0pt);
+      \draw[thick] (0pt,-5pt) -- (9pt,0pt);
+      \fill[white] (13pt,0pt) circle (3pt);
+      \draw[thick] (13pt,0pt) circle (3pt);
+    }}}
+]
+  % ---------------- entities ----------------
+  \matrix[ent, anchor=north] (users) at (0,0) {
+    |[hdr]| users \\
+    \underline{id} : bigint PK \\
+    name : varchar \\
+    email : varchar \\
+    created\_at : timestamp \\
+  };
+
+  \matrix[ent, anchor=north] (orders) at (7,0) {
+    |[hdr]| orders \\
+    \underline{id} : bigint PK \\
+    user\_id : bigint FK \\
+    ordered\_at : timestamp \\
+  };
+
+  \matrix[ent, anchor=north] (items) at (7,-4.2) {
+    |[hdr]| order\_items \\
+    \underline{id} : bigint PK \\
+    order\_id : bigint FK \\
+    product\_id : bigint FK \\
+    quantity : int \\
+  };
+
+  \matrix[ent, anchor=north] (products) at (0,-4.2) {
+    |[hdr]| products \\
+    \underline{id} : bigint PK \\
+    name : varchar \\
+    price : numeric \\
+  };
+
+  % ---------------- relationships ----------------
+  % users.id (exactly one) --- (zero or many) orders.user_id
+  \draw[rel] (users-2-1.east) -- ++(1.2,0) |- (orders-3-1.west);
+  \path[cfoneone] (users-2-1.east)  -- ++(1,0);
+  \path[cf0many]  (orders-3-1.west) -- ++(-1,0);
+
+  % orders.id (exactly one) --- (one or many) order_items.order_id, routed on the right
+  \draw[rel] (orders-2-1.east) -- ++(1.0,0) |- (items-3-1.east);
+  \path[cfoneone] (orders-2-1.east) -- ++(1,0);
+  \path[cf1many]  (items-3-1.east)  -- ++(1,0);
+
+  % products.id (exactly one) --- (zero or many) order_items.product_id
+  \draw[rel] (products-2-1.east) -- ++(1.2,0) |- (items-4-1.west);
+  \path[cfoneone] (products-2-1.east) -- ++(1,0);
+  \path[cf0many]  (items-4-1.west)    -- ++(-1,0);
+
+  % ---------------- legend ----------------
+  \begin{scope}[shift={(-2.1,-7.7)}, font=\small]
+    \foreach \x/\y/\s/\t in {0/0/cfoneone/exactly one, 5.6/0/cf0one/zero or one,
+                             0/-0.8/cf1many/one or many, 5.6/-0.8/cf0many/zero or many} {
+      \draw[thick] (\x,\y-0.25) -- (\x,\y+0.25);
+      \draw[rel, \s] (\x,\y) -- ++(1.1,0);
+      \node[anchor=west] at (\x+1.2,\y) {\t};
+    }
+  \end{scope}
+\end{tikzpicture}

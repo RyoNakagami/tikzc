@@ -106,6 +106,17 @@ fn matrix_named_cells_spacing_styles_and_patterns() {
     near(d.nodes["m-1-2"].center.x - d.nodes["m-1-1"].center.x, 15.);
     assert!(d.nodes["m-1-1"].center.y > d.nodes["m-2-1"].center.y);
     assert!(d.svg.contains("<pattern "));
+    // Negative separation overlaps adjacent cells, as in table-style ER entities.
+    let d=compile(r"\matrix(m)[matrix of nodes,nodes={draw,minimum size=10bp,inner sep=0,outer sep=0},column sep=-2bp,row sep=-1bp]{A&A\\A&A\\};").unwrap();
+    near(d.nodes["m-1-2"].center.x - d.nodes["m-1-1"].center.x, 8.);
+    near(d.nodes["m-1-1"].center.y - d.nodes["m-2-1"].center.y, 9.);
+    let er = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/er-crowsfoot.tikz"
+    ))
+    .unwrap();
+    let d = compile(&er).unwrap();
+    assert!(d.nodes.contains_key("items-4-1"));
     for bad in [
         r"\matrix[matrix of nodes]{A&B\\C\\};",
         r"\fill[pattern=unknown](0,0)rectangle(1,1);",
